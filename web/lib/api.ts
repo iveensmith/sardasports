@@ -159,3 +159,52 @@ export function getBoard(date?: string, limit = 50): Promise<BoardResponse> {
     revalidate: 300,
   });
 }
+
+/** The active version and recent history for one model. */
+export interface ModelPerformance {
+  model_name: string;
+  active_version: {
+    version: string;
+    trained_at: string;
+    metrics: Record<string, unknown>;
+  } | null;
+  recent_versions: Array<{
+    version: string;
+    trained_at: string;
+    is_active: boolean;
+    metrics: Record<string, unknown>;
+  }>;
+}
+
+export interface Monitoring {
+  calibration: {
+    num_predictions: number;
+    brier_score: number;
+    overall_accuracy: number;
+    buckets: Array<{
+      bucket_low: number;
+      bucket_high: number;
+      count: number;
+      mean_predicted_probability: number;
+      actual_accuracy: number;
+    }>;
+  } | null;
+  drift: { drift_detected: boolean; reasons: string[] } | null;
+  feature_drift: { shifted_features: string[]; reasons: string[] } | null;
+}
+
+export function getModelPerformance(
+  modelName: string,
+): Promise<ModelPerformance> {
+  return engineFetch<ModelPerformance>(
+    `/model/performance?model_name=${encodeURIComponent(modelName)}`,
+    { revalidate: 600 },
+  );
+}
+
+export function getMonitoring(modelName: string): Promise<Monitoring> {
+  return engineFetch<Monitoring>(
+    `/model/monitoring?model_name=${encodeURIComponent(modelName)}`,
+    { revalidate: 600 },
+  );
+}

@@ -6,6 +6,7 @@ keeping the `ml/` package itself free of any SQLAlchemy dependency.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
@@ -90,22 +91,45 @@ def _load_sklearn_pickle_cached(model_path: str, scaler_path: str):
 # The TTL is deliberately short so a retrain is picked up within seconds
 # rather than requiring a restart.
 _ACTIVE_MODEL_TTL_SECONDS = 30.0
-_active_model_cache: dict[str, tuple[float, object]] = {}
 
 
-def _active_version(session: Session, model_name: str):
+@dataclass(frozen=True)
+class ActiveVersion:
+    """A detached-safe snapshot of the active `ModelVersion` row.
+
+    Caching the ORM instance itself does not work: once the session that
+    loaded it closes, every attribute access raises `DetachedInstanceError`.
+    That is exactly what happened to `/model/roi-backtest`, which runs long
+    enough to outlive the session the cache was populated from — it failed
+    after twenty minutes of real work. Plain fields cannot detach.
+    """
+
+    id: int
+    version: str
+    artifact_path: str
+
+
+_active_model_cache: dict[str, tuple[float, ActiveVersion | None]] = {}
+
+
+def _active_version(session: Session, model_name: str) -> ActiveVersion | None:
     now = monotonic()
     hit = _active_model_cache.get(model_name)
     if hit is not None and now - hit[0] < _ACTIVE_MODEL_TTL_SECONDS:
         return hit[1]
-    version = (
-        session.query(ModelVersion)
+    row = (
+        session.query(ModelVersion.id, ModelVersion.version, ModelVersion.artifact_path)
         .filter(ModelVersion.model_name == model_name, ModelVersion.is_active.is_(True))
         .order_by(ModelVersion.trained_at.desc())
         .first()
     )
-    _active_model_cache[model_name] = (now, version)
-    return version
+    snapshot = (
+        None
+        if row is None
+        else ActiveVersion(id=row.id, version=row.version, artifact_path=row.artifact_path)
+    )
+    _active_model_cache[model_name] = (now, snapshot)
+    return snapshot
 
 
 def clear_active_model_cache() -> None:

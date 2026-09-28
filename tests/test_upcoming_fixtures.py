@@ -7,6 +7,8 @@ is why they are pinned rather than left to review.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from app.utils.team_names import fold_team_key
 from ml.training.common import KNOWN_COMPETITIONS
 from scripts.fetch_upcoming_fixtures import (
@@ -129,3 +131,94 @@ def test_demojibake_leaves_clean_names_alone():
     """Idempotent: a correct name must not be mangled by a second pass."""
     for name in ("Türkiye", "Arsenal", "Bayern München", "Curaçao"):
         assert demojibake(name) is None
+
+
+# --- cached model lookup -------------------------------------------------
+
+
+def test_cached_active_version_survives_its_session_closing(db_session):
+    """The cache must not hold a live ORM instance.
+
+    Caching the `ModelVersion` entity meant that once the loading session
+    closed, reading any attribute raised `DetachedInstanceError`. Short
+    requests never noticed; `/model/roi-backtest` runs for twenty minutes
+    and died on it after doing all the work. A plain snapshot cannot
+    detach, and this asserts that directly.
+    """
+    from app.database.session import SessionLocal
+    from app.models import ModelVersion
+    from app.services.prediction_service import (
+        ActiveVersion,
+        _active_version,
+        clear_active_model_cache,
+    )
+
+    clear_active_model_cache()
+    db_session.add(
+        ModelVersion(
+            model_name="test_model",
+            version="v1",
+            artifact_path="ml/models/test_model_v1.json",
+            metrics={"accuracy": 0.5},
+            is_active=True,
+            trained_at=datetime(2026, 9, 28, 12, 0, 0),
+        )
+    )
+    db_session.commit()
+
+    # Populate the cache from a session, then close that session.
+    scratch = SessionLocal()
+    try:
+        cached = _active_version(scratch, "test_model")
+    finally:
+        scratch.close()
+
+    assert isinstance(cached, ActiveVersion)
+    # The operation that used to raise: attribute access after detachment.
+    assert cached.version == "v1"
+    assert cached.artifact_path.endswith("test_model_v1.json")
+    assert isinstance(cached.id, int)
+
+    clear_active_model_cache()
+
+
+def test_clearing_the_cache_forces_a_fresh_lookup(db_session):
+    """A retrain must be visible without waiting out the TTL."""
+    from app.models import ModelVersion
+    from app.services.prediction_service import _active_version, clear_active_model_cache
+
+    clear_active_model_cache()
+    db_session.add(
+        ModelVersion(
+            model_name="swapped_model",
+            version="v1",
+            artifact_path="a.json",
+            metrics={},
+            is_active=True,
+            trained_at=datetime(2026, 9, 28, 12, 0, 0),
+        )
+    )
+    db_session.commit()
+    assert _active_version(db_session, "swapped_model").version == "v1"
+
+    db_session.query(ModelVersion).filter(ModelVersion.model_name == "swapped_model").update(
+        {"is_active": False}
+    )
+    db_session.add(
+        ModelVersion(
+            model_name="swapped_model",
+            version="v2",
+            artifact_path="b.json",
+            metrics={},
+            is_active=True,
+            trained_at=datetime(2026, 9, 28, 13, 0, 0),
+        )
+    )
+    db_session.commit()
+
+    # Still cached...
+    assert _active_version(db_session, "swapped_model").version == "v1"
+    clear_active_model_cache()
+    # ...until cleared.
+    assert _active_version(db_session, "swapped_model").version == "v2"
+    clear_active_model_cache()
