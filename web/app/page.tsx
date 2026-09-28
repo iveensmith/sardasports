@@ -81,9 +81,10 @@ export default async function Home() {
     "The engine only covers competitions it has trained models for, so quiet days show fewer fixtures.";
 
   try {
-    const board = await getBoard();
-    // The most decisive upcoming call is the one worth leading with —
-    // it demonstrates the confidence scale doing real work.
+    const board = await getBoard({ view: "consensus" });
+    // Lead with a fixture all three estimators agree on, most confident
+    // first. A disagreement would be a poor advertisement for the engine
+    // precisely because the headline number hides the split.
     hero =
       board.fixtures
         .map((f) => f.prediction)

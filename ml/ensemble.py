@@ -41,6 +41,14 @@ class EnsembleOutput:
     prob_btts_yes: float
     prob_btts_no: float
     model_weights_used: dict = field(default_factory=dict)
+    # Each estimator's own (home, draw, away) before blending, keyed by name.
+    #
+    # The blend is the answer, but it hides the interesting part: these three
+    # are genuinely independent estimators, and where they *disagree* is real
+    # signal rather than noise to be averaged away. Surfacing them lets a
+    # caller say "all three like the home side" or "Elo and the model
+    # disagree here" without re-deriving anything.
+    estimator_probs: dict = field(default_factory=dict)
     explanation: list[dict] | None = None  # set by ml.prediction.predict, SHAP permitting
     # Set by ml.prediction.predict after combine() returns — goals/half-time
     # goals/corners/cards each offer several lines, so each is a list of
@@ -107,6 +115,13 @@ def combine(inputs: EnsembleInput, weights: dict[str, float] | None = None) -> E
     home, draw, away = _weighted_average(probs_list, weight_list)
     agreement = _agreement_score(probs_list)
 
+    estimator_probs = {
+        "elo": [round(p * 100, 1) for p in inputs.elo_probs],
+        "poisson": [round(p * 100, 1) for p in inputs.poisson_probs],
+    }
+    if inputs.xgboost_probs is not None:
+        estimator_probs["xgboost"] = [round(p * 100, 1) for p in inputs.xgboost_probs]
+
     # Confidence blends model agreement (60%) and how complete the feature
     # vector was (40%) — a prediction where models disagree heavily or where
     # key features (form, Elo, rest days) are missing should score lower.
@@ -125,4 +140,5 @@ def combine(inputs: EnsembleInput, weights: dict[str, float] | None = None) -> E
         prob_btts_yes=round(inputs.prob_btts_yes * 100, 1),
         prob_btts_no=round((1 - inputs.prob_btts_yes) * 100, 1),
         model_weights_used=used_weights,
+        estimator_probs=estimator_probs,
     )

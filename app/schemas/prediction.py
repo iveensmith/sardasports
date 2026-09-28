@@ -143,6 +143,10 @@ class PredictionOut(BaseModel):
 
     model_version: str | None
     model_weights_used: dict
+    # {"elo": [home, draw, away], "poisson": [...], "xgboost": [...]} — each
+    # independent estimator before blending. Absent for a model that is not
+    # trained yet, rather than zero-filled.
+    estimator_probs: dict = {}
     btts_model_used: bool
     explanation: list[FeatureImpactOut] | None = None
     generated_at: datetime

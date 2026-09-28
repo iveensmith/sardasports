@@ -517,6 +517,10 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         "confidence_label": result.confidence_label,
         "model_version": model_version.version if model_version else None,
         "model_weights_used": result.model_weights_used,
+        # Each estimator's own view before blending. The blend is the answer;
+        # this is how the answer was reached, and where the three disagree is
+        # real signal the blend necessarily averages away.
+        "estimator_probs": result.estimator_probs,
         "btts_model_used": btts_model is not None,
         "explanation": result.explanation,
         "generated_at": datetime.now(UTC).isoformat(),

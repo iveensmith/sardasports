@@ -1,14 +1,25 @@
-"""GET /predictions/today — every upcoming fixture with its prediction.
+"""GET /predictions/today — the prediction board.
 
-An additive endpoint: it composes the existing `/fixtures/today` and
-`/predict/{id}` behaviour and changes neither. It exists because calling
-them separately is quadratic in practice — `/predict/{id}` loads the
-sport's entire completed history to build its baselines, so a 40-fixture
-board re-read ~64,000 football rows forty times and took minutes.
+An additive endpoint composing `/fixtures/today` and `/predict/{id}`,
+changing neither. It exists for two reasons.
 
-`predict_for_matches` groups by (sport, date) and loads that history once
-per group. The predictions are identical to the per-match route's; only the
-number of table scans changes.
+**Speed.** Calling them separately is quadratic in practice: `/predict/{id}`
+loads the sport's entire completed history to fit its baselines, so a
+40-fixture board re-read ~64,000 rows forty times.
+`predict_for_matches` loads that history once per (sport, date).
+
+**Agreement.** The engine runs three genuinely independent result estimators
+— Elo, Poisson and a trained model — and then blends them. The blend is the
+answer, but it averages away the most interesting thing on the board: where
+the three *disagree*. A 2-vs-1 split can blend into a tidy-looking
+near-even prediction that conceals a real argument. This endpoint reports
+the split alongside the blend so a caller can sort by it.
+
+Note that agreement here is about the *picked outcome*, which is not what
+`confidence` measures — that is a distributional score (how close the three
+probability vectors are), so two estimators can sit close together overall
+while still picking different winners. Both are reported; neither is
+derived from the other.
 """
 
 from __future__ import annotations
@@ -24,19 +35,92 @@ from app.services.prediction_service import predict_for_matches
 
 router = APIRouter(tags=["predictions"])
 
+OUTCOMES = ("home", "draw", "away")
+
+
+def _pick_from(probs: list[float] | None) -> str | None:
+    """The outcome an estimator favours, or None if it has no opinion."""
+    if not probs:
+        return None
+    return OUTCOMES[max(range(len(probs)), key=lambda i: probs[i])]
+
+
+def agreement_for(prediction: dict) -> dict | None:
+    """How many independent estimators back the blended pick.
+
+    Returns None for sports with no multi-estimator ensemble — basketball
+    and tennis blend a single trained model with an Elo baseline, so
+    "2 of 3 agree" would be a category error rather than a weaker signal.
+    """
+    estimators = prediction.get("estimator_probs") or {}
+    if len(estimators) < 2:
+        return None
+
+    blended = [
+        prediction.get("home_win", 0.0),
+        prediction.get("draw", 0.0),
+        prediction.get("away_win", 0.0),
+    ]
+    consensus_pick = _pick_from(blended)
+    picks = {name: _pick_from(probs) for name, probs in estimators.items()}
+    agreeing = sum(1 for pick in picks.values() if pick == consensus_pick)
+
+    return {
+        "pick": consensus_pick,
+        "agreeing": agreeing,
+        "total": len(picks),
+        "unanimous": agreeing == len(picks),
+        "by_estimator": picks,
+    }
+
+
+def _passed(prediction: dict | None, agreement: dict | None) -> bool:
+    """Whether the engine has no coherent view of this fixture.
+
+    Two ways that happens, and the second is not redundant:
+
+    * Its own confidence label is "Low" — the scale's own way of saying so.
+    * A minority of estimators back the blended pick. When only one of three
+      favours the outcome, the "consensus" is an artifact of how the three
+      were weighted rather than anything they agree on.
+
+    The second case is needed because `confidence` does not measure outcome
+    agreement at all — it scores how close the three probability *vectors*
+    are, so a fixture where one estimator backs the pick and two dissent can
+    still be labelled "High". One such fixture is on the current card. Both
+    numbers are reported; neither is derived from the other.
+    """
+    if prediction is None:
+        return True
+    if prediction.get("confidence_label") == "Low":
+        return True
+    if agreement and agreement["total"] >= 3:
+        return agreement["agreeing"] * 2 < agreement["total"]
+    return False
+
 
 @router.get("/predictions/today")
 def predictions_today(
     on_date: date | None = Query(default=None, description="Defaults to today (UTC)"),
     sport: str | None = Query(default=None),
-    limit: int = Query(default=50, ge=1, le=200),
+    competition: str | None = Query(default=None),
+    view: str = Query(
+        default="all",
+        pattern="^(all|consensus|disagreement|passed)$",
+        description=(
+            "all · consensus (every estimator backs the pick) · "
+            "disagreement (they split) · passed (engine is not confident)"
+        ),
+    ),
+    min_confidence: float | None = Query(default=None, ge=0, le=100),
+    limit: int = Query(default=60, ge=1, le=200),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Fixtures for a date, each with its prediction where one is possible.
+    """Fixtures for a date, each with its prediction and estimator split.
 
     `prediction` is null for a fixture the engine could not price. That is
     reported per fixture rather than dropped, so the board can say what it
-    could not do instead of silently showing a shorter list.
+    could not do instead of quietly showing a shorter list.
     """
     target = on_date or datetime.now(UTC).date()
     start = datetime.combine(target, datetime.min.time())
@@ -45,6 +129,8 @@ def predictions_today(
     query = db.query(Match).filter(Match.match_date >= start, Match.match_date < end)
     if sport:
         query = query.filter(Match.sport == sport)
+    if competition:
+        query = query.filter(Match.competition == competition)
     matches = query.order_by(Match.match_date.asc()).limit(limit).all()
 
     predictions = predict_for_matches(db, matches)
@@ -52,21 +138,68 @@ def predictions_today(
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
 
+    entries = []
+    for match, prediction in zip(matches, predictions, strict=True):
+        agreement = agreement_for(prediction) if prediction else None
+        entries.append(
+            {
+                "match_id": match.id,
+                "match_date": match.match_date.isoformat(),
+                "sport": match.sport,
+                "competition": match.competition,
+                "home_team": names.get(match.home_team_id, ""),
+                "away_team": names.get(match.away_team_id, ""),
+                "status": match.status,
+                "prediction": prediction,
+                "agreement": agreement,
+                "passed": _passed(prediction, agreement),
+            }
+        )
+
+    # Counts are computed over the whole card before filtering, so the tabs
+    # can show how many fixtures each view holds without three round trips.
+    counts = {
+        "all": len(entries),
+        "consensus": sum(1 for e in entries if e["agreement"] and e["agreement"]["unanimous"]),
+        # Split, but the engine still has a majority view. A fixture where
+        # most estimators dissent belongs under "not called" instead, and is
+        # excluded here so the tabs do not double-count it.
+        "disagreement": sum(
+            1
+            for e in entries
+            if e["agreement"] and not e["agreement"]["unanimous"] and not e["passed"]
+        ),
+        "passed": sum(1 for e in entries if e["passed"]),
+    }
+
+    visible = entries
+    if view == "consensus":
+        visible = [e for e in entries if e["agreement"] and e["agreement"]["unanimous"]]
+        # Strongest agreement first means most confident among the unanimous.
+        visible.sort(key=lambda e: -(e["prediction"] or {}).get("confidence", 0))
+    elif view == "disagreement":
+        visible = [
+            e
+            for e in entries
+            if e["agreement"] and not e["agreement"]["unanimous"] and not e["passed"]
+        ]
+        # Most split first: fewest estimators backing the blended pick.
+        visible.sort(key=lambda e: (e["agreement"]["agreeing"], e["match_date"]))
+    elif view == "passed":
+        visible = [e for e in entries if e["passed"]]
+
+    if min_confidence is not None:
+        visible = [
+            e
+            for e in visible
+            if e["prediction"] and e["prediction"].get("confidence", 0) >= min_confidence
+        ]
+
     return {
         "date": target.isoformat(),
-        "count": len(matches),
-        "predicted": sum(1 for p in predictions if p is not None),
-        "fixtures": [
-            {
-                "match_id": m.id,
-                "match_date": m.match_date.isoformat(),
-                "sport": m.sport,
-                "competition": m.competition,
-                "home_team": names.get(m.home_team_id, ""),
-                "away_team": names.get(m.away_team_id, ""),
-                "status": m.status,
-                "prediction": prediction,
-            }
-            for m, prediction in zip(matches, predictions, strict=True)
-        ],
+        "view": view,
+        "counts": counts,
+        "count": len(visible),
+        "predicted": sum(1 for e in visible if e["prediction"] is not None),
+        "fixtures": visible,
     }

@@ -22,6 +22,8 @@ import {
 import { ProbabilitySplit } from "@/components/ProbabilitySplit";
 import { ConfidenceMeter } from "@/components/ConfidenceMeter";
 import { MarketTable } from "@/components/MarketTable";
+import { EstimatorBreakdown } from "@/components/EstimatorSplit";
+import { agreementFrom } from "@/lib/agreement";
 
 export const revalidate = 60;
 
@@ -267,6 +269,16 @@ export default async function MatchPage({
           />
         </section>
       </div>
+
+      {isFootball(prediction) && (
+        <section className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <EstimatorBreakdown
+            agreement={agreementFrom(prediction)}
+            homeLabel={home}
+            awayLabel={away}
+          />
+        </section>
+      )}
 
       <div className="mt-4">
         {isFootball(prediction) && <FootballBody p={prediction} />}

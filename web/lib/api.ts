@@ -120,6 +120,21 @@ export function getCompetitions(sport?: string): Promise<CompetitionsResponse> {
   });
 }
 
+/**
+ * How many independent estimators back the blended pick.
+ *
+ * Null for basketball and tennis: those blend one trained model with an Elo
+ * baseline, so "2 of 3 agree" would be a category error rather than a
+ * weaker signal.
+ */
+export interface Agreement {
+  pick: "home" | "draw" | "away";
+  agreeing: number;
+  total: number;
+  unanimous: boolean;
+  by_estimator: Record<string, "home" | "draw" | "away" | null>;
+}
+
 /** One fixture on the board, with its prediction where one was possible. */
 export interface BoardEntry {
   match_id: number;
@@ -130,10 +145,17 @@ export interface BoardEntry {
   away_team: string;
   status: string;
   prediction: Prediction | null;
+  agreement: Agreement | null;
+  passed: boolean;
 }
+
+export type BoardView = "all" | "consensus" | "disagreement" | "passed";
 
 export interface BoardResponse {
   date: string;
+  view: BoardView;
+  /** Totals for every view, so the tabs can be labelled in one request. */
+  counts: Record<BoardView, number>;
   count: number;
   predicted: number;
   fixtures: BoardEntry[];
@@ -152,9 +174,24 @@ export interface BoardResponse {
  * and returns `prediction: null` per fixture it could not price rather than
  * dropping the row, so the page can say what it could not do.
  */
-export function getBoard(date?: string, limit = 50): Promise<BoardResponse> {
-  const query = new URLSearchParams({ limit: String(limit) });
-  if (date) query.set("on_date", date);
+export function getBoard(
+  options: {
+    date?: string;
+    view?: BoardView;
+    sport?: string;
+    competition?: string;
+    minConfidence?: number;
+    limit?: number;
+  } = {},
+): Promise<BoardResponse> {
+  const query = new URLSearchParams({ limit: String(options.limit ?? 60) });
+  if (options.date) query.set("on_date", options.date);
+  if (options.view && options.view !== "all") query.set("view", options.view);
+  if (options.sport) query.set("sport", options.sport);
+  if (options.competition) query.set("competition", options.competition);
+  if (options.minConfidence !== undefined) {
+    query.set("min_confidence", String(options.minConfidence));
+  }
   return engineFetch<BoardResponse>(`/predictions/today?${query}`, {
     revalidate: 300,
   });
