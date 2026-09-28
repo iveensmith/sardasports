@@ -245,3 +245,50 @@ export function getMonitoring(modelName: string): Promise<Monitoring> {
     { revalidate: 600 },
   );
 }
+
+export type LeaderboardSort = "edge" | "accuracy" | "log_loss" | "samples";
+
+export interface LeaderboardRow {
+  rank: number;
+  model_name: string;
+  label: string;
+  sport: string;
+  market: string;
+  version: string;
+  trained_at: string | null;
+  accuracy: number;
+  log_loss: number | null;
+  /** Null when the model records no baseline — not zero, which would read as "no edge". */
+  baseline: number | null;
+  baseline_kind: string | null;
+  edge: number | null;
+  samples: number | null;
+  /** Evaluated on too few matches for the edge to be distinguishable from noise. */
+  provisional: boolean;
+  /** Accuracy change since the previous trained version; null if there is none. */
+  trend: number | null;
+}
+
+export interface LeaderboardResponse {
+  sort: LeaderboardSort;
+  count: number;
+  provisional_threshold: number;
+  summary: {
+    with_baseline: number;
+    beating_baseline: number;
+    provisional: number;
+  };
+  models: LeaderboardRow[];
+}
+
+export function getLeaderboard(
+  options: { sort?: LeaderboardSort; sport?: string } = {},
+): Promise<LeaderboardResponse> {
+  const query = new URLSearchParams();
+  if (options.sort) query.set("sort", options.sort);
+  if (options.sport) query.set("sport", options.sport);
+  const suffix = query.toString() ? `?${query}` : "";
+  return engineFetch<LeaderboardResponse>(`/model/leaderboard${suffix}`, {
+    revalidate: 600,
+  });
+}

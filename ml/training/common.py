@@ -224,6 +224,26 @@ def build_feature_frame(matches: list[dict], settings) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+def majority_class_base_rate(y_true) -> float:
+    """Accuracy of always guessing the most common class in `y_true`.
+
+    The number every model has to beat before its accuracy means anything.
+    A market line far from an even split is an easier problem — "78.5%
+    accurate" on a line that goes one way 78% of the time is a model that
+    has learned almost nothing — so the baseline is recorded alongside the
+    accuracy and the two are read together.
+
+    Works for the binary market models and for the three-class match-result
+    model alike: it is simply the largest class share.
+    """
+    import numpy as _np
+
+    values, counts = _np.unique(_np.asarray(y_true), return_counts=True)
+    if len(values) == 0:
+        return 0.0
+    return float(counts.max() / counts.sum())
+
+
 def compute_feature_summary(df: pd.DataFrame, feature_columns: list[str] = FEATURE_COLUMNS) -> dict:
     """Mean/std per feature over the training rows — a lightweight distribution
     snapshot stored alongside a model's metrics, so a later training run can be

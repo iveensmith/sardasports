@@ -20,6 +20,7 @@ from app.api import (
     routes_fixtures,
     routes_history,
     routes_injuries,
+    routes_leaderboard,
     routes_matches,
     routes_model,
     routes_monitoring,
@@ -87,6 +88,7 @@ def health() -> dict:
 
 app.include_router(routes_fixtures.router)
 app.include_router(routes_board.router)
+app.include_router(routes_leaderboard.router)
 app.include_router(routes_predict.router)
 app.include_router(routes_team.router)
 app.include_router(routes_elo.router)

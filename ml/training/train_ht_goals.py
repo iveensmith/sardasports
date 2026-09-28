@@ -39,6 +39,7 @@ from ml.training.common import (
     build_feature_frame,
     compute_feature_summary,
     load_processed_matches,
+    majority_class_base_rate,
     new_version_string,
     register_model_version,
     time_based_split,
@@ -104,6 +105,7 @@ def train(line: float, min_matches: int = 100, test_fraction: float = 0.2) -> di
     metrics = {
         "accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
         "log_loss": round(float(log_loss(y_test, y_pred_proba)), 4),
+        "majority_class_base_rate": round(majority_class_base_rate(y_test), 4),
         "num_train_samples": len(train_df),
         "num_test_samples": len(test_df),
         "feature_columns": FEATURE_COLUMNS,
