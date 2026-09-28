@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Index, Integer, String, func
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
@@ -96,6 +96,20 @@ class Match(Base):
     odds_home_win: Mapped[float | None] = mapped_column(Float, nullable=True)
     odds_draw: Mapped[float | None] = mapped_column(Float, nullable=True)
     odds_away_win: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    # Best available price per selection, across bookmakers, for the markets
+    # this engine can actually price:
+    #   {"match_winner": {"home": 1.18, ...},
+    #    "goals": {"over_1.5": 1.24, "under_2.5": 1.9, ...},
+    #    "btts": {"yes": 1.8, "no": 1.95}}
+    #
+    # A JSON column rather than more float columns because the set of lines
+    # is not fixed — it already changed once when goals went multi-line —
+    # and because a row is only ever read whole, never queried by selection.
+    # The three columns above stay as they are: value detection and the ROI
+    # backtest both read them, and historical rows only ever had 1X2.
+    odds_markets: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    odds_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # "scheduled" | "completed"
     status: Mapped[str] = mapped_column(String(20), default="scheduled", nullable=False)

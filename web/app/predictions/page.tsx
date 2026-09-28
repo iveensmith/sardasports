@@ -18,10 +18,8 @@
 
 import Link from "next/link";
 import { getBoard, getCompetitions, type BoardEntry, type BoardView } from "@/lib/api";
-import { competitors, isFootball, type Competition } from "@/lib/types";
-import { ProbabilitySplit } from "@/components/ProbabilitySplit";
-import { ConfidenceMeter } from "@/components/ConfidenceMeter";
-import { AgreementPill } from "@/components/EstimatorSplit";
+import type { Competition } from "@/lib/types";
+import { FixtureRow } from "@/components/FixtureRow";
 
 export const revalidate = 300;
 
@@ -54,68 +52,6 @@ const VIEWS: Array<{ id: BoardView; label: string; blurb: string }> = [
       "Fixtures the engine has no coherent view of — either its own confidence is low, or most of its estimators dissent from the blended pick. Declining to call one is a result, not a gap.",
   },
 ];
-
-function Row({ fixture }: { fixture: BoardEntry }) {
-  const prediction = fixture.prediction;
-  const names = prediction
-    ? competitors(prediction)
-    : { home: fixture.home_team, away: fixture.away_team };
-
-  const kickoff = new Date(fixture.match_date).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-
-  return (
-    <Link
-      href={`/match/${fixture.match_id}`}
-      className="grid grid-cols-[auto_1fr] items-center gap-x-5 gap-y-3 border-t border-[var(--color-line)] px-4 py-4 transition-colors hover:bg-[var(--color-surface-raised)] md:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,17rem)_auto_auto]"
-    >
-      <div className="text-[13px] text-[var(--color-text-dim)]">{kickoff}</div>
-
-      <div className="min-w-0">
-        <p className="truncate text-[15px] font-medium">
-          {names.home} <span className="text-[var(--color-text-faint)]">v</span>{" "}
-          {names.away}
-        </p>
-        <p className="mt-0.5 truncate text-[12px] text-[var(--color-text-faint)]">
-          {fixture.competition}
-        </p>
-      </div>
-
-      <div className="col-span-2 md:col-span-1">
-        {prediction ? (
-          <ProbabilitySplit
-            compact
-            home={prediction.home_win}
-            away={prediction.away_win}
-            draw={isFootball(prediction) ? prediction.draw : undefined}
-            homeLabel={names.home}
-            awayLabel={names.away}
-          />
-        ) : (
-          <p className="text-[13px] text-[var(--color-text-faint)]">
-            Could not be priced
-          </p>
-        )}
-      </div>
-
-      <div className="justify-self-start md:justify-self-end">
-        <AgreementPill agreement={fixture.agreement} />
-      </div>
-
-      <div className="justify-self-start md:justify-self-end">
-        {prediction && (
-          <ConfidenceMeter
-            variant="pill"
-            value={prediction.confidence}
-            label={prediction.confidence_label}
-          />
-        )}
-      </div>
-    </Link>
-  );
-}
 
 function ViewTabs({
   active,
@@ -324,8 +260,8 @@ export default async function PredictionsPage({
               </p>
             </div>
           ) : (
-            <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)]">
-              <div className="flex items-baseline justify-between px-4 py-3 text-[13px] text-[var(--color-text-dim)]">
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between px-1 pb-1 text-[13px] text-[var(--color-text-dim)]">
                 <span>
                   {fixtures.length} fixture{fixtures.length === 1 ? "" : "s"}
                 </span>
@@ -336,7 +272,7 @@ export default async function PredictionsPage({
                 </span>
               </div>
               {fixtures.map((fixture) => (
-                <Row key={fixture.match_id} fixture={fixture} />
+                <FixtureRow key={fixture.match_id} fixture={fixture} />
               ))}
             </div>
           )}

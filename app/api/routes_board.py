@@ -27,10 +27,12 @@ from __future__ import annotations
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models import Match, Team
+from app.services.pick_service import best_pick
 from app.services.prediction_service import predict_for_matches
 
 router = APIRouter(tags=["predictions"])
@@ -138,6 +140,22 @@ def predictions_today(
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
 
+    # How much history each competitor actually has. A rating built from ten
+    # matches sits near the 1500 default, and an "edge" measured against it
+    # is model error — see pick_service.THIN_EVIDENCE_MATCHES. Counted in
+    # one grouped pass rather than per fixture.
+    played: dict[int, int] = dict.fromkeys(team_ids, 0)
+    if team_ids:
+        for column in (Match.home_team_id, Match.away_team_id):
+            rows = (
+                db.query(column, func.count(Match.id))
+                .filter(Match.status == "completed", column.in_(team_ids))
+                .group_by(column)
+                .all()
+            )
+            for team_id, total in rows:
+                played[team_id] = played.get(team_id, 0) + total
+
     entries = []
     for match, prediction in zip(matches, predictions, strict=True):
         agreement = agreement_for(prediction) if prediction else None
@@ -152,6 +170,20 @@ def predictions_today(
                 "status": match.status,
                 "prediction": prediction,
                 "agreement": agreement,
+                # The one selection worth leading with, by expected value
+                # against the best available price. None when the fixture
+                # has no odds, rather than the model's favourite outcome
+                # shown at no price.
+                "pick": best_pick(
+                    prediction,
+                    match.odds_markets,
+                    agreement,
+                    home_matches=played.get(match.home_team_id),
+                    away_matches=played.get(match.away_team_id),
+                ),
+                "odds_updated_at": (
+                    match.odds_updated_at.isoformat() if match.odds_updated_at else None
+                ),
                 "passed": _passed(prediction, agreement),
             }
         )

@@ -135,6 +135,31 @@ export interface Agreement {
   by_estimator: Record<string, "home" | "draw" | "away" | null>;
 }
 
+/**
+ * The single selection worth leading with, by expected value against the
+ * best available price.
+ *
+ * `thin_evidence` is the important field. A large positive expected value
+ * usually means the model lacks history for one of the competitors rather
+ * than that the market is wrong — the engine's own backtest returns -6.74%
+ * against bookmaker odds — so the UI must not present it as a headline.
+ */
+export interface Pick {
+  market: string;
+  selection: string;
+  label: string;
+  model_probability: number;
+  market_implied_probability: number;
+  fair_price: number;
+  offered_price: number;
+  expected_value: number;
+  positive_value: boolean;
+  thin_evidence: boolean;
+  min_competitor_matches: number | null;
+  candidates_considered: number;
+  rationale: string;
+}
+
 /** One fixture on the board, with its prediction where one was possible. */
 export interface BoardEntry {
   match_id: number;
@@ -146,6 +171,8 @@ export interface BoardEntry {
   status: string;
   prediction: Prediction | null;
   agreement: Agreement | null;
+  pick: Pick | null;
+  odds_updated_at: string | null;
   passed: boolean;
 }
 
