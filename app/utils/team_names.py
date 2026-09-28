@@ -9,6 +9,7 @@ one canonical name per club.
 from __future__ import annotations
 
 import re
+import unicodedata
 
 # Known aliases -> canonical name. Extend as new data sources/leagues are added.
 ALIASES: dict[str, str] = {
@@ -30,6 +31,22 @@ ALIASES: dict[str, str] = {
     "sheffield united": "Sheffield United",
     "qpr": "Queens Park Rangers",
 }
+
+
+def fold_team_key(name: str) -> str:
+    """A comparison key that ignores accents, case and punctuation spacing.
+
+    Sources disagree on diacritics for the same club — Football-Data.co.uk
+    writes "Castellon", API-Football writes "Castellón" — and storing both
+    creates two teams, splitting one club's match history in half and
+    leaving the newer row with no Elo. Canonical *display* names keep their
+    accents; only lookups fold.
+    """
+    if not isinstance(name, str):
+        return ""
+    decomposed = unicodedata.normalize("NFKD", name)
+    stripped = "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+    return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
 
 def normalize_team_name(raw_name: str) -> str:

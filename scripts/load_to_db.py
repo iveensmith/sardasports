@@ -23,6 +23,7 @@ from app.database.base import Base
 from app.database.session import SessionLocal, get_engine
 from app.models import EloHistory, Match, Team
 from app.utils.config import get_settings
+from app.utils.team_names import fold_team_key
 from ml.elo.engine import EloEngine, MatchResult
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -42,6 +43,17 @@ def _get_or_create_team(
     if key in cache:
         return cache[key]
     team = session.query(Team).filter(Team.sport == sport, Team.name == name).one_or_none()
+    if team is None:
+        # Accent/punctuation-folded fallback before creating anything new:
+        # sources disagree on diacritics for the same club ("Castellon" from
+        # Football-Data.co.uk, "Castellón" from API-Football), and a second
+        # row splits that club's history and leaves the new one with no Elo.
+        # Folding affects matching only; the stored name is untouched.
+        folded = fold_team_key(name)
+        for candidate in session.query(Team).filter(Team.sport == sport).all():
+            if fold_team_key(candidate.name) == folded:
+                cache[key] = candidate
+                return candidate
     if team is None:
         team = Team(name=name, league=league, sport=sport)
         session.add(team)

@@ -227,6 +227,68 @@ this at the pipeline level: it walks matches in chronological order, computing
 each match's features and Elo-before-match *before* applying that match's
 result to the Elo state, and splits train/test by time rather than randomly.
 
+## Upcoming fixtures and team identity
+
+The engine was built by predicting matches whose results were already
+known — the right way to measure a model, and the wrong way to run a
+product. Every one of the 144,381 ingested matches was `status="completed"`
+and in the past, so a "Today's Predictions" page had nothing to read.
+
+`scripts/fetch_upcoming_fixtures.py` closes that gap. It pulls scheduled
+fixtures from API-Football and inserts them with `status="scheduled"` and no
+score — exactly the shape `/fixtures/today` and `/predict/{match_id}`
+already expect, so nothing in the prediction path changed.
+
+**Coverage is deliberately narrow.** API-Football lists every fixture on
+earth for a date; on a sampled day that was 91 fixtures, of which only a
+handful were in a competition this engine has trained on.
+`LEAGUE_ID_TO_COMPETITION` is an allowlist keyed on API-Football's stable
+league ids (names are not stable — they write "Süper Lig", we write "Turkish
+Super Lig") and every value maps onto `KNOWN_COMPETITIONS`, asserted by a
+test. Ingesting the rest would produce a busy-looking board of predictions
+for teams with no Elo history and an all-zero competition one-hot: two
+default 1500 ratings rendered as a percentage.
+
+Youth and reserve sides are excluded for the same reason — API-Football
+files youth internationals under the same "Friendlies" league id as senior
+ones, so without the filter the board fills with "England U17 vs Israel
+U17", which this engine knows nothing about. The word boundaries in
+`EXCLUDED_TEAM_PATTERN` are load-bearing: without them the `B` alternative
+matches the letter B anywhere and excludes almost every club.
+
+### Team identity: two defects that split one competitor in two
+
+Building this surfaced two pre-existing bugs, both of which create a second
+`teams` row for a competitor that already exists — halving its match history
+and leaving the new row with no rating.
+
+**Mojibake.** `clean_data.py` read every raw CSV as latin-1. That is correct
+for Football-Data.co.uk and wrong for the UTF-8 CSVs the API-sourced
+adapters write, so "Türkiye" was stored as "TÃ¼rkiye" — which then reads as
+a different nation from the same nation ingested elsewhere. Four teams and
+72 matches were affected. `load_raw_file` now tries UTF-8 first and falls
+back to latin-1, in that order specifically: UTF-8 fails loudly on
+non-UTF-8 bytes, whereas latin-1 decodes anything and so can never signal a
+mismatch.
+
+**Accent and punctuation variants.** Football-Data.co.uk writes "Castellon",
+API-Football writes "Castellón"; tennis-data.co.uk writes both "Struff J.L."
+and "Struff J-L." for one player. `fold_team_key` gives a comparison key
+that ignores accents, case and punctuation, and both ingest paths now fall
+back to it before creating a row. Folding affects *matching* only — stored
+names keep their diacritics.
+
+`scripts/repair_team_names.py` fixes rows already written: 4 names
+un-mangled and 46 duplicates merged, 43 of them tennis players whose ratings
+had been split across two identities. It keeps the row with the most matches
+(the one carrying the Elo history), repoints `matches`, `elo_history` and
+`injuries` at it, and is idempotent — a second run finds nothing.
+
+One ordering detail matters: grouping happens *before* renaming. Renaming a
+mojibake row up front collides with the correctly-encoded row for the same
+competitor ("TÃ¼rkiye" → "Türkiye" hits `UNIQUE(sport, name)` when the real
+"Türkiye" exists), because that pair is a merge, not a rename.
+
 ## Multi-sport schema
 
 The `matches` table began as football-only and now holds three sports'
@@ -332,11 +394,13 @@ are structural rather than parametric:
   so the totals markets are the dedicated model alone — and an untrained
   line is genuinely unpredictable rather than degraded, reporting
   `prob_over: null` instead of deriving a number from expected totals.
-- **Rest matters.** `rest_days` and `is_back_to_back` are real basketball
-  features with no football equivalent (an NBA team plays on consecutive
-  nights; a league footballer essentially never does). Rest is capped at 14
-  days so a season opener reads as "maximally rested" rather than encoding
-  "start of season".
+- **Rest matters differently.** Football already has `home_rest_days` and
+  `home_fixture_congestion`, so rest is not itself a new idea — the
+  *back-to-back* is: an NBA team plays on consecutive nights, which league
+  football essentially never does, so it gets its own flag rather than
+  being left to the continuous rest value. Rest is capped at 14 days so a
+  season opener reads as "maximally rested" rather than encoding "start of
+  season".
 
 Markets: match winner, plus total points at 215.5 / 225.5 / 235.5. Those
 lines came from the ingested distribution, not from guesswork — the mean is

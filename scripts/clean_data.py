@@ -173,8 +173,23 @@ def _season_label(season_code: str) -> str:
 
 def load_raw_file(path: Path) -> pd.DataFrame | None:
     league, season_code = _parse_filename(path)
+    # Encoding is per-source, not global. Football-Data.co.uk publishes
+    # latin-1; the API-sourced adapters (fetch_international.py,
+    # fetch_api_football_league.py) write UTF-8 via pandas. Reading the
+    # latter as latin-1 silently mojibakes every accented name —
+    # "Türkiye" became "TÃ¼rkiye" as a stored team, which then reads as a
+    # *different* team from the same nation ingested elsewhere.
+    #
+    # UTF-8 is tried first because it fails loudly on non-UTF-8 bytes,
+    # whereas latin-1 decodes anything and so can never signal a mismatch.
     try:
-        df = pd.read_csv(path, encoding="latin-1")
+        df = pd.read_csv(path, encoding="utf-8")
+    except UnicodeDecodeError:
+        try:
+            df = pd.read_csv(path, encoding="latin-1")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not read %s: %s", path, exc)
+            return None
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not read %s: %s", path, exc)
         return None

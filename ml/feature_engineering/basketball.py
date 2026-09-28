@@ -12,11 +12,12 @@ with two. Concretely:
 - **Scoring is ~100x football's.** Teams average ~113 points each. Rolling
   goals-scored/conceded counts still apply in spirit, but the useful signal
   is *pace and efficiency* (points for/against per game), not totals.
-- **Rest matters, and is measurable.** Back-to-back games are a real,
-  well-documented effect in basketball with no football equivalent (an NBA
-  team can play on consecutive nights; a league footballer essentially
-  never does). `rest_days` and `is_back_to_back` are basketball-specific
-  features with genuine predictive content.
+- **Rest matters differently.** The football feature set already has
+  `home_rest_days`/`home_fixture_congestion`, so rest itself is not new —
+  what is new is the *back-to-back*, an NBA team playing on consecutive
+  nights, which essentially never happens in league football. That is why
+  `is_back_to_back` is a distinct flag here rather than something the
+  continuous rest-days value already captures.
 
 What *is* shared: `TeamHistoryIndex` from `features.py` — it's a
 sport-agnostic "this team's prior matches, sorted, O(log k) lookup" index,
