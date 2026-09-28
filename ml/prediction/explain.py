@@ -10,6 +10,8 @@ SHAP fails for any reason, callers get `None` and the API surfaces no
 
 from __future__ import annotations
 
+import weakref
+
 import numpy as np
 import shap
 import xgboost as xgb
@@ -17,6 +19,24 @@ import xgboost as xgb
 from ml.training.common import FEATURE_COLUMNS
 
 TOP_N_FEATURES = 5
+
+# A TreeExplainer depends only on the model, never on the row being
+# explained, but constructing one re-parses the whole booster — measured at
+# ~0.98s per call, which was the single largest cost in a prediction and
+# made a 40-fixture board spend ~40 seconds rebuilding the same object.
+#
+# Keyed weakly by model identity so a retrain that swaps the active model in
+# simply gets a new entry and the old explainer is collected with the old
+# model, rather than pinning a stale booster in memory forever.
+_EXPLAINER_CACHE: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
+
+
+def _explainer_for(model: xgb.XGBClassifier) -> shap.TreeExplainer:
+    explainer = _EXPLAINER_CACHE.get(model)
+    if explainer is None:
+        explainer = shap.TreeExplainer(model)
+        _EXPLAINER_CACHE[model] = explainer
+    return explainer
 
 
 def explain_prediction(
@@ -33,7 +53,7 @@ def explain_prediction(
         return None
 
     try:
-        explainer = shap.TreeExplainer(model)
+        explainer = _explainer_for(model)
         raw = explainer.shap_values(scaled_features)
         class_values = _select_class_values(raw, predicted_class_index)
     except Exception:  # noqa: BLE001 - explainability is best-effort, never breaks /predict

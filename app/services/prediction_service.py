@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
+from time import monotonic
 
 from sqlalchemy.orm import Session
 
@@ -22,6 +23,7 @@ from ml.prediction.predict import (
     CORNERS_LINES,
     GOALS_LINES,
     HT_GOALS_LINES,
+    build_shared_fits,
     load_lightgbm_artifact,
     load_sklearn_pickle_artifact,
     load_xgboost_artifact,
@@ -60,19 +62,56 @@ def _scaler_path_for(artifact_path: str) -> str:
     return str(path.with_name(f"{path.stem}_scaler.json"))
 
 
-@lru_cache(maxsize=4)
+# Sized above the number of distinct artifacts in play, not arbitrarily: a
+# football prediction alone touches 11 models (match result, BTTS, 2 goals
+# lines, 1 half-time line, 3 corners, 3 cards) and basketball/tennis add 8
+# more. At maxsize=4 every prediction evicted models it was about to need
+# again, so the boosters were re-parsed from disk ~90 times per board.
+@lru_cache(maxsize=32)
 def _load_xgboost_cached(model_path: str, scaler_path: str):
     return load_xgboost_artifact(model_path, scaler_path)
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=32)
 def _load_lightgbm_cached(model_path: str, scaler_path: str):
     return load_lightgbm_artifact(model_path, scaler_path)
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=32)
 def _load_sklearn_pickle_cached(model_path: str, scaler_path: str):
     return load_sklearn_pickle_artifact(model_path, scaler_path)
+
+
+#
+# Which version is active changes only when something retrains, so resolving
+# it is cached for a short window. Without this every football prediction
+# issued eleven ModelVersion queries (one per model and per market line) —
+# a 40-fixture board spent ~480 round trips re-answering the same question.
+# The TTL is deliberately short so a retrain is picked up within seconds
+# rather than requiring a restart.
+_ACTIVE_MODEL_TTL_SECONDS = 30.0
+_active_model_cache: dict[str, tuple[float, object]] = {}
+
+
+def _active_version(session: Session, model_name: str):
+    now = monotonic()
+    hit = _active_model_cache.get(model_name)
+    if hit is not None and now - hit[0] < _ACTIVE_MODEL_TTL_SECONDS:
+        return hit[1]
+    version = (
+        session.query(ModelVersion)
+        .filter(ModelVersion.model_name == model_name, ModelVersion.is_active.is_(True))
+        .order_by(ModelVersion.trained_at.desc())
+        .first()
+    )
+    _active_model_cache[model_name] = (now, version)
+    return version
+
+
+def clear_active_model_cache() -> None:
+    """Drop the cached lookups — called after a retrain so the new version
+    is served immediately instead of waiting out the TTL."""
+    _active_model_cache.clear()
 
 
 def _get_active_model(session: Session, model_name: str, loader):
@@ -83,6 +122,22 @@ def _get_active_model(session: Session, model_name: str, loader):
     the artifact fails (logged, never raised — predictions must still work
     with the models that *are* available).
     """
+    version = _active_version(session, model_name)
+    if version is None:
+        return None, None, None
+
+    scaler_path = _scaler_path_for(version.artifact_path)
+    try:
+        model, scaler_params = loader(str(version.artifact_path), scaler_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to load model artifact %s: %s", version.artifact_path, exc)
+        return None, None, version
+    return model, scaler_params, version
+
+
+def _get_active_model_uncached(session: Session, model_name: str, loader):
+    """The original, query-every-time path. Retained for tests that assert
+    on model-selection behaviour without the TTL in the way."""
     version = (
         session.query(ModelVersion)
         .filter(ModelVersion.model_name == model_name, ModelVersion.is_active.is_(True))
@@ -112,8 +167,31 @@ def _all_completed_history(
     "scorelines" into a goal model that truncates at 8 — silently wrecking
     every football prediction the moment a second sport was ingested.
     """
-    matches = (
-        session.query(Match)
+    # Columns, not entities. Hydrating 64,000 full ORM `Match` objects to
+    # read a dozen attributes cost ~5 seconds per call and dominated the
+    # board; a column query skips instance construction and identity-map
+    # bookkeeping entirely for rows nothing ever mutates.
+    rows = (
+        session.query(
+            Match.home_team_id,
+            Match.away_team_id,
+            Match.home_score,
+            Match.away_score,
+            Match.match_date,
+            Match.competition,
+            Match.neutral_venue,
+            Match.home_ht_goals,
+            Match.away_ht_goals,
+            Match.home_corners,
+            Match.away_corners,
+            Match.home_yellow_cards,
+            Match.away_yellow_cards,
+            Match.home_red_cards,
+            Match.away_red_cards,
+            Match.surface,
+            Match.home_games,
+            Match.away_games,
+        )
         .filter(
             Match.sport == sport,
             Match.status == "completed",
@@ -122,8 +200,7 @@ def _all_completed_history(
         .order_by(Match.match_date.asc())
         .all()
     )
-    team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
-    id_to_name = {t.id: t.name for t in session.query(Team).filter(Team.id.in_(team_ids)).all()}
+    id_to_name = dict(session.query(Team.id, Team.name).all())
 
     return [
         {
@@ -156,11 +233,11 @@ def _all_completed_history(
             "home_games": m.home_games,
             "away_games": m.away_games,
         }
-        for m in matches
+        for m in rows
     ]
 
 
-def _predict_basketball(session: Session, match, home_team, away_team) -> dict:
+def _predict_basketball(session: Session, match, home_team, away_team, history=None) -> dict:
     """The basketball branch of `predict_for_match`.
 
     Deliberately does not write to `predictions`/`prediction_history`: those
@@ -172,7 +249,8 @@ def _predict_basketball(session: Session, match, home_team, away_team) -> dict:
     which is a schema change worth doing deliberately, not as a side effect.
     """
     settings = get_settings()
-    history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
+    if history is None:
+        history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
 
     winner_model, winner_scaler, model_version = _get_active_model(
         session, BASKETBALL_WINNER_MODEL_NAME, _load_lightgbm_cached
@@ -227,7 +305,7 @@ def _predict_basketball(session: Session, match, home_team, away_team) -> dict:
     }
 
 
-def _predict_tennis(session: Session, match, home_player, away_player) -> dict:
+def _predict_tennis(session: Session, match, home_player, away_player, history=None) -> dict:
     """The tennis branch of `predict_for_match`.
 
     Like the basketball branch, this serves and caches without writing to
@@ -235,7 +313,8 @@ def _predict_tennis(session: Session, match, home_player, away_player) -> dict:
     (three-way outcome, goal markets) and a tennis row would have to invent
     a draw probability to fit.
     """
-    history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
+    if history is None:
+        history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
 
     winner_model, winner_scaler, model_version = _get_active_model(
         session, TENNIS_WINNER_MODEL_NAME, _load_lightgbm_cached
@@ -293,8 +372,16 @@ def _predict_tennis(session: Session, match, home_player, away_player) -> dict:
     }
 
 
-def predict_for_match(session: Session, match_id: int) -> dict:
-    """Compute (or return the cached) ensemble prediction for one match."""
+def predict_for_match(session: Session, match_id: int, history=None, shared=None) -> dict:
+    """Compute (or return the cached) ensemble prediction for one match.
+
+    `history` may be supplied by a caller predicting several matches that
+    share a cut-off date. Loading it is O(all completed matches in the
+    sport) — ~64k rows for football — so paying that once per *board*
+    instead of once per *fixture* is the difference between a page that
+    renders and one that times out. When omitted it is loaded as before, so
+    single-match callers are unaffected.
+    """
     cache = get_cache()
     cache_key = f"prediction:{match_id}"
     cached = cache.get_json(cache_key)
@@ -312,16 +399,17 @@ def predict_for_match(session: Session, match_id: int) -> dict:
     # different markets), so it dispatches to its own pipeline rather than
     # threading `if sport ==` conditionals through the football one.
     if match.sport == "basketball":
-        payload = _predict_basketball(session, match, home_team, away_team)
+        payload = _predict_basketball(session, match, home_team, away_team, history=history)
         cache.set_json(cache_key, payload, ttl_seconds=CACHE_TTL_SECONDS)
         return payload
     if match.sport == "tennis":
-        payload = _predict_tennis(session, match, home_team, away_team)
+        payload = _predict_tennis(session, match, home_team, away_team, history=history)
         cache.set_json(cache_key, payload, ttl_seconds=CACHE_TTL_SECONDS)
         return payload
 
     settings = get_settings()
-    history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
+    if history is None:
+        history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
     elo_home = get_team_elo_before(session, home_team.id, match.match_date)
     elo_away = get_team_elo_before(session, away_team.id, match.match_date)
 
@@ -374,6 +462,7 @@ def predict_for_match(session: Session, match_id: int) -> dict:
         ht_goals_models=ht_goals_models,
         corners_models=corners_models,
         cards_models=cards_models,
+        shared=shared,
     )
 
     _persist_prediction(session, match, result, model_version)
@@ -460,3 +549,59 @@ def get_prediction_timeline(session: Session, match_id: int) -> list[PredictionH
         .order_by(PredictionHistory.created_at.asc())
         .all()
     )
+
+
+def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | None]:
+    """Predict several matches, loading each sport's history exactly once.
+
+    `predict_for_match` loads every completed match in the sport to build
+    its Poisson baselines and form features. That is fine for one fixture
+    and quadratic-feeling for a board: a 40-fixture card was re-reading
+    ~64,000 football rows forty times, which measured at 27-40 seconds per
+    prediction under concurrency and made the page unusable.
+
+    Grouping by (sport, cut-off date) is safe because the leakage rule is
+    "matches strictly before this one". Fixtures sharing a date share an
+    identical history window, so one load serves them all — the predictions
+    are byte-for-byte what the per-match path produces, just without
+    re-reading the table each time.
+
+    A fixture the engine cannot price yields None rather than failing the
+    batch: one bad row is a gap in a list, not an outage.
+    """
+    by_window: dict[tuple[str, object], list[Match]] = {}
+    for match in matches:
+        by_window.setdefault((match.sport, match.match_date.date()), []).append(match)
+
+    results: dict[int, dict | None] = {}
+    for (sport, _day), group in by_window.items():
+        # The window must cover every fixture in the group, so use the
+        # earliest kick-off: anything later would leak a same-day result
+        # into a fixture that kicks off before it.
+        cutoff = min(m.match_date for m in group)
+        history = _all_completed_history(session, before_date=cutoff, sport=sport)
+
+        # The reusable fits depend on (history, competition), not on the
+        # fixture, so they're built once for the whole group — sharing the
+        # one history index across every league on the card. Football only:
+        # the basketball and tennis paths have no Poisson baseline and build
+        # their far cheaper state internally.
+        shared_by_competition: dict[str | None, object] = {}
+        if sport == "football":
+            shared_by_competition = build_shared_fits(
+                history, sorted({m.competition for m in group}, key=str)
+            )
+
+        for match in group:
+            try:
+                results[match.id] = predict_for_match(
+                    session,
+                    match.id,
+                    history=history,
+                    shared=shared_by_competition.get(match.competition),
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Batch prediction failed for match %s: %s", match.id, exc)
+                results[match.id] = None
+
+    return [results.get(m.id) for m in matches]

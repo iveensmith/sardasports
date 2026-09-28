@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import math
 import pickle
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -22,6 +23,7 @@ import xgboost as xgb
 from ml.elo.engine import EloEngine
 from ml.ensemble import EnsembleInput, EnsembleOutput, combine
 from ml.feature_engineering.features import (
+    TeamHistoryIndex,
     build_match_features,
     build_team_history_index,
     feature_completeness,
@@ -198,6 +200,82 @@ def _count_stat_matches(history: list[dict], competition: str | None, value_fn) 
     return result
 
 
+@dataclass
+class SharedFit:
+    """Work that depends on (history, competition) but not on the fixture.
+
+    Every fixture in one competition sharing a history window produces
+    byte-identical values for all five of these, and each one costs a full
+    pass over history. Computing them per fixture is what made a board of 40
+    take minutes; computing them once per competition makes it linear in
+    competitions instead of fixtures.
+
+    Built by `build_shared_fit` and passed to `predict_match(shared=...)`.
+    """
+
+    history_index: TeamHistoryIndex
+    poisson: PoissonModel
+    corners_poisson: PoissonModel | None
+    cards_poisson: PoissonModel | None
+    ht_goals_poisson: PoissonModel | None
+
+
+def build_shared_fit(history: list[dict], competition: str | None) -> SharedFit:
+    """Fit everything reusable across fixtures in one competition."""
+    return build_shared_fits(history, [competition])[competition]
+
+
+def build_shared_fits(
+    history: list[dict], competitions: list[str | None]
+) -> dict[str | None, SharedFit]:
+    """Shared fits for several competitions over one history window.
+
+    Two things make this much cheaper than calling `build_shared_fit` per
+    competition, and both matter at board scale:
+
+    * **The team history index is competition-independent.** It indexes every
+      team's matches regardless of league, so it is built once for the window
+      rather than once per competition — it was the single largest repeated
+      cost, rebuilt in full for each league on the card.
+    * **History is bucketed by competition once**, so each league's four
+      Poisson fits scan only their own rows instead of re-filtering all
+      ~64,000 every time. Four leagues previously meant sixteen full passes.
+
+    The resulting fits are identical to the per-competition path's; only the
+    number of passes over `history` changes.
+    """
+    index = build_team_history_index(history)
+
+    by_competition: dict[str | None, list[dict]] = {}
+    for match in history:
+        by_competition.setdefault(match.get("competition"), []).append(match)
+
+    fits: dict[str | None, SharedFit] = {}
+    for competition in competitions:
+        # `None` means "no league scoping" and keeps the pre-multi-league
+        # behaviour of fitting on the whole window.
+        scoped = history if competition is None else by_competition.get(competition, [])
+        poisson_matches = [
+            {
+                "home_team": m["home_team"],
+                "away_team": m["away_team"],
+                "home_score": m["home_score"],
+                "away_score": m["away_score"],
+            }
+            for m in scoped
+        ]
+        fits[competition] = SharedFit(
+            history_index=index,
+            poisson=(PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel()),
+            # Scoping already happened, so these pass `None` to avoid a
+            # second, redundant filter over the same rows.
+            corners_poisson=_fit_count_stat_poisson(scoped, None, _corners_value, CORNERS_MAX),
+            cards_poisson=_fit_count_stat_poisson(scoped, None, _cards_value, CARDS_MAX),
+            ht_goals_poisson=_fit_count_stat_poisson(scoped, None, _ht_goals_value, HT_GOALS_MAX),
+        )
+    return fits
+
+
 def _fit_count_stat_poisson(
     history: list[dict], competition: str | None, value_fn, max_per_side: int
 ) -> PoissonModel | None:
@@ -263,6 +341,7 @@ def predict_match(
     ht_goals_models: dict[float, tuple[lgb.Booster, dict]] | None = None,
     corners_models: dict[float, tuple[lgb.Booster, dict]] | None = None,
     cards_models: dict[float, tuple[object, dict]] | None = None,
+    shared: SharedFit | None = None,
 ) -> EnsembleOutput:
     """Produce a full ensemble prediction for one fixture.
 
@@ -282,6 +361,15 @@ def predict_match(
     line just means that specific dedicated model isn't incorporated (falls
     back to the Poisson baseline alone for that line), same as any other
     untrained dedicated model.
+
+    `shared` lets a caller predicting several fixtures reuse the work that
+    depends only on (history, competition) rather than on the fixture: the
+    team history index and the four Poisson fits. Both are identical for
+    every fixture in the same competition sharing a history window, and both
+    cost a full pass over history — five passes over ~64k rows per fixture,
+    which is what made a 40-fixture board take minutes. Omitted, it is
+    computed here exactly as before, so single-fixture callers are unchanged.
+    See `build_shared_fit`.
     """
     # --- Elo-implied probabilities --------------------------------------
     elo_engine = EloEngine(k_factor=elo_k_factor, home_advantage=elo_home_advantage)
@@ -305,7 +393,11 @@ def predict_match(
     # strengths from — fall back to the model's default league-average
     # parameters (a neutral "average team vs. average team" estimate) rather
     # than crashing the whole prediction.
-    poisson = PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel()
+    poisson = (
+        shared.poisson
+        if shared is not None
+        else (PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel())
+    )
     poisson_probs = poisson.result_probabilities(home_team, away_team)
     expected_home, expected_away = poisson.expected_goals(home_team, away_team)
     top_scorelines = poisson.top_scorelines(home_team, away_team, n=5)
@@ -324,15 +416,24 @@ def predict_match(
     # or historically Saudi Pro League before its half-time score was added
     # — see docs/architecture.md) — every line for that market then reports
     # unavailable, not a guess.
-    corners_poisson = _fit_count_stat_poisson(history, competition, _corners_value, CORNERS_MAX)
-    cards_poisson = _fit_count_stat_poisson(history, competition, _cards_value, CARDS_MAX)
-    ht_goals_poisson = _fit_count_stat_poisson(history, competition, _ht_goals_value, HT_GOALS_MAX)
+    if shared is not None:
+        corners_poisson = shared.corners_poisson
+        cards_poisson = shared.cards_poisson
+        ht_goals_poisson = shared.ht_goals_poisson
+    else:
+        corners_poisson = _fit_count_stat_poisson(history, competition, _corners_value, CORNERS_MAX)
+        cards_poisson = _fit_count_stat_poisson(history, competition, _cards_value, CARDS_MAX)
+        ht_goals_poisson = _fit_count_stat_poisson(
+            history, competition, _ht_goals_value, HT_GOALS_MAX
+        )
 
     # --- Feature engineering + dedicated ML models -------------------------
     # Index built once (O(n)) and reused across build_match_features' ~9
     # internal lookups, instead of each one independently re-scanning
     # `history` (see ml.feature_engineering.features's module docstring).
-    history_index = build_team_history_index(history)
+    history_index = (
+        shared.history_index if shared is not None else build_team_history_index(history)
+    )
     features = build_match_features(
         home_team=home_team,
         away_team=away_team,

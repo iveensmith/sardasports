@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+/*
+  UniquePredict design tokens.
+
+  The brief pins a dark theme with gold accents, so that is followed
+  exactly. Everything left free is spent on the subject rather than on a
+  default: this is a calibrated prediction engine whose defining trait is
+  honest uncertainty — it returns null rather than guessing — so the visual
+  system treats confidence and unavailability as first-class states, not
+  edge cases.
+
+  Gold is deliberately scarce. It marks confidence and the primary action
+  and nothing else; the probability split uses its own cool/warm pair so the
+  two never compete for the same glance.
+*/
+@theme {
+  /* Base. A deep blue-black rather than a neutral near-black: the
+     probability blues sit on it without turning muddy. */
+  --color-base: #090d12;
+  --color-surface: #111820;
+  --color-surface-raised: #18212c;
+  --color-line: #1e2833;
+  --color-line-strong: #2b3846;
+
+  --color-text: #e8edf2;
+  --color-text-dim: #9aa7b6;
+  --color-text-faint: #64717f;
+
+  /* Brass, not costume-jewellery gold. Reserved for confidence and the
+     primary action. */
+  --color-gold: #c9a227;
+  --color-gold-bright: #e3bc45;
+  --color-gold-dim: #6b5616;
+
+  /* Outcome hues. Distinct in hue *and* lightness so the split stays
+     readable without colour vision. */
+  --color-home: #4f9dff;
+  --color-draw: #7d8a99;
+  --color-away: #ff6f5e;
+
+  /* Unavailable. A market the engine genuinely cannot price is shown in
+     this, never as a zero. */
+  --color-unknown: #3a4653;
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  background: var(--color-base);
+}
+
+body {
+  background: var(--color-base);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/*
+  Every number in this product is compared against another number — a 58.2%
+  beside a 24.8%. Proportional figures make those columns jitter, so tabular
+  lining figures are the default and `.tnum` is not something to remember.
+*/
+body,
+input,
+button,
+table {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Focus that is actually visible on a dark surface. */
+:focus-visible {
+  outline: 2px solid var(--color-gold-bright);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/*
+  Motion answers an action; it does not announce the page. A single
+  orchestrated reveal is allowed on first paint, and everything else moves
+  only in response to a person. Reduced motion removes all of it.
+*/
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@utility text-balance {
+  text-wrap: balance;
+}

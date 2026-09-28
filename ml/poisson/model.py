@@ -65,30 +65,51 @@ class PoissonModel:
 
         strengths = {t: TeamStrength() for t in teams}
 
+        # Index each team's own appearances once.
+        #
+        # The loops below previously scanned *every* match for *every* team,
+        # on each of 50 iterations — O(50 x 2 x teams x matches), where a
+        # team actually appears in a tiny fraction of the rows. On a real
+        # competition that made one fit take ~1.1 seconds and dominated both
+        # serving (57% of a prediction board) and training.
+        #
+        # Each entry is (goals_for, goals_against, opponent, scored_at_home),
+        # which is everything the two passes need. The arithmetic, the
+        # iteration order over `teams`, and the in-place updates are all
+        # unchanged, so the fitted strengths are identical — this only stops
+        # reading rows that contribute nothing.
+        appearances: dict[str, list[tuple[float, float, str, bool]]] = {t: [] for t in teams}
+        for m in matches:
+            home, away = m["home_team"], m["away_team"]
+            home_score, away_score = m["home_score"], m["away_score"]
+            appearances[home].append((home_score, away_score, away, True))
+            appearances[away].append((away_score, home_score, home, False))
+
         for _ in range(50):  # fixed-point iterations, converges quickly in practice
             # --- attack strengths: goals scored vs. opponents' defense ---
             for team in teams:
                 scored, expected = 0.0, 0.0
-                for m in matches:
-                    if m["home_team"] == team:
-                        scored += m["home_score"]
-                        expected += self.league_avg_home_goals * strengths[m["away_team"]].defense
-                    elif m["away_team"] == team:
-                        scored += m["away_score"]
-                        expected += self.league_avg_away_goals * strengths[m["home_team"]].defense
+                for goals_for, _against, opponent, at_home in appearances[team]:
+                    scored += goals_for
+                    league_avg = (
+                        self.league_avg_home_goals if at_home else self.league_avg_away_goals
+                    )
+                    expected += league_avg * strengths[opponent].defense
                 if expected > 0:
                     strengths[team].attack = max(0.05, scored / expected)
 
             # --- defense strengths: goals conceded vs. opponents' attack ---
             for team in teams:
                 conceded, expected = 0.0, 0.0
-                for m in matches:
-                    if m["home_team"] == team:
-                        conceded += m["away_score"]
-                        expected += self.league_avg_away_goals * strengths[m["away_team"]].attack
-                    elif m["away_team"] == team:
-                        conceded += m["home_score"]
-                        expected += self.league_avg_home_goals * strengths[m["home_team"]].attack
+                for _for, goals_against, opponent, at_home in appearances[team]:
+                    conceded += goals_against
+                    # Note the asymmetry, preserved from the original: a
+                    # team's *defensive* expectation uses the league average
+                    # for the side its opponent played on.
+                    league_avg = (
+                        self.league_avg_away_goals if at_home else self.league_avg_home_goals
+                    )
+                    expected += league_avg * strengths[opponent].attack
                 if expected > 0:
                     strengths[team].defense = max(0.05, conceded / expected)
 
