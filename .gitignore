@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.uv/
+
+# Env
+.env
+
+# DB
+*.db
+*.sqlite3
+
+# Data
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+data/live/*
+!data/live/.gitkeep
+
+# Model artifacts
+ml/models/*.json
+ml/models/*.pkl
+ml/models/*.joblib
+ml/models/*.ubj
+ml/models/*.txt
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+
+# Logs
+*.log
+logs/
+
+# Generated reports
+docs/reports/*
+!docs/reports/.gitkeep
+
+# RAG vector store (local persistence)
+rag/chroma_store/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code local state
+.claude/scheduled_tasks.lock
+.claude/settings.local.json
+
+# Frontend
+web/node_modules/
+web/.next/
+web/out/
+web/.env*.local

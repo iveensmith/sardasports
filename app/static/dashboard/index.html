@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UniquePredict Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">UniquePredict <span class="sub">football prediction engine</span></div>
+  <nav class="tabs" id="nav-tabs">
+    <button data-route="matches">Matches</button>
+    <button data-route="standings">Standings</button>
+    <button data-route="team">Team</button>
+    <button data-route="monitoring">Model Monitoring</button>
+  </nav>
+  <button id="theme-toggle" title="Toggle dark mode">🌓</button>
+</header>
+
+<main>
+
+  <!-- ===================== MATCHES / MATCH DETAIL ===================== -->
+  <section class="view" id="view-matches">
+    <h1>Matches</h1>
+    <div class="filters">
+      <select id="f-competition"><option value="">All competitions</option></select>
+      <select id="f-season"><option value="">All seasons</option></select>
+      <select id="f-status">
+        <option value="">All statuses</option>
+        <option value="completed">Completed</option>
+        <option value="scheduled">Scheduled</option>
+      </select>
+      <input id="f-team" type="text" placeholder="Filter by team…">
+      <button class="primary" id="f-apply">Apply</button>
+    </div>
+    <div class="card">
+      <div id="matches-table-wrap"><div class="loading-state"><span class="spinner"></span>Loading matches…</div></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-match-detail">
+    <button class="back-link" id="back-to-matches">← Back to matches</button>
+    <div id="match-detail-content"></div>
+  </section>
+
+  <!-- ============================ STANDINGS ============================ -->
+  <section class="view" id="view-standings">
+    <h1>Standings</h1>
+    <div class="filters">
+      <select id="s-competition"></select>
+      <select id="s-season"></select>
+    </div>
+    <div class="card">
+      <div id="standings-table-wrap"><div class="empty-state">Pick a competition to see its table.</div></div>
+    </div>
+  </section>
+
+  <!-- ============================== TEAM ================================ -->
+  <section class="view" id="view-team">
+    <h1>Team lookup</h1>
+    <div class="filters">
+      <input id="t-name" type="text" placeholder="Team name, e.g. Arsenal">
+      <button class="primary" id="t-search">Search</button>
+    </div>
+    <div id="team-content"></div>
+  </section>
+
+  <!-- =========================== MONITORING ============================ -->
+  <section class="view" id="view-monitoring">
+    <h1>Model Monitoring</h1>
+    <div id="monitoring-content"><div class="loading-state"><span class="spinner"></span>Loading…</div></div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
