@@ -68,7 +68,7 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             >
               {SPORT_BADGE[fixture.sport] ?? fixture.sport.slice(0, 3).toUpperCase()}
             </span>
-            <span className="truncate text-[12px] text-[var(--color-text-dim)]">
+            <span className="truncate text-[12.5px] font-medium text-[var(--color-text-dim)]">
               {fixture.competition}
             </span>
             <span className="text-[12px] text-[var(--color-text-faint)]">
@@ -79,13 +79,13 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             </span>
           </div>
 
-          <h3 className="mt-1.5 truncate text-[17px] font-semibold">
+          <h3 className="mt-1.5 truncate text-[17.5px] font-semibold tracking-[-0.015em]">
             {fixture.home_team}{" "}
             <span className="font-normal text-[var(--color-text-faint)]">vs</span>{" "}
             {fixture.away_team}
           </h3>
 
-          <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+          <p className="mt-1 line-clamp-2 text-[13px] leading-[1.55] text-[var(--color-text-faint)]">
             {pick ? (
               <>
                 {pick.thin_evidence && (

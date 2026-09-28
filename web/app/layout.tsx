@@ -14,7 +14,10 @@ const archivo = Archivo({
   subsets: ["latin"],
   variable: "--font-archivo",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
+  // No `weight` array on purpose: listing weights loads *static* instances,
+  // and the body then snaps 420 down to 400. Omitting it loads Archivo's
+  // variable axis, so intermediate weights are real rather than rounded.
+  axes: [],
 });
 
 export const metadata: Metadata = {

@@ -23,9 +23,21 @@
   --color-line: #1e2833;
   --color-line-strong: #2b3846;
 
-  --color-text: #e8edf2;
-  --color-text-dim: #9aa7b6;
-  --color-text-faint: #64717f;
+  /*
+    Text steps, measured against the lightest surface (#18212c) rather than
+    chosen by eye. The first pass failed: the faint step sat at 3.26:1 and
+    was carrying the rationale line at 12.5px — the most-read copy on the
+    board set below the readable minimum, which is what "dull" was.
+
+    text        15.1:1  — brightened; on a dark surface the primary step
+                          should be close to white or the page reads grey
+    text-dim     7.5:1  — secondary copy, comfortably above AA
+    text-faint   5.2:1  — labels and meta; passes AA for normal text now,
+                          so it can carry real sentences
+  */
+  --color-text: #f4f7fa;
+  --color-text-dim: #a3b0c0;
+  --color-text-faint: #8593a3;
 
   /* Brass, not costume-jewellery gold. Reserved for confidence and the
      primary action. */
@@ -53,8 +65,10 @@
   --color-away: #d95926;
 
   /* Unavailable. A market the engine genuinely cannot price is shown in
-     this, never as a zero. */
-  --color-unknown: #3a4653;
+     this, never as a zero — which means it has to stay readable. The first
+     value was 1.69:1, effectively invisible; "N/A" that nobody can read
+     communicates nothing at all. Now 3.6:1. */
+  --color-unknown: #69788a;
 
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
@@ -76,8 +90,33 @@ body {
   background: var(--color-base);
   color: var(--color-text);
   font-family: var(--font-body);
-  -webkit-font-smoothing: antialiased;
+  /*
+    Deliberately NOT `-webkit-font-smoothing: antialiased`.
+
+    That is a near-reflex in dark-theme CSS and it is the wrong call here:
+    it thins every glyph stroke, and light-on-dark text is already optically
+    thinner than dark-on-light. Combined with a 400 weight it was the other
+    half of why this read as washed out. Subpixel rendering keeps the
+    strokes at full density.
+  */
+  -webkit-font-smoothing: auto;
   text-rendering: optimizeLegibility;
+  /*
+    Archivo at 400 is light for body copy on a dark surface. 420 is a real
+    weight on a variable font and holds the stroke without reading bold.
+  */
+  font-weight: 420;
+  letter-spacing: -0.003em;
+}
+
+/*
+  Headings carry the page. Tighter tracking at display sizes stops large
+  type looking loose, which is its own kind of dull.
+*/
+h1,
+h2,
+h3 {
+  letter-spacing: -0.021em;
 }
 
 /*
