@@ -22,6 +22,7 @@ from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.database.session import get_db
@@ -168,4 +169,18 @@ def board_dates(
                 "fixtures": total,
             }
         )
-    return {"today": today.isoformat(), "days": days}
+    # The most recent day with a settled result on it. The home page uses it
+    # for the results strip: fixtures are ingested forward but their scores
+    # are not yet fetched back, so "yesterday" is routinely ungraded and a
+    # strip bound to it would simply never appear.
+    last_settled = (
+        db.query(func.max(Match.match_date))
+        .filter(Match.status == "completed", Match.home_score.is_not(None))
+        .scalar()
+    )
+
+    return {
+        "today": today.isoformat(),
+        "days": days,
+        "last_settled": last_settled.date().isoformat() if last_settled else None,
+    }

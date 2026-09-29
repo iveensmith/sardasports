@@ -172,6 +172,130 @@ table {
   }
 }
 
+/*
+  The results marquee.
+
+  Constant motion, so `linear`. An eased marquee visibly slows and speeds at
+  the loop seam, which is the one place a reader notices it at all.
+
+  Two identical tracks side by side, translated by exactly half the pair, so
+  the loop has no seam and no gap. `width: max-content` lets each track be as
+  wide as its contents rather than the viewport.
+
+  Hover and focus-within pause it: nothing should scroll away from someone
+  reading it or tabbing through it. Reduced motion stops it outright rather
+  than slowing it — a strip that crawls is worse for motion sensitivity than
+  one that sits still — and the overflow becomes scrollable so the content
+  stays reachable.
+*/
+.nt-marquee {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  /* Items fade in and out at the edges instead of being sliced. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+}
+
+.nt-marquee__track {
+  display: flex;
+  flex: 0 0 auto;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  will-change: transform;
+  animation: nt-marquee-scroll 48s linear infinite;
+}
+
+.nt-marquee:hover .nt-marquee__track,
+.nt-marquee:focus-within .nt-marquee__track {
+  animation-play-state: paused;
+}
+
+@keyframes nt-marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nt-marquee {
+    overflow-x: auto;
+  }
+  .nt-marquee__track {
+    animation: none;
+  }
+  /* The duplicate exists only to hide the loop seam; with no loop it is
+     noise, and it is already hidden from assistive tech. */
+  .nt-marquee__track + .nt-marquee__track {
+    display: none;
+  }
+}
+
+/*
+  Hero calls to action.
+
+  `scale(0.97)` on press, because a button that does not move under the
+  finger reads as not having registered it. 160ms ease-out: fast enough to
+  feel like a response rather than an animation.
+*/
+.nt-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.72rem 1.4rem;
+  border-radius: var(--radius-md);
+  font-size: 14.5px;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition:
+    transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.nt-cta:active {
+  transform: scale(0.97);
+}
+
+.nt-cta--primary {
+  background: var(--color-gold);
+  color: #131313;
+  /* A contained glow, not a halo: it marks the primary action on a dark
+     page without competing with the figure behind it. */
+  box-shadow: 0 10px 30px -12px rgba(201, 162, 39, 0.65);
+}
+
+.nt-cta--primary:hover {
+  background: var(--color-gold-bright);
+}
+
+.nt-cta--ghost {
+  border-color: var(--color-line-strong);
+  color: var(--color-text);
+}
+
+.nt-cta--ghost:hover {
+  border-color: var(--color-text-faint);
+  background: var(--color-surface);
+}
+
+@media (hover: none) {
+  /* Touch fires hover on tap, so the hover states above would stick. */
+  .nt-cta--primary:hover {
+    background: var(--color-gold);
+  }
+  .nt-cta--ghost:hover {
+    border-color: var(--color-line-strong);
+    background: transparent;
+  }
+}
+
 @utility text-balance {
   text-wrap: balance;
 }

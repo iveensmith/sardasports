@@ -102,6 +102,14 @@ export interface BoardDay {
 export interface BoardDates {
   today: string;
   days: BoardDay[];
+  /**
+   * The most recent day with a settled result on it.
+   *
+   * Not the same as yesterday. Fixtures are ingested forward but their scores
+   * are not fetched back yet, so yesterday is routinely ungraded — a results
+   * strip bound to it would simply never appear.
+   */
+  last_settled: string | null;
 }
 
 /** Every row in a response, flattened out of its competition groups. */
