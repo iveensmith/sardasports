@@ -70,6 +70,23 @@
      communicates nothing at all. Now 3.6:1. */
   --color-unknown: #69788a;
 
+  /*
+    Settled tips. A different axis from the outcome hues above: those say
+    which side, these say whether the pick came in.
+
+    Measured, not chosen. Both clear AA on either surface — won 6.11:1 and
+    lost 5.25:1 against the raised surface, 6.72 and 5.78 against the base —
+    and they sit 56.6 apart under a deuteranopia simulation, the widest of
+    the candidates tried. The reds that looked better on screen (#e0574f,
+    #d9534f) failed on the raised surface at 4.37 and 4.10.
+
+    Green and red is still the classic colourblind trap, so neither is ever
+    the only carrier: a settled cell always shows a tick or a cross beside
+    the colour, and the row's verdict is in its text too.
+  */
+  --color-won: #35b37e;
+  --color-lost: #ec6a5e;
+
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 

@@ -11,6 +11,7 @@
  * the engine returns null for a line, null is what reaches the page.
  */
 
+import type { BoardDates, DayBoard } from "./board";
 import type {
   Call,
   Calls,
@@ -250,6 +251,37 @@ export function getBoard(
   return engineFetch<BoardResponse>(`/predictions/today?${query}`, {
     revalidate: 300,
   });
+}
+
+/**
+ * A day's card as a table, grouped by competition.
+ *
+ * Distinct from `getBoard` above, which serves `/predictions/today` and
+ * answers a different question — how much the estimators agreed. This one is
+ * the browsable board: any date, grouped by competition, graded once played.
+ *
+ * Short revalidate window because the board changes shape through the day:
+ * fixtures kick off, scores arrive, and picks settle. A stale graded board is
+ * worse than a stale unplayed one — it shows verdicts that have since changed.
+ */
+export function getDayBoard(options: {
+  date?: string;
+  country?: string;
+  competition?: string;
+  sport?: string;
+} = {}): Promise<DayBoard> {
+  const query = new URLSearchParams();
+  if (options.date) query.set("on_date", options.date);
+  if (options.country) query.set("country", options.country);
+  if (options.competition) query.set("competition", options.competition);
+  if (options.sport) query.set("sport", options.sport);
+  const suffix = query.toString() ? `?${query}` : "";
+  return engineFetch<DayBoard>(`/board${suffix}`, { revalidate: 120 });
+}
+
+/** The date strip, with a fixture count per day. */
+export function getBoardDates(span = 3): Promise<BoardDates> {
+  return engineFetch<BoardDates>(`/board/dates?span=${span}`, { revalidate: 600 });
 }
 
 /** The active version and recent history for one model. */

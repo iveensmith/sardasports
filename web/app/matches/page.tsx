@@ -1,119 +1,46 @@
 /**
- * Match browser — the way into the 144,000 matches behind the predictions.
+ * The browsable board: any day's fixtures, grouped by competition.
  *
- * Filters live in one row above the list and are driven by the URL, so a
- * filtered view is linkable and survives a refresh. Next 16: `searchParams`
- * is a Promise and must be awaited.
+ * Three things a reader needs and a card list cannot give them. A date strip,
+ * because yesterday — where every pick is already settled — is the page that
+ * decides whether today's is worth reading. A country filter, because a
+ * hundred-fixture Saturday is unusable otherwise. And a table, because
+ * picks in four markets across a hundred fixtures is a grid, and pretending
+ * otherwise costs the reader the comparison that makes it useful.
  *
- * Results are a dense list for the same reason the board is: these rows are
- * scanned and compared, and a card grid makes the eye re-anchor on each one.
+ * Everything is URL-driven: a day, a country, a competition are all links, so
+ * any view is shareable and none of it needs client JavaScript.
+ *
+ * Next 16: `searchParams` is a Promise and must be awaited.
  */
 
-import Link from "next/link";
-import { getCompetitions, getMatches } from "@/lib/api";
-import type { Competition, MatchSummary } from "@/lib/types";
+import { EngineError, getBoardDates, getDayBoard } from "@/lib/api";
+import type { BoardDates, DayBoard } from "@/lib/board";
+import { BoardTable } from "@/components/board/BoardTable";
+import { CountrySidebar } from "@/components/board/CountrySidebar";
+import { DateStrip } from "@/components/board/DateStrip";
+import { StatTiles } from "@/components/board/StatTiles";
 
-export const revalidate = 300;
+export const revalidate = 120;
 
 export const metadata = {
-  title: "Matches — UniquePredict",
+  title: "Football predictions by day — UniquePredict",
+  description:
+    "Every fixture the engine prices, with a pick in each market and every past pick graded against the result.",
 };
 
-const SPORTS = ["football", "basketball", "tennis"] as const;
-const PAGE_SIZE = 50;
-
-function Score({ match }: { match: MatchSummary }) {
-  if (match.home_score === null || match.away_score === null) {
-    return (
-      <span className="text-[13px] text-[var(--color-text-faint)]">
-        {match.status === "scheduled" ? "Upcoming" : "—"}
-      </span>
-    );
-  }
+function Empty({ date }: { date: string }) {
   return (
-    <span className="text-[15px] font-semibold">
-      {match.home_score}
-      <span className="mx-1.5 text-[var(--color-text-faint)]">–</span>
-      {match.away_score}
-    </span>
-  );
-}
-
-function FilterBar({
-  competitions,
-  sport,
-  competition,
-  status,
-}: {
-  competitions: Competition[];
-  sport: string;
-  competition: string;
-  status: string;
-}) {
-  // A plain GET form: no client JS needed, and the resulting URL is the
-  // shareable state. Submitting resets to page one by omitting `offset`.
-  return (
-    <form
-      className="mb-6 flex flex-wrap items-end gap-3"
-      action="/matches"
-      method="get"
-    >
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] text-[var(--color-text-faint)]">Sport</span>
-        <select
-          name="sport"
-          defaultValue={sport}
-          className="min-w-[10rem] rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3 py-2 text-[14px]"
-        >
-          <option value="">All sports</option>
-          {SPORTS.map((s) => (
-            <option key={s} value={s}>
-              {s[0].toUpperCase() + s.slice(1)}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] text-[var(--color-text-faint)]">
-          Competition
-        </span>
-        <select
-          name="competition"
-          defaultValue={competition}
-          className="min-w-[16rem] rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3 py-2 text-[14px]"
-        >
-          <option value="">All competitions</option>
-          {competitions.map((c) => (
-            <option key={`${c.sport}-${c.competition}`} value={c.competition}>
-              {c.competition} ({c.match_count.toLocaleString()})
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1.5">
-        <span className="text-[12px] text-[var(--color-text-faint)]">
-          Status
-        </span>
-        <select
-          name="status"
-          defaultValue={status}
-          className="min-w-[9rem] rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3 py-2 text-[14px]"
-        >
-          <option value="">Any</option>
-          <option value="scheduled">Upcoming</option>
-          <option value="completed">Completed</option>
-        </select>
-      </label>
-
-      <button
-        type="submit"
-        className="rounded-[var(--radius-md)] border border-[var(--color-line-strong)] px-4 py-2 text-[14px] font-medium transition-colors hover:border-[var(--color-text-faint)]"
-      >
-        Apply filters
-      </button>
-    </form>
+    <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-8">
+      <p className="text-[15px] font-medium">No fixtures on {date}</p>
+      <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
+        Either nothing is scheduled, or this day has not been ingested yet. Run{" "}
+        <code className="text-[var(--color-text)]">
+          scripts/fetch_upcoming_fixtures.py
+        </code>{" "}
+        to pull the next few days.
+      </p>
+    </div>
   );
 }
 
@@ -128,139 +55,104 @@ export default async function MatchesPage({
     return (Array.isArray(value) ? value[0] : value) ?? "";
   };
 
-  const sport = first("sport");
+  const date = first("date");
+  const country = first("country");
   const competition = first("competition");
-  const status = first("status");
-  const offset = Number(first("offset")) || 0;
 
-  let matches: MatchSummary[] = [];
-  let competitions: Competition[] = [];
-  let total = 0;
+  let board: DayBoard | null = null;
+  let dates: BoardDates | null = null;
   let error: string | null = null;
 
   try {
-    const [matchResult, competitionResult] = await Promise.all([
-      getMatches({
-        sport: sport || undefined,
+    [board, dates] = await Promise.all([
+      getDayBoard({
+        date: date || undefined,
+        country: country || undefined,
         competition: competition || undefined,
-        status: status || undefined,
-        limit: PAGE_SIZE,
-        offset,
       }),
-      getCompetitions(sport || undefined),
+      getBoardDates(3),
     ]);
-    matches = matchResult.matches;
-    total = matchResult.count;
-    competitions = competitionResult.competitions;
   } catch (e) {
-    error = e instanceof Error ? e.message : "The engine could not be reached.";
+    error =
+      e instanceof EngineError
+        ? e.message
+        : e instanceof Error
+          ? e.message
+          : "The engine could not be reached.";
   }
 
-  const query = new URLSearchParams();
-  if (sport) query.set("sport", sport);
-  if (competition) query.set("competition", competition);
-  if (status) query.set("status", status);
-  const pageHref = (newOffset: number) => {
-    const next = new URLSearchParams(query);
-    if (newOffset > 0) next.set("offset", String(newOffset));
-    return `/matches${next.toString() ? `?${next}` : ""}`;
-  };
-
-  return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
-      <header className="mb-7">
-        <h1 className="text-[32px] font-bold tracking-[-0.02em]">Matches</h1>
-        <p className="mt-2 max-w-[62ch] text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          Everything the engine has ingested — football, basketball and tennis.
-          Open any match for its full prediction.
-        </p>
-      </header>
-
-      <FilterBar
-        competitions={competitions}
-        sport={sport}
-        competition={competition}
-        status={status}
-      />
-
-      {error ? (
+  if (error || !board || !dates) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
           <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
         </div>
-      ) : matches.length === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-8">
-          <p className="text-[15px] font-medium">Nothing matches those filters</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
-            Try a different competition, or clear the status filter.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)]">
-            <div className="px-4 py-3 text-[13px] text-[var(--color-text-dim)]">
-              {total.toLocaleString()} match{total === 1 ? "" : "es"}
-              {total > PAGE_SIZE && (
-                <span className="text-[var(--color-text-faint)]">
-                  {" "}
-                  · showing {offset + 1}–
-                  {Math.min(offset + PAGE_SIZE, total)}
-                </span>
-              )}
+      </div>
+    );
+  }
+
+  const shown = new Date(board.date).toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
+  const settled = board.counts.finished > 0;
+
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-10">
+      <DateStrip days={dates.days} active={board.date} />
+
+      <header className="mt-8 mb-5">
+        <h1 className="text-[clamp(1.6rem,3.5vw,2.1rem)] font-bold tracking-[-0.02em]">
+          {shown}
+        </h1>
+        <p className="mt-2 max-w-[70ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
+          {settled
+            ? "Every pick on this card has been graded against the final result — won, lost, or void where the match records no such stat."
+            : "A pick in each market for every fixture the engine has a trained model for. Each one is graded against the result once the match is played."}
+        </p>
+      </header>
+
+      <StatTiles counts={board.counts} />
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[210px_1fr]">
+        <aside className="lg:sticky lg:top-6 lg:self-start">
+          <CountrySidebar
+            countries={board.countries}
+            active={country || null}
+            date={board.date}
+          />
+        </aside>
+
+        <main className="min-w-0">
+          {board.groups.length === 0 ? (
+            <Empty date={shown} />
+          ) : (
+            <div className="flex flex-col gap-7">
+              {board.groups.map((group) => (
+                <section key={group.competition.name}>
+                  <div className="mb-2 flex flex-wrap items-baseline gap-x-2.5">
+                    <h2 className="text-[15px] font-semibold">
+                      {group.competition.short_name}
+                    </h2>
+                    {group.competition.country && (
+                      <span className="text-[12.5px] text-[var(--color-text-faint)]">
+                        {group.competition.country}
+                      </span>
+                    )}
+                    <span className="ml-auto text-[12px] text-[var(--color-text-faint)]">
+                      {group.rows.length} fixture
+                      {group.rows.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <BoardTable rows={group.rows} />
+                </section>
+              ))}
             </div>
-
-            {matches.map((match) => (
-              <Link
-                key={match.match_id}
-                href={`/match/${match.match_id}`}
-                className="grid grid-cols-[1fr_auto] items-center gap-x-5 gap-y-1 border-t border-[var(--color-line)] px-4 py-3.5 transition-colors hover:bg-[var(--color-surface-raised)] md:grid-cols-[7rem_minmax(0,1fr)_auto]"
-              >
-                <div className="text-[13px] text-[var(--color-text-dim)]">
-                  {new Date(match.match_date).toLocaleDateString(undefined, {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  })}
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-[15px]">
-                    {match.home_team}{" "}
-                    <span className="text-[var(--color-text-faint)]">v</span>{" "}
-                    {match.away_team}
-                  </p>
-                  <p className="mt-0.5 truncate text-[12px] text-[var(--color-text-faint)]">
-                    {match.competition} · {match.season}
-                  </p>
-                </div>
-                <div className="justify-self-end">
-                  <Score match={match} />
-                </div>
-              </Link>
-            ))}
-          </div>
-
-          <nav className="mt-5 flex items-center justify-between text-[14px]">
-            {offset > 0 ? (
-              <Link
-                href={pageHref(Math.max(0, offset - PAGE_SIZE))}
-                className="text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
-              >
-                Previous
-              </Link>
-            ) : (
-              <span />
-            )}
-            {offset + PAGE_SIZE < total && (
-              <Link
-                href={pageHref(offset + PAGE_SIZE)}
-                className="text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
-              >
-                Next
-              </Link>
-            )}
-          </nav>
-        </>
-      )}
+          )}
+        </main>
+      </div>
     </div>
   );
 }
