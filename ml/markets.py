@@ -56,6 +56,39 @@ MARKET_NAMES = {
 MARKET_ORDER = [MATCH_RESULT, DOUBLE_CHANCE, GOALS, BTTS, HT_GOALS, CORNERS, CARDS]
 
 
+# Bookmaker shorthand, for the board's fixed-width market columns.
+#
+# A table cell has room for "1X" and not for "Home or draw", and anyone
+# reading a football board already knows what 1X means. The long labels stay
+# on `Call.label` for the fixture page and anywhere a full sentence fits.
+SHORT_CODES: dict[str, str] = {
+    f"{MATCH_RESULT}:home": "1",
+    f"{MATCH_RESULT}:draw": "X",
+    f"{MATCH_RESULT}:away": "2",
+    f"{DOUBLE_CHANCE}:home_draw": "1X",
+    f"{DOUBLE_CHANCE}:away_draw": "X2",
+    f"{DOUBLE_CHANCE}:home_away": "12",
+    f"{BTTS}:yes": "Yes",
+    f"{BTTS}:no": "No",
+}
+
+# Prefixes for the over/under markets, whose selections carry their own line.
+_OVER_UNDER_PREFIX = {GOALS: "", HT_GOALS: "HT ", CORNERS: "Crn ", CARDS: "Crd "}
+
+
+def short_code(market: str, selection: str) -> str:
+    """ "1X", "O2.5", "HT O0.5" — the shorthand a board column has room for."""
+    fixed = SHORT_CODES.get(f"{market}:{selection}")
+    if fixed is not None:
+        return fixed
+    prefix = _OVER_UNDER_PREFIX.get(market)
+    if prefix is not None and "_" in selection:
+        side, _, line = selection.partition("_")
+        if side in ("over", "under"):
+            return f"{prefix}{side[0].upper()}{line}"
+    return selection
+
+
 @dataclass(frozen=True)
 class Call:
     """One selection the engine can make, with how likely it thinks it is."""
@@ -69,6 +102,11 @@ class Call:
     def key(self) -> str:
         """Stable identifier, matching the base-rate table's keys."""
         return f"{self.market}:{self.selection}"
+
+    @property
+    def short_label(self) -> str:
+        """Bookmaker shorthand for a narrow column."""
+        return short_code(self.market, self.selection)
 
 
 def _number(value) -> float | None:
@@ -193,6 +231,7 @@ class RankedCall:
             "market_name": MARKET_NAMES.get(self.call.market, self.call.market),
             "selection": self.call.selection,
             "label": self.call.label,
+            "short_label": self.call.short_label,
             "probability": round(self.call.probability, 1),
             "base_rate": self.base_rate,
             "lift": None if self.lift is None else round(self.lift, 1),
