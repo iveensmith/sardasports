@@ -9,7 +9,66 @@ The two items that once needed a project-owner decision (a real
 `API_FOOTBALL_KEY` for injuries, and third-party knowledge-base licensing)
 were both resolved; their sections below record how.
 
-**What's genuinely still open**, each called out in context further down:
+**What's genuinely still open**, each called out in context further down.
+Ordered by what blocks the most.
+
+### Blocking the product's central claim
+
+- **Nothing fetches results for fixtures we predict forward.**
+  `scripts/fetch_upcoming_fixtures.py` ingests fixtures and
+  `scripts/fetch_odds.py` prices them, but no script fetches the score
+  afterwards. So the board grades 2023–2026 history and *not* the fixtures
+  it just predicted — yesterday's card renders ungraded, and the live track
+  record cannot start. This is the highest-value single fix in the repo:
+  everything about settlement, grading and the Progress page already works
+  and is tested, and is waiting on this one input.
+- **The track record is entirely backtested.** All 807 stored predictions
+  were generated *after* the match from history truncated at kick-off
+  (leakage-safe, but never exposed to being wrong in public). Zero were
+  stored before kick-off. `/progress` reports live and backtested records
+  separately and the UI labels the figure honestly, so this needs no code —
+  it needs the item above, and then time.
+
+### Needs a decision from the project owner
+
+- **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
+  accounts, the Hit&Win prediction game, and subscription gating.
+- **Bookmaker links.** Asked several times, never answered. A "Bet now
+  @1.95" button is an affiliate referral and carries licensing and
+  age-gating obligations. Until it is answered, odds stay informational and
+  nothing links out.
+
+### Known defects, measured and unfixed
+
+- **The confidence score does not discriminate.** Over 851 stored
+  predictions it runs 78.5–99.4, median 94.4, sd 3.6 — the top fifth of its
+  own nominal 0–100 scale. A "bankers above 8/10" filter admitted 29 of 29
+  fixtures on a real card, which is why `/bankers` selects on probability
+  instead. The metric is an estimator-agreement measure and the estimators
+  agree almost always; it wants rescaling or replacing, and that is a
+  deliberate change to a documented formula rather than a tweak.
+- **International predictions are data-starved.** Our international history
+  starts 2022. Morocco has 28 completed matches, Lesotho 17, Gambia 13, and
+  on those fixtures all three estimators agree with each other and disagree
+  with the market together. Elo weighting and Poisson pooling took the
+  calibration gap from 14.0 to 3.8 points, but the rest is volume:
+  ingesting pre-2022 internationals would roughly 4x the pool and is the
+  single highest-value data job.
+- **`Andorra` is one team row for two entities** — FC Andorra (84 Spanish
+  Segunda matches) and the Andorra national team (20 internationals) share
+  one Elo of 1317.5, which describes neither. Fixing it means splitting the
+  row and reassigning matches, which changes historical records, so it is
+  left for a decision.
+- **Curaçao is stored with a literal U+FFFD replacement character**
+  (`Cura�ao`). Something still reaches the DB mis-decoded — likely
+  `fetch_international.py` rather than the `clean_data` path that was fixed.
+- **Thin-data fixtures still print large expected-value figures** ("+1344.0%
+  expected value" on Lesotho v Morocco). Flagged `THIN DATA` with an
+  explanatory sentence, but it is still the largest number on the panel.
+  Suppressing the percentage entirely when evidence is thin is a one-line
+  change awaiting a call.
+
+### Pre-existing
 
 - **Re-run the ROI backtest against the current models.** The -6.74% figure
   in "ROI backtesting" was computed on the old single-league dataset and is
@@ -744,3 +803,87 @@ exactly what it exists for.
 Still open for tennis: player **rankings** are in the source and not yet
 ingested, and per-tour (ATP vs WTA) models are untried. Either could move
 the winner market off the Elo baseline.
+
+## Site rebuild against a reference product — done, in progress
+
+The brief changed from "build a SaaS site around the engine" to "rebuild it
+like nerdytips.com". That site was studied page by page in a browser and its
+*structure* adopted; its palette was not. The visual identity stays dark
+with gold accents, per the original brief and per an explicit decision when
+the two conflicted.
+
+The structural insight worth recording: **their board is a table with one
+column per market**, not a list of cards with one prediction each. That
+dissolves a tension this project spent several passes on — you do not choose
+between "one prediction" and "show me more markets", you show a BEST TIP
+column *and* per-market columns. Confidence is scored out of ten, not 0–100.
+
+### What was built
+
+- `app/services/settlement.py` — grades any call against a final result.
+  Three outcomes, and the third carries the honesty: VOID, for a call about
+  a stat the match does not record. Several competitions log no corners or
+  cards; those calls were never settleable, so counting them either way
+  makes the sample size a lie. Excluded from every rate, reported
+  separately. An unrecognised market is VOID too — that is our omission,
+  not the model's failure.
+- `ml/competition_catalogue.py` — country, short name and tier for all 25
+  competitions, 1:1 with the database. In code, not a migration: reference
+  data that wants reviewing in a diff. Becomes a table when it outgrows a
+  few hundred rows.
+- `app/services/board_service.py` — a prediction becomes a table row.
+  Readable slugs (`spain-vs-croatia-prediction-144414`) with the id on the
+  end, so the name part is decoration and resolution stays exact.
+- `app/services/progress_service.py` — the public track record, keeping
+  live and backtested records strictly apart.
+- `app/services/slip_service.py` — accumulator builder. One leg per fixture
+  (two selections from one match are correlated), greedy and deterministic.
+- `GET /board`, `/board/dates`, `/progress`, `/leagues`, `/bankers`, `/slip`.
+  All added alongside the existing routes; none replaced.
+- Pages: `/matches`, `/bankers`, `/slip`, `/leagues`, `/progress`, rebuilt
+  home, new nav.
+
+### Two bugs the rebuild surfaced
+
+**The market columns were ranking by lift, not probability.** The 1X2 cell
+preferred a 33% away win to a 45% home win because away beats its base rate
+by more. `best_per_market` walked the lift-ordered list while
+`headline_call` used probability — two rules, one row. Graded over 807
+settled fixtures that column won 24.7%, against 33.3% for guessing, while
+the headline beside it won 77.7%. Every market improved once both shared
+one rule (`_pick` in `ml/markets.py`):
+
+    market           was      now
+    match_result    24.7%    51.5%
+    double_chance   57.2%    76.2%
+    goals           59.2%    71.9%
+    corners         55.9%    72.4%
+    cards           63.0%    76.0%
+
+Found by building the track record, not by reading the code — the headline
+number looked fine throughout. That is the argument for grading everything
+rather than only the figure you lead with.
+
+**Confidence is saturated** — see the open-items section above.
+
+### Colour
+
+`--color-won: #35b37e` and `--color-lost: #ec6a5e`, measured not chosen:
+both clear AA on either surface (6.11 and 5.25 against the raised surface)
+and sit 56.6 apart under a deuteranopia simulation, the widest of the
+candidates tried. The reds that looked better on screen (#e0574f, #d9534f)
+failed on the raised surface at 4.37 and 4.10. Green-versus-red is the pair
+a red-green colourblind reader cannot separate, so neither is ever the only
+carrier: every settled cell shows a tick or cross, screen readers get the
+verdict in words, and the row carries a coloured edge as a third channel.
+
+### Not built, and why
+
+- **Log In, Hit&Win, subscription gating** — need auth, blocked on Supabase.
+- **The match page's tabs and its predicted-vs-actual stats panel.** The
+  strongest feature on the reference site: xG, possession, shots, corners,
+  cards, offsides and fouls, each showing what was predicted against what
+  happened. This engine predicts corners and cards and stores the actuals,
+  so it is a genuine fit and the highest-value remaining UI work.
+- **Team crests and flags** — needs an asset source.
+- **Blog** — needs a content setup.
