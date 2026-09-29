@@ -11,7 +11,9 @@ from app.schemas.prediction import (
     PredictionOut,
     TennisPredictionOut,
 )
+from app.services.base_rates import market_base_rates
 from app.services.prediction_service import MatchNotFoundError, predict_for_match
+from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
 
 router = APIRouter(tags=["predictions"])
 
@@ -41,4 +43,23 @@ def predict(
         return BasketballPredictionOut(**payload)
     if sport == "tennis":
         return TennisPredictionOut(**payload)
+
+    # Football is the fall-through, and the football payload does not carry a
+    # `sport` key at all — `PredictionOut.sport` defaults it. So this must be
+    # keyed off "not one of the others" exactly as the branches above are,
+    # never off `sport == "football"`, which is never true here.
+    #
+    # Every market this fixture supports, not just the match result. Computed
+    # in the route rather than the service because it needs the base-rate
+    # table, which is a property of the whole database rather than of one
+    # prediction.
+    ranked = rank_calls(
+        candidate_calls(payload, payload["home_team"], payload["away_team"]),
+        market_base_rates(db, "football"),
+    )
+    best = headline_call(ranked)
+    payload["calls"] = {
+        "headline": best.as_dict() if best else None,
+        "by_market": [entry.as_dict() for entry in best_per_market(ranked)],
+    }
     return PredictionOut(**payload)

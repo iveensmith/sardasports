@@ -32,8 +32,10 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models import Match, Team
+from app.services.base_rates import market_base_rates
 from app.services.pick_service import best_pick, most_likely_outcome
 from app.services.prediction_service import predict_for_matches
+from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
 
 router = APIRouter(tags=["predictions"])
 
@@ -156,17 +158,40 @@ def predictions_today(
             for team_id, total in rows:
                 played[team_id] = played.get(team_id, 0) + total
 
+    # One scan of the matches table for the whole board, not one per fixture.
+    base_rates_by_sport: dict[str, dict[str, float]] = {}
+
     entries = []
     for match, prediction in zip(matches, predictions, strict=True):
         agreement = agreement_for(prediction) if prediction else None
+        home_name = names.get(match.home_team_id, "")
+        away_name = names.get(match.away_team_id, "")
+
+        # Every market the engine can call for this fixture, ranked by how
+        # far each sits above its own base rate. Ranking by raw probability
+        # instead puts a double chance on top of almost every row — see
+        # ml.markets for the measurements.
+        calls = None
+        if prediction and match.sport == "football":
+            if match.sport not in base_rates_by_sport:
+                base_rates_by_sport[match.sport] = market_base_rates(db, match.sport)
+            ranked = rank_calls(
+                candidate_calls(prediction, home_name, away_name),
+                base_rates_by_sport[match.sport],
+            )
+            best = headline_call(ranked)
+            calls = {
+                "headline": best.as_dict() if best else None,
+                "by_market": [entry.as_dict() for entry in best_per_market(ranked)],
+            }
         entries.append(
             {
                 "match_id": match.id,
                 "match_date": match.match_date.isoformat(),
                 "sport": match.sport,
                 "competition": match.competition,
-                "home_team": names.get(match.home_team_id, ""),
-                "away_team": names.get(match.away_team_id, ""),
+                "home_team": home_name,
+                "away_team": away_name,
                 "status": match.status,
                 "prediction": prediction,
                 "agreement": agreement,
@@ -175,11 +200,11 @@ def predictions_today(
                 # probabilities the detail page renders — the row and the
                 # detail page previously disagreed, because the row led with
                 # `pick` below, which answers a different question.
-                "forecast": most_likely_outcome(
-                    prediction,
-                    names.get(match.home_team_id, ""),
-                    names.get(match.away_team_id, ""),
-                ),
+                "forecast": most_likely_outcome(prediction, home_name, away_name),
+                # Calls across every market, headline first. The forecast
+                # above stays the match-result answer specifically, because
+                # "who wins?" is the question a reader always has.
+                "calls": calls,
                 # Where the *price* looks wrong, by expected value against
                 # the best available price. Frequently not the likely
                 # outcome, so it is shown as value and never as the

@@ -156,3 +156,69 @@ def test_predict_does_not_crash_with_zero_prior_history(client, db_session):
     body = response.json()
     total = body["home_win"] + body["draw"] + body["away_win"]
     assert total == approx100(100.0)
+
+
+def test_a_football_prediction_carries_calls_for_every_market(client, db_session):
+    """Regression: football is the route's fall-through branch.
+
+    `predict_for_match` returns no `sport` key for football at all —
+    `PredictionOut.sport` supplies the default on serialisation. So a branch
+    written as `if sport == "football"` is never true, and the calls silently
+    came back null while the board (which reads `match.sport` off the ORM row)
+    had them. Two endpoints disagreeing about the same fixture again.
+    """
+    from datetime import datetime, timedelta
+
+    from app.models import Match, Team
+
+    home = Team(name="Calls Home", league="Test League", sport="football")
+    away = Team(name="Calls Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+
+    start = datetime(2024, 1, 1)
+    for index in range(250):
+        db_session.add(
+            Match(
+                external_id=f"calls-{index}",
+                match_date=start + timedelta(days=index),
+                competition="Test League",
+                season="2024",
+                home_team_id=home.id,
+                away_team_id=away.id,
+                home_score=2,
+                away_score=1,
+                status="completed",
+                sport="football",
+            )
+        )
+    upcoming = Match(
+        external_id="calls-upcoming",
+        match_date=start + timedelta(days=400),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="scheduled",
+        sport="football",
+    )
+    db_session.add(upcoming)
+    db_session.commit()
+    match_id = upcoming.id
+
+    from app.services.base_rates import reset_cache
+
+    reset_cache()
+    try:
+        body = client.get(f"/predict/{match_id}").json()
+    finally:
+        reset_cache()
+
+    assert body.get("calls") is not None, "football predictions must carry calls"
+    assert body["calls"]["headline"] is not None
+    markets = {call["market"] for call in body["calls"]["by_market"]}
+    # More than the match result, which is the entire point.
+    assert "match_result" in markets
+    assert len(markets) > 1
+    for call in body["calls"]["by_market"]:
+        assert 0.0 <= call["probability"] <= 100.0

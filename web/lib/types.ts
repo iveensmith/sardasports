@@ -11,6 +11,39 @@
  * See docs/api_reference.md in the engine repo.
  */
 
+/**
+ * One market's call.
+ *
+ * `probability` alone is not a prediction. Over 1.5 goals lands in 74.8% of
+ * all matches and "either team to win" in 73.8%, so an engine reading of 76%
+ * on either says nothing at all — ranked on raw probability, 26 of 29
+ * fixtures on a real card led with a double chance. `lift` is the distance
+ * above that selection's own base rate, and it is the part that carries
+ * information. `notable` marks a lift big enough to be worth a reader's
+ * attention.
+ *
+ * `base_rate` and `lift` are null where there is too little history to judge
+ * the market, which is deliberately not the same as a lift of zero.
+ */
+export interface Call {
+  market: string;
+  market_name: string;
+  selection: string;
+  /** "Spain or draw", "Over 2.5 goals" — named for a reader, not as "1X". */
+  label: string;
+  probability: number;
+  base_rate: number | null;
+  lift: number | null;
+  notable: boolean;
+}
+
+export interface Calls {
+  /** Highest lift among calls likely enough to print as a prediction. */
+  headline: Call | null;
+  /** The strongest call in each market, in reading order. */
+  by_market: Call[];
+}
+
 export type Sport = "football" | "basketball" | "tennis";
 
 /**
@@ -62,6 +95,11 @@ export interface FootballPrediction {
   model_weights_used: Record<string, number>;
   btts_model_used: boolean;
   explanation: FeatureImpact[] | null;
+  /**
+   * Calls across every market, ranked by lift over each selection's base
+   * rate. Football only — the other sports have no base-rate table yet.
+   */
+  calls: Calls | null;
   generated_at: string;
 }
 

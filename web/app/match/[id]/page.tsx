@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EngineError, getPrediction } from "@/lib/api";
+import { MarketCallTable } from "@/components/MarketCalls";
 import {
   competitors,
   isBasketball,
@@ -39,6 +40,14 @@ function Stat({ label, value }: { label: string; value: string | number }) {
 function FootballBody({ p }: { p: Extract<Prediction, { sport: "football" }> }) {
   return (
     <>
+      {/* What the engine calls, before the raw per-line numbers below. The
+          tables that follow are the working; this is the conclusion. */}
+      {p.calls && p.calls.by_market.length > 0 && (
+        <div className="mb-4">
+          <MarketCallTable calls={p.calls.by_market} />
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Expected goals (home)" value={p.expected_goals_home} />
         <Stat label="Expected goals (away)" value={p.expected_goals_away} />

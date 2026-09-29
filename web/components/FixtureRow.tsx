@@ -12,6 +12,13 @@
  * but nothing on either page said so, which made the product look broken —
  * and worse, made a 14% shot read as a prediction.
  *
+ * Beneath the forecast sits the spread of other markets the engine prices —
+ * double chance, goals lines, both teams to score, half-time goals — each
+ * with how far it sits above that selection's own base rate. Ranked on raw
+ * probability these would be useless: "either team to win" is true of 73.8%
+ * of all matches, so it topped 26 of 29 rows on a real card while saying
+ * nothing. Lift is what makes a call a claim.
+ *
  * Value still appears, because a mispriced long shot is worth surfacing. It
  * sits below the forecast, labelled "value", and never occupies the headline.
  * Where the evidence behind it is thin the row says so rather than printing a
@@ -22,6 +29,7 @@
 import Link from "next/link";
 import type { BoardEntry } from "@/lib/api";
 import { ConfidenceRing } from "@/components/ConfidenceRing";
+import { MarketCallStrip } from "@/components/MarketCalls";
 
 const SPORT_BADGE: Record<string, string> = {
   football: "FTB",
@@ -56,7 +64,7 @@ function StatusChip({ status }: { status: string }) {
 }
 
 export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
-  const { prediction, pick, forecast } = fixture;
+  const { prediction, pick, forecast, calls } = fixture;
   const kickoff = new Date(fixture.match_date).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
@@ -130,6 +138,15 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             <p className="mt-1.5 text-[13px] text-[var(--color-text-faint)]">
               The engine could not price this fixture.
             </p>
+          )}
+
+          {/* The other markets, so the row is not only "who wins". The
+              match-result call is already the headline above, so it is
+              dropped here rather than printed twice. */}
+          {calls && (
+            <MarketCallStrip
+              calls={calls.by_market.filter((c) => c.market !== "match_result")}
+            />
           )}
 
           {/* Supporting detail: why, or why not. */}

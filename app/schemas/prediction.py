@@ -112,6 +112,39 @@ class TennisPredictionOut(BaseModel):
     generated_at: datetime
 
 
+class CallOut(BaseModel):
+    """One market's call, with the context that makes it a claim.
+
+    `probability` alone is not a prediction — over 1.5 goals lands in 74.8%
+    of all matches, so a 76% reading says nothing. `base_rate` is how often
+    this selection actually lands across completed matches and `lift` is the
+    distance between them, which is the part that carries information.
+
+    `base_rate` and `lift` are null for a market with too little history to
+    judge, which is deliberately distinct from a lift of zero.
+    """
+
+    market: str
+    market_name: str
+    selection: str
+    label: str
+    probability: float
+    base_rate: float | None = None
+    lift: float | None = None
+    notable: bool = False
+
+
+class CallsOut(BaseModel):
+    """What the engine calls across every market it can price."""
+
+    # The one call worth leading with: highest lift among selections likely
+    # enough to print. See ml.markets.headline_call.
+    headline: CallOut | None = None
+    # The strongest call in each market, in reading order — so a reader sees
+    # the spread of questions rather than three near-identical goals lines.
+    by_market: list[CallOut] = []
+
+
 class PredictionOut(BaseModel):
     match_id: int
     sport: str = "football"
@@ -149,6 +182,9 @@ class PredictionOut(BaseModel):
     estimator_probs: dict = {}
     btts_model_used: bool
     explanation: list[FeatureImpactOut] | None = None
+    # Every market's call, ranked by how far the model sits above that
+    # selection's own base rate. Absent for sports with no base-rate table.
+    calls: CallsOut | None = None
     generated_at: datetime
 
 

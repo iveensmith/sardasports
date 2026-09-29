@@ -12,11 +12,16 @@
  */
 
 import type {
+  Call,
+  Calls,
   CompetitionsResponse,
   FixturesResponse,
   MatchesResponse,
   Prediction,
 } from "./types";
+
+// Re-exported so components can import every board type from one module.
+export type { Call, Calls };
 
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://127.0.0.1:8000";
 
@@ -188,8 +193,10 @@ export interface BoardEntry {
   status: string;
   prediction: Prediction | null;
   agreement: Agreement | null;
-  /** What the engine expects. The row leads with this. */
+  /** What the engine expects for the match result specifically. */
   forecast: Forecast | null;
+  /** Calls across every market the engine can price, headline first. */
+  calls: Calls | null;
   /** Where the price looks wrong. Shown as value, never as the forecast. */
   pick: Pick | null;
   odds_updated_at: string | null;
