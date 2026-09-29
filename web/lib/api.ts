@@ -12,6 +12,7 @@
  */
 
 import type { BoardDates, DayBoard } from "./board";
+import type { Bankers, Leagues, Slip } from "./discover";
 import type { Progress } from "./progress";
 import type {
   Call,
@@ -293,6 +294,35 @@ export function getBoardDates(span = 3): Promise<BoardDates> {
  */
 export function getProgress(): Promise<Progress> {
   return engineFetch<Progress>("/progress", { revalidate: 3600 });
+}
+
+/** Every competition we model, grouped by country. */
+export function getLeagues(): Promise<Leagues> {
+  return engineFetch<Leagues>("/leagues", { revalidate: 3600 });
+}
+
+/** The day's likeliest picks, with the record of the settled ones. */
+export function getBankers(date?: string): Promise<Bankers> {
+  const query = date ? `?on_date=${date}` : "";
+  return engineFetch<Bankers>(`/bankers${query}`, { revalidate: 300 });
+}
+
+/** An accumulator assembled from the day's picks. */
+export function getSlip(options: {
+  date?: string;
+  targetOdds?: number;
+  minLegs?: number;
+  maxLegs?: number;
+  markets?: string;
+} = {}): Promise<Slip> {
+  const query = new URLSearchParams();
+  if (options.date) query.set("on_date", options.date);
+  if (options.targetOdds) query.set("target_odds", String(options.targetOdds));
+  if (options.minLegs) query.set("min_legs", String(options.minLegs));
+  if (options.maxLegs) query.set("max_legs", String(options.maxLegs));
+  if (options.markets) query.set("markets", options.markets);
+  const suffix = query.toString() ? `?${query}` : "";
+  return engineFetch<Slip>(`/slip${suffix}`, { revalidate: 300 });
 }
 
 /** The active version and recent history for one model. */

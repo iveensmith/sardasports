@@ -26,11 +26,17 @@ export const metadata: Metadata = {
     "Football, basketball and tennis predictions from a model that reports its own confidence, and says so when it cannot price a market.",
 };
 
+// Ordered by what a visitor came for, not by what the product is proudest
+// of. Matches first, then the two curated cuts of it, then the record — which
+// is the argument for the rest and belongs where someone goes looking for it
+// rather than where it can be mistaken for a headline claim.
 const NAV = [
-  { href: "/predictions", label: "Today" },
   { href: "/matches", label: "Matches" },
-  { href: "/leaderboard", label: "Leaderboard" },
-  { href: "/analytics", label: "Model" },
+  { href: "/bankers", label: "Bankers" },
+  { href: "/slip", label: "Slip builder" },
+  { href: "/leagues", label: "Leagues" },
+  { href: "/progress", label: "Track record" },
+  { href: "/leaderboard", label: "Models" },
 ];
 
 export default function RootLayout({

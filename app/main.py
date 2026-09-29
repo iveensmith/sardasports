@@ -17,6 +17,7 @@ from app.api import (
     routes_analyst,
     routes_board,
     routes_board_table,
+    routes_discover,
     routes_elo,
     routes_fixtures,
     routes_history,
@@ -92,6 +93,7 @@ app.include_router(routes_fixtures.router)
 app.include_router(routes_board.router)
 app.include_router(routes_board_table.router)
 app.include_router(routes_progress.router)
+app.include_router(routes_discover.router)
 app.include_router(routes_leaderboard.router)
 app.include_router(routes_predict.router)
 app.include_router(routes_team.router)

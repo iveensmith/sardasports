@@ -1,172 +1,206 @@
 /**
- * Landing page.
+ * Home.
  *
- * The hero is a real prediction on a real upcoming fixture, pulled live
- * from the engine. That is the most characteristic thing in this product's
- * world, and it is also the honest one: a marketing page for a prediction
- * engine that shows invented numbers would undercut the single property the
- * engine is built around.
+ * Three boards, in the order that earns trust rather than the order that
+ * flatters: yesterday first where every pick is already settled, then today,
+ * then tomorrow. Most prediction sites run that sequence backwards and lead
+ * with the unfalsifiable end of it.
  *
- * If the engine is unreachable or has no fixtures, the hero says so plainly
- * instead of falling back to a decorative placeholder.
+ * The hero carries the track record and labels it a backtest, because that is
+ * what it currently is. When the live record has something in it this page
+ * will lead with that instead, and it will be a stronger claim honestly made.
  */
 
 import Link from "next/link";
-import { getBoard } from "@/lib/api";
-import { competitors, isFootball, type Prediction } from "@/lib/types";
-import { ProbabilitySplit } from "@/components/ProbabilitySplit";
-import { ConfidenceMeter } from "@/components/ConfidenceMeter";
+import { EngineError, getDayBoard, getProgress } from "@/lib/api";
+import { allRows, type DayBoard } from "@/lib/board";
+import type { Progress } from "@/lib/progress";
+import { rate } from "@/lib/progress";
+import { BoardTable } from "@/components/board/BoardTable";
 
-export const revalidate = 300;
+export const revalidate = 180;
 
-function HeroPrediction({ prediction }: { prediction: Prediction }) {
-  const { home, away } = competitors(prediction);
+export const metadata = {
+  title: "UniquePredict — football predictions, every one graded",
+  description:
+    "A calibrated prediction engine. Every pick is settled against the final score and the record is public, including what it got wrong.",
+};
+
+function isoDay(offset: number): string {
+  const day = new Date();
+  day.setUTCDate(day.getUTCDate() + offset);
+  return day.toISOString().slice(0, 10);
+}
+
+function BoardSection({
+  title,
+  settledTitle,
+  blurb,
+  unsettledBlurb,
+  board,
+  href,
+}: {
+  title: string;
+  /** Used only once something on the board has actually been graded. */
+  settledTitle?: string;
+  blurb: string;
+  unsettledBlurb?: string;
+  board: DayBoard | null;
+  href: string;
+}) {
+  const rows = board ? allRows(board) : [];
+  if (rows.length === 0) return null;
+
+  // Whether anything here has a result yet. A past day whose results have not
+  // been ingested is not a settled board, and labelling it as one would be
+  // claiming an accountability the page is not currently delivering.
+  const settled = board!.counts.finished > 0;
+  const heading = settled && settledTitle ? settledTitle : title;
+  const copy = !settled && unsettledBlurb ? unsettledBlurb : blurb;
+
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6 shadow-[0_24px_80px_-32px_rgba(0,0,0,0.9)]">
-      <div className="mb-5 flex items-baseline justify-between gap-4">
-        <div className="min-w-0">
-          <p className="truncate text-[17px] font-semibold">
-            {home} <span className="text-[var(--color-text-faint)]">v</span>{" "}
-            {away}
-          </p>
-          <p className="mt-1 text-[13px] text-[var(--color-text-dim)]">
-            {new Date(prediction.match_date).toLocaleString(undefined, {
-              weekday: "short",
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+    <section className="mt-12">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div>
+          <h2 className="text-[21px] font-bold tracking-[-0.018em]">{heading}</h2>
+          <p className="mt-1 max-w-[68ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
+            {copy}
           </p>
         </div>
+        <div className="flex items-baseline gap-4">
+          {settled && (
+            <span className="text-[13px]">
+              <span
+                className="font-semibold tabular-nums"
+                style={{ color: "var(--color-won)" }}
+              >
+                {board!.counts.won}/{board!.counts.finished}
+              </span>{" "}
+              <span className="text-[var(--color-text-faint)]">best tips won</span>
+            </span>
+          )}
+          <Link
+            href={href}
+            className="text-[13px] text-[var(--color-gold-bright)] underline-offset-4 hover:underline"
+          >
+            All fixtures →
+          </Link>
+        </div>
       </div>
-
-      <ProbabilitySplit
-        home={prediction.home_win}
-        away={prediction.away_win}
-        draw={isFootball(prediction) ? prediction.draw : undefined}
-        homeLabel={home}
-        awayLabel={away}
-      />
-
-      <div className="mt-6 border-t border-[var(--color-line)] pt-5">
-        <ConfidenceMeter
-          value={prediction.confidence}
-          label={prediction.confidence_label}
-        />
-      </div>
-
-      <Link
-        href={`/match/${prediction.match_id}`}
-        className="mt-5 inline-block text-[14px] text-[var(--color-gold-bright)] underline-offset-4 hover:underline"
-      >
-        See the full analysis
-      </Link>
-    </div>
+      <BoardTable rows={rows.slice(0, 10)} />
+      {rows.length > 10 && (
+        <p className="mt-2 text-[12.5px] text-[var(--color-text-faint)]">
+          Showing 10 of {rows.length}.{" "}
+          <Link href={href} className="underline underline-offset-4">
+            See the rest
+          </Link>
+          .
+        </p>
+      )}
+    </section>
   );
 }
 
-function HeroEmpty({ reason }: { reason: string }) {
-  return (
-    <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-8">
-      <p className="text-[15px] font-medium">No fixture to show right now</p>
-      <p className="mt-2 max-w-[46ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
-        {reason}
-      </p>
-    </div>
-  );
-}
-
-export default async function Home() {
-  let hero: Prediction | null = null;
-  let reason =
-    "The engine only covers competitions it has trained models for, so quiet days show fewer fixtures.";
+export default async function HomePage() {
+  let yesterday: DayBoard | null = null;
+  let today: DayBoard | null = null;
+  let tomorrow: DayBoard | null = null;
+  let progress: Progress | null = null;
+  let error: string | null = null;
 
   try {
-    const board = await getBoard({ view: "consensus" });
-    // Lead with a fixture all three estimators agree on, most confident
-    // first. A disagreement would be a poor advertisement for the engine
-    // precisely because the headline number hides the split.
-    hero =
-      board.fixtures
-        .map((f) => f.prediction)
-        .filter((p): p is Prediction => p !== null)
-        .sort((a, b) => b.confidence - a.confidence)[0] ?? null;
-  } catch (error) {
-    reason =
-      error instanceof Error
-        ? error.message
-        : "The prediction engine could not be reached.";
+    [yesterday, today, tomorrow, progress] = await Promise.all([
+      getDayBoard({ date: isoDay(-1) }).catch(() => null),
+      getDayBoard({}),
+      getDayBoard({ date: isoDay(1) }).catch(() => null),
+      getProgress().catch(() => null),
+    ]);
+  } catch (e) {
+    error =
+      e instanceof EngineError || e instanceof Error
+        ? e.message
+        : "The engine could not be reached.";
   }
 
+  const hasLive = (progress?.live.record.settled ?? 0) > 0;
+  const headline = hasLive ? progress!.live.record : progress?.overall;
+
   return (
-    <div className="mx-auto max-w-6xl px-4">
-      <section className="grid items-center gap-12 py-16 md:grid-cols-[1.05fr_1fr] md:py-24">
-        <div>
-          <h1 className="text-balance text-[clamp(2.5rem,6vw,4.25rem)] leading-[0.98] font-bold tracking-[-0.03em]">
-            Predict smarter.
-            <br />
-            Win with insight.
-          </h1>
+    <div className="mx-auto max-w-7xl px-4 py-12">
+      <header className="max-w-[70ch]">
+        <h1 className="text-[clamp(2.1rem,5.5vw,3.25rem)] leading-[1.06] font-bold tracking-[-0.025em]">
+          Every prediction,{" "}
+          <span style={{ color: "var(--color-gold-bright)" }}>graded</span>.
+        </h1>
+        <p className="mt-4 text-[16px] leading-relaxed text-[var(--color-text-dim)]">
+          A calibrated engine blends three independent estimators across seven
+          markets. Every call it makes is settled against the final score, the
+          record is published including what it got wrong, and a market it
+          cannot price is shown as unavailable rather than guessed.
+        </p>
 
-          <p className="mt-6 max-w-[52ch] text-[17px] leading-relaxed text-[var(--color-text-dim)]">
-            AI-powered predictions across football, basketball and tennis —
-            backed by 144,000 ingested matches, and honest about what the model
-            does not know.
+        {headline && headline.settled > 0 && (
+          <div className="mt-6 flex flex-wrap items-baseline gap-x-6 gap-y-2">
+            <span className="flex items-baseline gap-2">
+              <span
+                className="text-[30px] leading-none font-bold tabular-nums"
+                style={{ color: "var(--color-gold-bright)" }}
+              >
+                {rate(headline)}
+              </span>
+              <span className="text-[13.5px] text-[var(--color-text-dim)]">
+                {hasLive ? "live" : "backtested"} over{" "}
+                {headline.settled.toLocaleString()} settled calls
+              </span>
+            </span>
+            <Link
+              href="/progress"
+              className="text-[13.5px] text-[var(--color-gold-bright)] underline-offset-4 hover:underline"
+            >
+              See the full record →
+            </Link>
+          </div>
+        )}
+
+        {!hasLive && (
+          <p className="mt-3 max-w-[66ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+            That figure is a backtest: the predictions behind it were generated
+            after the matches were played, from history truncated at kick-off.
+            It is labelled as such everywhere it appears, and the live record
+            starts filling on its own as the board runs forward.
           </p>
+        )}
+      </header>
 
-          <div className="mt-9 flex flex-wrap gap-3">
-            <Link
-              href="/predictions"
-              className="rounded-[var(--radius-md)] bg-[var(--color-gold)] px-5 py-3 text-[15px] font-semibold text-[#0a0806] transition-colors hover:bg-[var(--color-gold-bright)]"
-            >
-              Today&rsquo;s predictions
-            </Link>
-            <Link
-              href="/analytics"
-              className="rounded-[var(--radius-md)] border border-[var(--color-line-strong)] px-5 py-3 text-[15px] font-medium text-[var(--color-text)] transition-colors hover:border-[var(--color-text-faint)]"
-            >
-              Explore analytics
-            </Link>
-          </div>
+      {error && (
+        <div className="mt-8 rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
+          <p className="text-[15px] font-medium">The engine is unreachable</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
         </div>
+      )}
 
-        {hero ? <HeroPrediction prediction={hero} /> : <HeroEmpty reason={reason} />}
-      </section>
+      <BoardSection
+        title="Yesterday"
+        settledTitle="Yesterday, settled"
+        blurb="Every pick graded against the final result. This is the board that decides whether the two below are worth reading."
+        unsettledBlurb="Results for these fixtures have not been ingested yet, so nothing here is graded. Once they are, every pick on this board settles automatically."
+        board={yesterday}
+        href={`/matches?date=${isoDay(-1)}`}
+      />
 
-      {/*
-        Three claims, each one a fact about the engine rather than a
-        marketing adjective, and each verifiable on the site itself.
-      */}
-      <section className="grid gap-px overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-line)] md:grid-cols-3">
-        {[
-          {
-            stat: "144,381",
-            label: "matches ingested",
-            body: "Football, basketball and tennis in one pipeline, each match used only to predict matches that came after it.",
-          },
-          {
-            stat: "19",
-            label: "trained models",
-            body: "A separate model per market and per line, because ‘over 8.5 corners’ is not derivable from ‘over 9.5’.",
-          },
-          {
-            stat: "N/A",
-            label: "when it cannot price",
-            body: "A market with no data reports as unavailable. The engine does not fill the gap with a number that looks real.",
-          },
-        ].map((item) => (
-          <div key={item.label} className="bg-[var(--color-surface)] p-7">
-            <p className="text-[32px] leading-none font-bold tracking-[-0.02em]">
-              {item.stat}
-            </p>
-            <p className="mt-2 text-[13px] text-[var(--color-text-dim)]">
-              {item.label}
-            </p>
-            <p className="mt-4 text-[14px] leading-relaxed text-[var(--color-text-dim)]">
-              {item.body}
-            </p>
-          </div>
-        ))}
-      </section>
+      <BoardSection
+        title="Today"
+        blurb="A pick in each market for every fixture the engine has a trained model for."
+        board={today}
+        href="/matches"
+      />
+
+      <BoardSection
+        title="Tomorrow"
+        blurb="Priced as soon as the fixtures and odds are ingested."
+        board={tomorrow}
+        href={`/matches?date=${isoDay(1)}`}
+      />
     </div>
   );
 }
