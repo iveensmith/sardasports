@@ -9,6 +9,7 @@ view — both are easy to get subtly wrong and neither fails loudly.
 from __future__ import annotations
 
 from app.api.routes_board import _passed, _pick_from, agreement_for
+from app.services.pick_service import best_pick, most_likely_outcome
 from ml.ensemble import EnsembleInput, combine
 
 
@@ -108,3 +109,37 @@ def test_two_estimator_sports_are_never_passed_on_the_split_rule():
     """
     agreement = {"agreeing": 1, "total": 2, "unanimous": False, "pick": "home"}
     assert _passed({"confidence_label": "High"}, agreement) is False
+
+
+# --- the row and its detail page must agree -------------------------------
+
+
+def test_the_boards_forecast_agrees_with_the_estimator_agreement_pick():
+    """Two independently-derived "most likely outcome" values in the same
+    payload. If they can disagree, one of them is lying to the reader.
+
+    `agreement.pick` is the argmax the estimator-split panel is drawn around;
+    `forecast.selection` is what the row leads with. Both read the blended
+    probabilities, and this pins that they keep reading the same ones.
+    """
+    for elo, poisson, xgboost in (
+        ([0.75, 0.15, 0.10], [0.71, 0.17, 0.12], [0.54, 0.27, 0.19]),
+        ([0.10, 0.25, 0.65], [0.15, 0.20, 0.65], [0.20, 0.30, 0.50]),
+        ([0.28, 0.42, 0.30], [0.30, 0.40, 0.30], [0.25, 0.45, 0.30]),
+    ):
+        prediction = _prediction(elo, poisson, xgboost)
+        forecast = most_likely_outcome(prediction, "Home Team", "Away Team")
+        assert forecast["selection"] == agreement_for(prediction)["pick"]
+
+
+def test_the_forecast_leads_even_when_the_value_pick_is_the_opposite_outcome():
+    """Spain v Croatia: the row must say Spain, not the 14.50 long shot."""
+    prediction = _prediction([0.75, 0.15, 0.10], [0.71, 0.17, 0.12], [0.54, 0.27, 0.19])
+    prediction["goals_markets"] = []
+    odds = {"match_winner": {"home": 1.22, "draw": 7.83, "away": 14.5}}
+
+    forecast = most_likely_outcome(prediction, "Spain", "Croatia")
+    pick = best_pick(prediction, odds, agreement_for(prediction), 500, 500)
+
+    assert forecast["selection"] == "home"
+    assert pick["selection"] == "away"  # still surfaced, just not as the forecast

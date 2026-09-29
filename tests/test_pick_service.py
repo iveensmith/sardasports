@@ -15,6 +15,7 @@ from app.services.pick_service import (
     THIN_EVIDENCE_MATCHES,
     best_pick,
     candidates_for,
+    most_likely_outcome,
 )
 
 ODDS = {
@@ -152,3 +153,133 @@ def test_negative_expected_value_is_reported_plainly():
     assert pick["expected_value"] == pytest.approx(-10.0, abs=0.1)
     assert pick["positive_value"] is False
     assert "-10.0% expected value" in pick["rationale"]
+
+
+# --- forecast vs value: they answer different questions -------------------
+#
+# The bug these pin: the board row led with the highest-expected-value
+# selection while the fixture's own detail page led with the most likely
+# outcome. For Spain v Croatia that meant the row said "Away" (14.50) and the
+# detail page said Spain 65%. Both were right; nothing said they were
+# different questions, so the product looked broken and a 14% shot read as a
+# prediction.
+
+
+def test_the_forecast_is_the_most_likely_outcome_not_the_best_price():
+    """The exact shape that surfaced the bug."""
+    prediction = {"home_win": 65.3, "draw": 20.6, "away_win": 14.2, "goals_markets": []}
+    odds = {"match_winner": {"home": 1.22, "draw": 7.83, "away": 14.5}}
+
+    forecast = most_likely_outcome(prediction, "Spain", "Croatia")
+    assert forecast["selection"] == "home"
+    assert forecast["label"] == "Spain to win"
+    assert forecast["probability"] == pytest.approx(65.3)
+
+    # And the value pick still, correctly, disagrees — 14.2% at 14.50 is a
+    # positive-EV selection. That is why it cannot be the headline.
+    pick = best_pick(prediction, odds, UNANIMOUS, home_matches=500, away_matches=500)
+    assert pick["selection"] == "away"
+    assert pick["expected_value"] > 0
+    assert forecast["selection"] != pick["selection"]
+
+
+def test_the_forecast_names_the_team_a_reader_sees():
+    prediction = {"home_win": 10.0, "draw": 25.0, "away_win": 65.0}
+    assert most_likely_outcome(prediction, "Lesotho", "Morocco")["label"] == "Morocco to win"
+
+
+def test_a_draw_can_be_the_forecast_and_names_no_team():
+    prediction = {"home_win": 28.0, "draw": 40.0, "away_win": 32.0}
+    forecast = most_likely_outcome(prediction, "Spain", "Croatia")
+    assert forecast["selection"] == "draw"
+    assert forecast["label"] == "Draw"
+
+
+def test_the_forecast_needs_no_odds():
+    """What the model expects does not depend on anyone pricing it — unlike
+    `best_pick`, which returns None without odds."""
+    prediction = {"home_win": 55.0, "draw": 25.0, "away_win": 20.0, "goals_markets": []}
+    assert most_likely_outcome(prediction, "A", "B")["selection"] == "home"
+    assert best_pick(prediction, None, UNANIMOUS) is None
+
+
+def test_no_prediction_means_no_forecast():
+    assert most_likely_outcome(None, "A", "B") is None
+    assert most_likely_outcome({}, "A", "B") is None
+
+
+def test_a_prediction_with_no_match_winner_probabilities_has_no_forecast():
+    """Rather than reporting a zero as if it were a real reading."""
+    assert most_likely_outcome({"home_win": None, "draw": None, "away_win": None}, "A", "B") is None
+
+
+def test_the_forecast_matches_the_probability_the_detail_page_renders():
+    """The two pages read the same field, so they cannot drift apart."""
+    prediction = {"home_win": 48.7, "draw": 26.0, "away_win": 25.3}
+    forecast = most_likely_outcome(prediction, "Home Team", "Away Team")
+    assert forecast["probability"] == pytest.approx(
+        max(prediction["home_win"], prediction["draw"], prediction["away_win"])
+    )
+
+
+# --- the rationale must not borrow support the estimators never gave -----
+
+
+def test_value_on_the_losing_side_says_so_rather_than_claiming_agreement():
+    """The sentence that made the board look self-contradictory.
+
+    It read "All 3 estimators back the same outcome; model 14% against
+    market 7%" about a Croatia selection those same estimators unanimously
+    made the loser. "The same outcome" as what was never stated, so it
+    parsed as an endorsement of the selection it was attached to.
+    """
+    prediction = {"home_win": 65.3, "draw": 20.6, "away_win": 14.2, "goals_markets": []}
+    odds = {"match_winner": {"home": 1.22, "draw": 7.83, "away": 14.5}}
+    agreement = {"agreeing": 3, "total": 3, "unanimous": True, "pick": "home"}
+
+    pick = best_pick(prediction, odds, agreement, home_matches=500, away_matches=500)
+    assert pick["selection"] == "away"
+    assert "This is the price, not the forecast" in pick["rationale"]
+    assert "make Home the likelier result" in pick["rationale"]
+    assert "back this outcome" not in pick["rationale"]
+
+
+def test_value_on_the_forecast_keeps_the_endorsement():
+    """When they *do* agree, saying so is accurate and useful."""
+    prediction = {"home_win": 48.7, "draw": 26.0, "away_win": 25.3, "goals_markets": []}
+    odds = {"match_winner": {"home": 2.80, "draw": 3.20, "away": 2.80}}
+    agreement = {"agreeing": 3, "total": 3, "unanimous": True, "pick": "home"}
+
+    pick = best_pick(prediction, odds, agreement, home_matches=500, away_matches=500)
+    assert pick["selection"] == "home"
+    assert "All 3 estimators back this outcome" in pick["rationale"]
+
+
+def test_a_goals_selection_does_not_borrow_match_result_agreement():
+    """The estimators vote on the match result. They have said nothing about
+    whether a game goes over 2.5, so claiming their support invents it."""
+    prediction = {
+        "home_win": 40.0,
+        "draw": 30.0,
+        "away_win": 30.0,
+        "goals_markets": [{"line": 2.5, "prob_over": 62.0, "prob_under": 38.0, "model_used": True}],
+    }
+    odds = {"goals": {"over_2.5": 2.60}}
+    agreement = {"agreeing": 3, "total": 3, "unanimous": True, "pick": "home"}
+
+    pick = best_pick(prediction, odds, agreement, home_matches=500, away_matches=500)
+    assert pick["label"] == "Over 2.5"
+    assert "not this market" in pick["rationale"]
+    assert "estimators back" not in pick["rationale"]
+
+
+def test_thin_evidence_still_overrides_every_agreement_wording():
+    """The thin-data caveat is the most important thing on the row, so it
+    wins regardless of which way the estimators voted."""
+    prediction = {"home_win": 65.3, "draw": 20.6, "away_win": 14.2, "goals_markets": []}
+    odds = {"match_winner": {"home": 1.22, "draw": 7.83, "away": 14.5}}
+    agreement = {"agreeing": 3, "total": 3, "unanimous": True, "pick": "home"}
+
+    pick = best_pick(prediction, odds, agreement, home_matches=10, away_matches=500)
+    assert "too few matches" in pick["rationale"]
+    assert "estimators" not in pick["rationale"]

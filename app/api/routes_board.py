@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models import Match, Team
-from app.services.pick_service import best_pick
+from app.services.pick_service import best_pick, most_likely_outcome
 from app.services.prediction_service import predict_for_matches
 
 router = APIRouter(tags=["predictions"])
@@ -170,10 +170,20 @@ def predictions_today(
                 "status": match.status,
                 "prediction": prediction,
                 "agreement": agreement,
-                # The one selection worth leading with, by expected value
-                # against the best available price. None when the fixture
-                # has no odds, rather than the model's favourite outcome
-                # shown at no price.
+                # What the engine actually expects to happen. This is what
+                # the row leads with, and it is read off the same blended
+                # probabilities the detail page renders — the row and the
+                # detail page previously disagreed, because the row led with
+                # `pick` below, which answers a different question.
+                "forecast": most_likely_outcome(
+                    prediction,
+                    names.get(match.home_team_id, ""),
+                    names.get(match.away_team_id, ""),
+                ),
+                # Where the *price* looks wrong, by expected value against
+                # the best available price. Frequently not the likely
+                # outcome, so it is shown as value and never as the
+                # forecast. None when the fixture has no odds.
                 "pick": best_pick(
                     prediction,
                     match.odds_markets,

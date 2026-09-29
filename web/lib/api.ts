@@ -136,8 +136,25 @@ export interface Agreement {
 }
 
 /**
- * The single selection worth leading with, by expected value against the
- * best available price.
+ * The outcome the model considers most likely — the fixture's forecast.
+ *
+ * This is what a reader means by "the prediction", and it is read off the
+ * same blended probabilities the detail page renders, so a row and its own
+ * detail page can never disagree. They used to: a row would lead with `Pick`
+ * below (the best *price*, often a long shot) while the detail page showed
+ * the favourite, with nothing on either page explaining why.
+ */
+export interface Forecast {
+  selection: "home" | "draw" | "away";
+  /** "Spain to win", or "Draw" — named for a reader, not for a market. */
+  label: string;
+  probability: number;
+  short_label: string;
+}
+
+/**
+ * Where the *price* looks wrong, by expected value against the best
+ * available price. Not a forecast: frequently the least likely outcome.
  *
  * `thin_evidence` is the important field. A large positive expected value
  * usually means the model lacks history for one of the competitors rather
@@ -171,6 +188,9 @@ export interface BoardEntry {
   status: string;
   prediction: Prediction | null;
   agreement: Agreement | null;
+  /** What the engine expects. The row leads with this. */
+  forecast: Forecast | null;
+  /** Where the price looks wrong. Shown as value, never as the forecast. */
   pick: Pick | null;
   odds_updated_at: string | null;
   passed: boolean;
