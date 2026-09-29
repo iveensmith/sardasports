@@ -24,7 +24,6 @@ import pytest
 from ml.markets import (
     DOUBLE_CHANCE,
     GOALS,
-    HEADLINE_MIN_PROBABILITY,
     MATCH_RESULT,
     NOTABLE_LIFT,
     Call,
@@ -121,13 +120,10 @@ def test_lift_is_the_distance_above_the_selections_own_base_rate():
     assert spain.lift == pytest.approx(65.3 - 44.4)
 
 
-def test_a_common_market_does_not_outrank_a_real_finding():
-    """The bug this ranking exists to prevent.
-
-    "Spain or draw" at 85.9% is the highest *probability* on this fixture, but
-    against a 70.5% base rate it is +15.4. "Spain to win" at 65.3% against
-    44.4% is +20.9, and is the better call despite the smaller number.
-    """
+def test_rank_calls_orders_by_lift_for_the_per_market_listing():
+    """`rank_calls` is not the headline rule — it decides which call
+    represents each market in the detail page's table, where the most
+    informative one is the right representative."""
     top = _ranked()[0]
     assert top.call.market == MATCH_RESULT
     assert top.call.label == "Spain to win"
@@ -138,9 +134,22 @@ def test_a_common_market_does_not_outrank_a_real_finding():
     assert double_chance.lift < top.lift  # ...but says less
 
 
-def test_either_team_to_win_never_leads_on_an_ordinary_fixture():
-    """It is true of 73.8% of all matches, so it is almost never news."""
-    assert headline_call(_ranked()).call.selection != "home_away"
+def test_a_common_markets_high_probability_is_mostly_its_base_rate():
+    """The reason every call carries a base rate.
+
+    "Either team to win" reads 79.5% here, which looks like a strong call
+    until you see that it lands 73.8% of the time anyway — almost all of that
+    number is football, not this fixture. It may still be shown, and it may
+    even be the prediction if it is the likeliest thing; the base rate beside
+    it is what stops it reading as a discovery.
+    """
+    by_key = {r.call.key: r for r in _ranked()}
+    either = by_key["double_chance:home_away"]
+    assert either.call.probability == pytest.approx(79.5)
+    assert either.base_rate == 73.8
+    assert either.lift == pytest.approx(5.7, abs=0.05)
+    # Far less informative than the match-result call, despite reading higher.
+    assert either.lift < by_key["match_result:home"].lift
 
 
 def test_a_market_with_no_base_rate_sorts_below_one_that_has_lift():
@@ -165,22 +174,51 @@ def test_notable_marks_a_lift_worth_a_readers_attention():
 # --- the headline --------------------------------------------------------
 
 
-def test_the_headline_is_never_a_call_more_likely_to_fail_than_land():
-    """A 46% draw against a 26% base rate is the most *surprising* thing the
-    model can say and a poor thing to print as a prediction."""
-    even = {"home_win": 27.0, "draw": 46.0, "away_win": 27.0}
-    head = headline_call(rank_calls(candidate_calls(even, "A", "B"), BASE_RATES))
-    assert head.call.probability >= HEADLINE_MIN_PROBABILITY
+def test_the_headline_is_the_likeliest_call_across_every_market():
+    """The product rule, stated literally: one prediction, highest chance.
+
+    For Spain v Croatia that is "Spain or draw" at 85.9%, not the 65.3%
+    match-result favourite and not the highest-lift call.
+    """
+    head = headline_call(_ranked())
+    assert head.call.label == "Spain or draw"
+    assert head.call.probability == pytest.approx(85.9)
 
 
-def test_an_unreadable_fixture_still_gets_a_headline():
-    """If nothing clears the floor the board says the likeliest thing rather
-    than going blank."""
+def test_lift_never_displaces_a_likelier_call():
+    """A more *surprising* call must not outrank a more *likely* one.
+
+    "Spain to win" has the bigger lift (+20.9 against +15.4) and is still not
+    the prediction, because it is less likely to happen.
+    """
+    ranked = _ranked()
+    head = headline_call(ranked)
+    by_key = {r.call.key: r for r in ranked}
+    assert by_key["match_result:home"].lift > head.lift
+    assert head.call.probability > by_key["match_result:home"].call.probability
+
+
+def test_the_headline_can_be_a_call_more_likely_to_fail_than_land():
+    """If nothing on a fixture clears 50%, the likeliest thing is still the
+    prediction rather than the board going blank."""
     flat = {"home_win": 34.0, "draw": 33.0, "away_win": 33.0}
     calls = [c for c in candidate_calls(flat, "A", "B") if c.market == MATCH_RESULT]
     head = headline_call(rank_calls(calls, BASE_RATES))
     assert head is not None
     assert head.call.probability == pytest.approx(34.0)
+
+
+def test_a_call_with_no_base_rate_can_still_be_the_headline():
+    """Probability decides. An unmeasurable market is not disqualified from
+    being the likeliest thing to happen — it just cannot be marked notable."""
+    calls = [
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 61.0),
+        Call("corners", "over_7.5", "Over 7.5 corners", 91.0),
+    ]
+    head = headline_call(rank_calls(calls, {"goals:over_2.5": 50.6}))
+    assert head.call.selection == "over_7.5"
+    assert head.lift is None
+    assert head.notable is False
 
 
 def test_no_calls_means_no_headline():

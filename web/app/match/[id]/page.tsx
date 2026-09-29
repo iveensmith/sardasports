@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EngineError, getPrediction } from "@/lib/api";
-import { MarketCallTable } from "@/components/MarketCalls";
+import { HeadlineCall, MarketCallTable } from "@/components/MarketCalls";
 import {
   competitors,
   isBasketball,
@@ -259,7 +259,13 @@ export default async function MatchPage({
         </p>
       </header>
 
-      <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+      {/* The prediction, stated once, identical to the one on the board row.
+          These two pages disagreeing is the bug that started all of this. */}
+      {isFootball(prediction) && prediction.calls?.headline && (
+        <HeadlineCall call={prediction.calls.headline} />
+      )}
+
+      <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_1fr]">
         <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
           <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
           <ProbabilitySplit

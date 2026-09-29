@@ -1,35 +1,34 @@
 /**
  * One fixture on the board.
  *
- * The row leads with the **forecast** — the outcome the model thinks most
- * likely — because that is what a reader means by "the prediction". It is the
- * same number the fixture's detail page shows, read off the same blended
- * probabilities, so the two pages cannot disagree.
+ * **One prediction per row: the selection most likely to happen**, taken
+ * across every market the engine prices — match result, double chance, goals
+ * lines, both teams to score, half-time goals, corners and cards. Nothing
+ * else on the row competes with it for the reader's eye.
  *
- * They used to. The row led with the highest-*expected-value* selection, so
- * Spain v Croatia showed "Away" at 14.50 while its own detail page had Spain
- * at 65%. Both figures were correct and they answered different questions,
- * but nothing on either page said so, which made the product look broken —
- * and worse, made a 14% shot read as a prediction.
+ * Getting here took two wrong turns, both worth recording.
  *
- * Beneath the forecast sits the spread of other markets the engine prices —
- * double chance, goals lines, both teams to score, half-time goals — each
- * with how far it sits above that selection's own base rate. Ranked on raw
- * probability these would be useless: "either team to win" is true of 73.8%
- * of all matches, so it topped 26 of 29 rows on a real card while saying
- * nothing. Lift is what makes a call a claim.
+ * First the row led with the highest *expected-value* selection, so Spain v
+ * Croatia showed "Away" at 14.50 while its own detail page had Spain at 65%.
+ * Both were right and they answered different questions, but nothing said so,
+ * which made a 14% shot read as a prediction.
  *
- * Value still appears, because a mispriced long shot is worth surfacing. It
- * sits below the forecast, labelled "value", and never occupies the headline.
- * Where the evidence behind it is thin the row says so rather than printing a
- * "+276% expected value" the engine's own backtest (-6.74% against bookmaker
- * odds) says is not there.
+ * Then it led with the most likely *match result* and listed the other
+ * markets beside it, which answered the question several times over. A row
+ * should make one claim.
+ *
+ * So: the likeliest call, and its probability. Because "likeliest" and
+ * "most informative" are not the same thing — "either team to win" lands
+ * 73.8% of all matches on its own — the call carries its base rate as quiet
+ * context. That never changes which prediction is made; it lets a reader tell
+ * a 76% that means something from a 76% that was always going to be true.
+ *
+ * The price line below is about the market, not the fixture, and says so.
  */
 
 import Link from "next/link";
 import type { BoardEntry } from "@/lib/api";
 import { ConfidenceRing } from "@/components/ConfidenceRing";
-import { MarketCallStrip } from "@/components/MarketCalls";
 
 const SPORT_BADGE: Record<string, string> = {
   football: "FTB",
@@ -37,12 +36,16 @@ const SPORT_BADGE: Record<string, string> = {
   tennis: "TEN",
 };
 
-/** Outcome colours, so the forecast is legible at a glance and colour is
- *  never the only carrier — the label always names the outcome too. */
-const OUTCOME_COLOR: Record<string, string> = {
-  home: "var(--color-home)",
-  draw: "var(--color-draw)",
-  away: "var(--color-away)",
+/** Outcome colours. Colour is never the only carrier — the label always
+ *  names the selection in words. */
+const MARKET_COLOR: Record<string, string> = {
+  match_result: "var(--color-home)",
+  double_chance: "var(--color-draw)",
+  goals: "var(--color-gold-bright)",
+  btts: "var(--color-gold-bright)",
+  ht_goals: "var(--color-gold-bright)",
+  corners: "var(--color-text-dim)",
+  cards: "var(--color-text-dim)",
 };
 
 function StatusChip({ status }: { status: string }) {
@@ -64,20 +67,14 @@ function StatusChip({ status }: { status: string }) {
 }
 
 export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
-  const { prediction, pick, forecast, calls } = fixture;
+  const { prediction, pick, calls } = fixture;
+  const call = calls?.headline ?? null;
   const kickoff = new Date(fixture.match_date).toLocaleString(undefined, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-
-  // Only worth pointing out when it differs from the forecast. When value and
-  // forecast agree, a second line saying the same thing is noise.
-  const valueDiffers =
-    pick != null &&
-    forecast != null &&
-    !(pick.market === "Match result" && pick.selection === forecast.selection);
 
   return (
     <Link
@@ -114,23 +111,22 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             {fixture.away_team}
           </h3>
 
-          {/* The forecast. The headline claim of the row. */}
-          {forecast ? (
-            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[13px]">
+          {/* The prediction. The only claim this row makes. */}
+          {call ? (
+            <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 text-[14px]">
               <span
                 className="font-semibold"
-                style={{ color: OUTCOME_COLOR[forecast.selection] }}
+                style={{ color: MARKET_COLOR[call.market] ?? "var(--color-text)" }}
               >
-                {forecast.label}
+                {call.label}
               </span>
-              <span className="text-[var(--color-text-dim)]">
-                {forecast.probability.toFixed(1)}%
+              <span className="font-semibold text-[var(--color-text)]">
+                {call.probability.toFixed(1)}%
               </span>
-              {valueDiffers && pick && (
-                <span className="text-[12.5px] text-[var(--color-text-faint)]">
-                  · best price is on {pick.label} at{" "}
-                  {pick.offered_price.toFixed(2)}
-                  {pick.thin_evidence ? " (thin data)" : ""}
+              {call.base_rate !== null && (
+                <span className="text-[12px] text-[var(--color-text-faint)]">
+                  {call.market_name.toLowerCase()} · lands{" "}
+                  {call.base_rate.toFixed(0)}% of the time normally
                 </span>
               )}
             </p>
@@ -140,16 +136,7 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             </p>
           )}
 
-          {/* The other markets, so the row is not only "who wins". The
-              match-result call is already the headline above, so it is
-              dropped here rather than printed twice. */}
-          {calls && (
-            <MarketCallStrip
-              calls={calls.by_market.filter((c) => c.market !== "match_result")}
-            />
-          )}
-
-          {/* Supporting detail: why, or why not. */}
+          {/* The market, which is a different subject and is labelled as one. */}
           <p className="mt-1 line-clamp-2 text-[13px] leading-[1.55] text-[var(--color-text-faint)]">
             {pick ? (
               <>
@@ -166,25 +153,20 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
                 )}
                 {pick.rationale}
               </>
-            ) : forecast ? (
+            ) : call ? (
               "No bookmaker price for this fixture, so there is nothing to compare the model against."
             ) : null}
           </p>
         </div>
 
-        {/* Forecast price and confidence. */}
+        {/* The same prediction's probability, and the engine's confidence in
+            the fixture as a whole. */}
         <div className="flex shrink-0 items-center gap-3">
-          {forecast && (
+          {call && (
             <span
               className="hidden items-center overflow-hidden rounded-[var(--radius-md)] border sm:inline-flex"
               style={{ borderColor: "var(--color-line-strong)" }}
             >
-              <span
-                className="px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap"
-                style={{ color: OUTCOME_COLOR[forecast.selection] }}
-              >
-                {forecast.short_label}
-              </span>
               <span
                 className="px-2.5 py-1.5 text-[13px] font-semibold"
                 style={{
@@ -192,7 +174,7 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
                   color: "var(--color-text)",
                 }}
               >
-                {forecast.probability.toFixed(0)}%
+                {call.probability.toFixed(0)}%
               </span>
             </span>
           )}

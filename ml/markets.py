@@ -1,4 +1,4 @@
-"""Every selection the engine can call, across every market it prices.
+"""Every selection the engine can call, and the one it leads with.
 
 The board used to call one market: the match result. That threw away most of
 what the engine already computes. A fixture it prices produces probabilities
@@ -6,28 +6,24 @@ for goals lines, half-time goals, both-teams-to-score, corners and cards, and
 the match-result probabilities themselves imply the three double chances — so
 "Spain or draw" needs no new model, only the arithmetic nobody was doing.
 
-Ranking these by raw probability does not work, and the reason is worth
-stating because it is not obvious. Measured over 64,365 completed matches:
+**One prediction per fixture: the selection most likely to happen.** That is
+the product decision, and `headline_call` implements it literally — the
+highest probability across every market, nothing else weighed in.
 
-    Either team to win (12)     73.8%      <- true of three matches in four
-    Over 1.5 goals              74.8%
-    Home or draw (1X)           70.5%
-    Over 2.5 corners            78.1%
+Two consequences are worth knowing rather than discovering:
 
-A market that lands three-quarters of the time is not a prediction when the
-engine says 76%; it is a restatement of how football works. Ranked on raw
-probability, 26 of 29 fixtures on a real card led with a double chance and
-most of those with "Either team to win", which only means "not a draw".
+* Most fixtures will lead with a double chance or an over/under, because
+  those are genuinely the likeliest things in football. On a real 29-fixture
+  card, 26 led with a double chance.
+* A likely selection is not the same as an informative one. Measured over
+  64,365 completed matches, "either team to win" lands 73.8% of the time and
+  "over 1.5 goals" 74.8%, so an engine reading near those numbers is telling
+  you about football rather than about this fixture.
 
-So a call carries both numbers: the probability, and how far it sits above
-that selection's own base rate. The second is what makes it a claim. An 86%
-"Spain or draw" against a 70.5% base rate is +15 points of genuine signal; a
-76% "Either team to win" against 73.8% is +2 and belongs nowhere near a
-headline.
-
-This module is pure — it turns a prediction payload into candidate calls and
-knows nothing about databases or base rates. `app.services.base_rates`
-measures the yardstick and `app.services.pick_service` does the ranking.
+That second point is why every call still carries its base rate and the lift
+above it. The lift does not choose the prediction — probability does — but it
+is shown beside it, so a reader can tell a 76% that means something from a
+76% that was always going to be true.
 """
 
 from __future__ import annotations
@@ -146,14 +142,9 @@ def candidate_calls(prediction: dict | None, home_team: str, away_team: str) -> 
     return calls
 
 
-# A headline call should at minimum be more likely to happen than not.
-# Without this floor the ranking will happily lead with "Draw 46%" whenever a
-# fixture looks unusually even — the most *surprising* thing the model has
-# said, but a poor thing to print as a prediction.
-HEADLINE_MIN_PROBABILITY = 50.0
-
-# Below this, the model has found nothing the base rate did not already say.
-# Reported, but never dressed up as a standout.
+# Below this lift, the model has found nothing the base rate did not already
+# say. This never changes which call is made — probability alone decides that
+# — it only controls whether the call is shown as a standout or plainly.
 NOTABLE_LIFT = 5.0
 
 
@@ -187,11 +178,14 @@ class RankedCall:
 def rank_calls(calls: list[Call], base_rates: dict[str, float]) -> list[RankedCall]:
     """Attach each call's base rate and lift, most notable first.
 
-    Sorted by lift rather than probability, because probability alone ranks
-    markets by how common they are rather than by what the model has found.
+    This ordering is *not* how the prediction is chosen — `headline_call`
+    takes the highest probability regardless. It exists so `best_per_market`
+    can pick the most informative call within each market for the detail
+    page, where several markets are listed side by side.
+
     Calls with no base rate sort last among equals: without a yardstick there
     is no evidence they are notable, and guessing one would invent the
-    comparison this whole module exists to make honest.
+    comparison this module exists to make honest.
     """
     ranked = [
         RankedCall(
@@ -227,15 +221,17 @@ def best_per_market(ranked: list[RankedCall]) -> list[RankedCall]:
 
 
 def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
-    """The one call worth leading with.
+    """The one call the fixture leads with: the likeliest thing to happen.
 
-    Highest lift among calls likely enough to print as a prediction. If
-    nothing clears the floor — an genuinely unreadable fixture — falls back to
-    the likeliest call, so the board still says something rather than nothing.
+    Highest probability across every market, with no floor, no weighting and
+    no tie-break on how informative the selection is. A reader asking "what
+    does it predict?" gets the answer to that question and no other.
+
+    Lift deliberately plays no part in this choice. It is attached to the
+    result so it can be shown as context — a 76% call on a market that lands
+    74% of the time is worth knowing about — but a more *surprising* call
+    never displaces a more *likely* one.
     """
     if not ranked:
         return None
-    eligible = [r for r in ranked if r.call.probability >= HEADLINE_MIN_PROBABILITY]
-    if eligible:
-        return eligible[0]
     return max(ranked, key=lambda r: r.call.probability)
