@@ -6,24 +6,27 @@ for goals lines, half-time goals, both-teams-to-score, corners and cards, and
 the match-result probabilities themselves imply the three double chances — so
 "Spain or draw" needs no new model, only the arithmetic nobody was doing.
 
-**One prediction per fixture: the selection most likely to happen.** That is
-the product decision, and `headline_call` implements it literally — the
-highest probability across every market, nothing else weighed in.
+**One prediction per fixture: the likeliest selection that actually says
+something.** Probability picks the winner; a call only enters the contest if
+it beats its own base rate by `MIN_HEADLINE_LIFT`.
 
-Two consequences are worth knowing rather than discovering:
+The second half of that rule is not fussiness, it is the difference between
+a board and a decoration. Measured over 64,365 completed matches:
 
-* Most fixtures will lead with a double chance or an over/under, because
-  those are genuinely the likeliest things in football. On a real 29-fixture
-  card, 26 led with a double chance.
-* A likely selection is not the same as an informative one. Measured over
-  64,365 completed matches, "either team to win" lands 73.8% of the time and
-  "over 1.5 goals" 74.8%, so an engine reading near those numbers is telling
-  you about football rather than about this fixture.
+    Home or away (not a draw)   73.8%      <- true by construction
+    Over 1.5 goals              74.8%
+    Over 2.5 cards              78.1%
+    Home or draw                70.5%
 
-That second point is why every call still carries its base rate and the lift
-above it. The lift does not choose the prediction — probability does — but it
-is shown beside it, so a reader can tell a 76% that means something from a
-76% that was always going to be true.
+Ranked on raw probability alone, 26 of 29 fixtures on a real card led with a
+double chance and 14 of 29 leading calls added under five points over what
+that selection manages unaided. Half the board was true and empty.
+
+Banning the common markets is the obvious fix and it is worse: doing that
+left 21 of 29 rows on "Over 1.5 goals" at about the rate it lands anyway —
+more variety, less meaning. Filtering on lift keeps the likeliest call in
+each case and drops only the ones with nothing behind them, which took the
+same card to five markets and no empty calls at all.
 """
 
 from __future__ import annotations
@@ -146,9 +149,28 @@ def candidate_calls(prediction: dict | None) -> list[Call]:
 
 
 # Below this lift, the model has found nothing the base rate did not already
-# say. This never changes which call is made — probability alone decides that
-# — it only controls whether the call is shown as a standout or plainly.
+# say. Marks a call as a standout in the per-market table.
 NOTABLE_LIFT = 5.0
+
+# A call must beat its own base rate by this much to lead a row.
+#
+# Probability still picks the winner — this only decides who is allowed to
+# enter. Without it, half the board was true-but-empty: measured on a real
+# 29-fixture card, 14 of 29 leading calls added under five points over what
+# that selection achieves on its own, which is a confident-looking number
+# that tells a reader nothing about the fixture in front of them.
+MIN_HEADLINE_LIFT = 5.0
+
+# Selections that never lead a row whatever their probability.
+#
+# "Home or away" is the sum of both wins, so it says only "not a draw" —
+# true of 73.8% of matches by construction. That makes it simultaneously one
+# of the likeliest selections on almost every fixture and one of the least
+# informative, so a pure probability rule handed it a third of the board
+# while the engine contributed nothing. It stays a candidate, so it can still
+# represent the double-chance row in the per-market table; it just cannot be
+# the headline.
+HEADLINE_EXCLUDED = frozenset({f"{DOUBLE_CHANCE}:home_away"})
 
 
 @dataclass(frozen=True)
@@ -224,17 +246,37 @@ def best_per_market(ranked: list[RankedCall]) -> list[RankedCall]:
 
 
 def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
-    """The one call the fixture leads with: the likeliest thing to happen.
+    """The one call the fixture leads with.
 
-    Highest probability across every market, with no floor, no weighting and
-    no tie-break on how informative the selection is. A reader asking "what
-    does it predict?" gets the answer to that question and no other.
+    The likeliest thing to happen — but only among selections that beat their
+    own base rate by `MIN_HEADLINE_LIFT` and are not in `HEADLINE_EXCLUDED`.
+    Probability decides the winner; those two rules decide who is eligible.
 
-    Lift deliberately plays no part in this choice. It is attached to the
-    result so it can be shown as context — a 76% call on a market that lands
-    74% of the time is worth knowing about — but a more *surprising* call
-    never displaces a more *likely* one.
+    Both exist because "likeliest" and "worth saying" pull in opposite
+    directions, and a pure probability rule collapses onto whichever market
+    is most common rather than whichever reading is strongest. A double
+    chance is the sum of two outcomes and over 1.5 goals a low line, so they
+    win a raw contest almost every time regardless of what the model thinks.
+
+    Banning double chance outright is the obvious fix and it is wrong: on the
+    same card it left 21 of 29 rows showing "Over 1.5 goals" at roughly the
+    74.8% that line lands anyway. That is more variety and less meaning.
+    Filtering on lift instead keeps the likeliest call in each case and
+    removes only the empty ones.
+
+    When nothing qualifies the likeliest call is returned anyway, with its
+    lift intact so the interface can show it quietly. A blank row helps
+    nobody, and the honest version of "we have no strong read here" is a
+    modest number shown modestly, not an absence.
     """
     if not ranked:
         return None
-    return max(ranked, key=lambda r: r.call.probability)
+    # The exclusion is absolute and applies to the fallback too. Letting a
+    # barred selection back in when nothing else qualifies would put it on
+    # exactly the fixtures where the engine has least to say, which is the
+    # worst possible moment to print "not a draw" as a prediction.
+    allowed = [entry for entry in ranked if entry.call.key not in HEADLINE_EXCLUDED]
+    eligible = [
+        entry for entry in allowed if entry.lift is not None and entry.lift >= MIN_HEADLINE_LIFT
+    ]
+    return max(eligible or allowed or ranked, key=lambda entry: entry.call.probability)

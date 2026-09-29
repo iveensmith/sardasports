@@ -24,7 +24,9 @@ import pytest
 from ml.markets import (
     DOUBLE_CHANCE,
     GOALS,
+    HEADLINE_EXCLUDED,
     MATCH_RESULT,
+    MIN_HEADLINE_LIFT,
     NOTABLE_LIFT,
     Call,
     best_per_market,
@@ -175,19 +177,20 @@ def test_notable_marks_a_lift_worth_a_readers_attention():
 # --- the headline --------------------------------------------------------
 
 
-def test_the_headline_is_the_likeliest_call_across_every_market():
-    """The product rule, stated literally: one prediction, highest chance.
+def test_the_headline_is_the_likeliest_call_that_clears_the_lift_bar():
+    """The product rule: likeliest, among calls that actually say something.
 
-    For Spain v Croatia that is "Home or draw" at 85.9%, not the 65.3%
-    match-result favourite and not the highest-lift call.
+    For Spain v Croatia that is "Home or draw" at 85.9% — likelier than the
+    65.3% match-result favourite, and its +15.4 lift clears the bar.
     """
     head = headline_call(_ranked())
     assert head.call.label == "Home or draw"
     assert head.call.probability == pytest.approx(85.9)
+    assert head.lift >= MIN_HEADLINE_LIFT
 
 
-def test_lift_never_displaces_a_likelier_call():
-    """A more *surprising* call must not outrank a more *likely* one.
+def test_lift_never_displaces_a_likelier_eligible_call():
+    """Among eligible calls, probability alone decides.
 
     "Home" has the bigger lift (+20.9 against +15.4) and is still not the
     prediction, because it is less likely to happen.
@@ -199,27 +202,69 @@ def test_lift_never_displaces_a_likelier_call():
     assert head.call.probability > by_key["match_result:home"].call.probability
 
 
-def test_the_headline_can_be_a_call_more_likely_to_fail_than_land():
-    """If nothing on a fixture clears 50%, the likeliest thing is still the
-    prediction rather than the board going blank."""
-    flat = {"home_win": 34.0, "draw": 33.0, "away_win": 33.0}
-    calls = [c for c in candidate_calls(flat) if c.market == MATCH_RESULT]
+def test_home_or_away_never_leads_however_likely_it_is():
+    """It is the sum of both wins, so it says only "not a draw" — true of
+    73.8% of matches by construction. Arithmetically among the likeliest
+    things on almost every fixture, and among the least informative."""
+    calls = [
+        Call(DOUBLE_CHANCE, "home_away", "Home or away", 88.0),
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 84.0),
+    ]
+    head = headline_call(rank_calls(calls, {**BASE_RATES, "goals:over_1.5": 74.8}))
+    assert head.call.selection == "over_1.5"
+    assert f"{DOUBLE_CHANCE}:home_away" in HEADLINE_EXCLUDED
+
+
+def test_home_or_away_is_still_a_candidate_for_the_per_market_table():
+    """Barred from the headline, not deleted — the double-chance row of the
+    fixture page may still be best represented by it."""
+    assert any(c.selection == "home_away" for c in candidate_calls(SPAIN_CROATIA))
+
+
+def test_an_empty_call_loses_to_a_less_likely_one_that_means_something():
+    """The bug this bar exists to fix. "Over 1.5 goals" at 76% against a
+    74.8% base rate is a restatement of football; "Under 2.5 goals" at 62%
+    against 49.4% is a reading of this fixture."""
+    calls = [
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 76.0),  # +1.2
+        Call(GOALS, "under_2.5", "Under 2.5 goals", 62.0),  # +12.6
+    ]
+    head = headline_call(rank_calls(calls, BASE_RATES))
+    assert head.call.selection == "under_2.5"
+
+
+def test_when_nothing_clears_the_bar_the_likeliest_call_is_shown_anyway():
+    """A blank row helps nobody. The honest form of "no strong read here" is
+    a modest number shown modestly, and `lift` survives so the interface can
+    do exactly that."""
+    calls = [
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 76.0),  # +1.2
+        Call(MATCH_RESULT, "home", "Home", 46.0),  # +1.6
+    ]
     head = headline_call(rank_calls(calls, BASE_RATES))
     assert head is not None
-    assert head.call.probability == pytest.approx(34.0)
+    assert head.call.selection == "over_1.5"
+    assert head.lift < MIN_HEADLINE_LIFT
+    assert head.notable is False
 
 
-def test_a_call_with_no_base_rate_can_still_be_the_headline():
-    """Probability decides. An unmeasurable market is not disqualified from
-    being the likeliest thing to happen — it just cannot be marked notable."""
+def test_a_call_with_no_base_rate_cannot_lead_while_a_measured_one_can():
+    """Without a yardstick there is no evidence a call says anything, so it
+    cannot clear a bar defined in terms of one. It is not deleted — it simply
+    loses to any call that has been measured and qualifies."""
     calls = [
-        Call(GOALS, "over_2.5", "Over 2.5 goals", 61.0),
-        Call("corners", "over_7.5", "Over 7.5 corners", 91.0),
+        Call(GOALS, "under_2.5", "Under 2.5 goals", 62.0),  # +12.6, measured
+        Call("corners", "over_7.5", "Over 7.5 corners", 91.0),  # no base rate
     ]
-    head = headline_call(rank_calls(calls, {"goals:over_2.5": 50.6}))
+    head = headline_call(rank_calls(calls, BASE_RATES))
+    assert head.call.selection == "under_2.5"
+
+
+def test_an_unmeasurable_call_still_leads_when_it_is_all_there_is():
+    calls = [Call("corners", "over_7.5", "Over 7.5 corners", 91.0)]
+    head = headline_call(rank_calls(calls, {}))
     assert head.call.selection == "over_7.5"
     assert head.lift is None
-    assert head.notable is False
 
 
 def test_no_calls_means_no_headline():
@@ -260,3 +305,19 @@ def test_over_and_under_are_both_candidates_so_a_low_line_can_win():
     assert goals.call.label == "Under 2.5 goals"
     assert goals.lift == pytest.approx(68.6 - 49.4)
     assert goals.lift > NOTABLE_LIFT
+
+
+def test_the_exclusion_holds_even_when_nothing_else_qualifies():
+    """The fallback must not readmit a barred selection.
+
+    Letting "Home or away" back in when nothing clears the bar would put it
+    on exactly the fixtures the engine reads least well — the worst possible
+    moment to print "not a draw" as though it were a prediction.
+    """
+    calls = [
+        Call(DOUBLE_CHANCE, "home_away", "Home or away", 74.7),  # +0.9, barred
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 71.0),  # -3.8, eligible but weak
+    ]
+    head = headline_call(rank_calls(calls, BASE_RATES))
+    assert head.call.selection == "over_1.5"
+    assert head.lift < MIN_HEADLINE_LIFT  # shown quietly, but it is a real market
