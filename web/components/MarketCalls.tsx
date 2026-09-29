@@ -18,7 +18,7 @@
  * that — it tells a reader whether the number is about the fixture at all.
  */
 
-import type { Call } from "@/lib/types";
+import type { Call, Value } from "@/lib/types";
 
 /** Full table for a fixture's detail page. */
 export function MarketCallTable({ calls }: { calls: Call[] }) {
@@ -136,6 +136,89 @@ export function HeadlineCall({ call }: { call: Call }) {
             of it.
           </>
         )}
+      </p>
+    </section>
+  );
+}
+
+/**
+ * The market comparison, on the fixture page.
+ *
+ * This is the content that used to sit under every board row, where it
+ * competed with the prediction and — worse — put a "+1344% expected value"
+ * in larger type than anything else on the card. It is analysis, so it lives
+ * where analysis is read.
+ *
+ * The unflattering case is stated plainly. Most selections against efficient
+ * odds price worse than the model thinks they are worth; a page that only
+ * narrated wins would be lying by omission. And where a competitor's rating
+ * rests on too few matches, the warning comes before the number rather than
+ * as a footnote to it.
+ */
+export function ValuePanel({ value }: { value: Value }) {
+  return (
+    <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <h2 className="text-[15px] font-semibold">Against the market</h2>
+        {value.thin_evidence && (
+          <span
+            className="rounded border px-1.5 py-0.5 text-[10px] tracking-wide uppercase"
+            style={{
+              borderColor: "var(--color-away)",
+              color: "var(--color-away)",
+            }}
+          >
+            thin data
+          </span>
+        )}
+      </div>
+
+      <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[15px]">
+        <span className="text-[var(--color-text-dim)]">Best-priced selection:</span>
+        <span className="font-semibold">{value.label}</span>
+        <span className="text-[var(--color-text-dim)]">at</span>
+        <span className="font-semibold">{value.offered_price.toFixed(2)}</span>
+      </p>
+
+      <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-[13px] sm:grid-cols-4">
+        {[
+          ["Model", `${value.model_probability.toFixed(1)}%`],
+          ["Market implies", `${value.market_implied_probability.toFixed(1)}%`],
+          ["Fair price", value.fair_price.toFixed(2)],
+          [
+            "Expected value",
+            `${value.expected_value >= 0 ? "+" : ""}${value.expected_value.toFixed(1)}%`,
+          ],
+        ].map(([label, figure]) => (
+          <div key={label}>
+            <dt className="text-[var(--color-text-faint)]">{label}</dt>
+            <dd
+              className="mt-0.5 text-[15px] font-semibold"
+              style={{
+                color:
+                  label === "Expected value" && !value.thin_evidence
+                    ? value.positive_value
+                      ? "var(--color-gold-bright)"
+                      : "var(--color-text-dim)"
+                    : "var(--color-text)",
+              }}
+            >
+              {figure}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-4 max-w-[70ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
+        {value.rationale}
+      </p>
+
+      <p className="mt-3 max-w-[70ch] text-[12px] leading-relaxed text-[var(--color-text-faint)]">
+        This is the price, not the prediction. The best-priced selection is
+        frequently the least likely outcome on the fixture, and the
+        engine&rsquo;s own backtest returns &minus;6.74% against bookmaker
+        odds &mdash; so a large positive figure here is a reason to look
+        harder, not a reason to bet.
       </p>
     </section>
   );

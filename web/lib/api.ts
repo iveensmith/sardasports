@@ -18,10 +18,11 @@ import type {
   FixturesResponse,
   MatchesResponse,
   Prediction,
+  Value,
 } from "./types";
 
 // Re-exported so components can import every board type from one module.
-export type { Call, Calls };
+export type { Call, Calls, Value };
 
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://127.0.0.1:8000";
 

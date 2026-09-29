@@ -176,7 +176,7 @@ def predictions_today(
             if match.sport not in base_rates_by_sport:
                 base_rates_by_sport[match.sport] = market_base_rates(db, match.sport)
             ranked = rank_calls(
-                candidate_calls(prediction, home_name, away_name),
+                candidate_calls(prediction),
                 base_rates_by_sport[match.sport],
             )
             best = headline_call(ranked)

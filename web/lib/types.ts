@@ -44,6 +44,33 @@ export interface Calls {
   by_market: Call[];
 }
 
+/**
+ * Where the market price looks wrong.
+ *
+ * Not a prediction, and routinely the *least* likely selection on the
+ * fixture — which is why it appears only here, on the page someone opened to
+ * read the analysis, and never on a board row beside the call.
+ *
+ * `thin_evidence` is the field that matters. A large positive expected value
+ * usually means the model lacks history for a competitor rather than that
+ * the market is wrong, so it is never presented as free money.
+ */
+export interface Value {
+  market: string;
+  selection: string;
+  label: string;
+  model_probability: number;
+  market_implied_probability: number;
+  fair_price: number;
+  offered_price: number;
+  expected_value: number;
+  positive_value: boolean;
+  thin_evidence: boolean;
+  min_competitor_matches: number | null;
+  candidates_considered: number;
+  rationale: string;
+}
+
 export type Sport = "football" | "basketball" | "tennis";
 
 /**
@@ -100,6 +127,8 @@ export interface FootballPrediction {
    * rate. Football only — the other sports have no base-rate table yet.
    */
   calls: Calls | null;
+  /** The market comparison. Fixture page only. */
+  value: Value | null;
   generated_at: string;
 }
 

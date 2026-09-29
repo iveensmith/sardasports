@@ -12,7 +12,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EngineError, getPrediction } from "@/lib/api";
-import { HeadlineCall, MarketCallTable } from "@/components/MarketCalls";
+import {
+  HeadlineCall,
+  MarketCallTable,
+  ValuePanel,
+} from "@/components/MarketCalls";
 import {
   competitors,
   isBasketball,
@@ -45,6 +49,15 @@ function FootballBody({ p }: { p: Extract<Prediction, { sport: "football" }> }) 
       {p.calls && p.calls.by_market.length > 0 && (
         <div className="mb-4">
           <MarketCallTable calls={p.calls.by_market} />
+        </div>
+      )}
+
+      {/* The market comparison, moved off the board row. A different subject
+          from the prediction, and one that needs room to be honest about
+          what a large expected value usually means. */}
+      {p.value && (
+        <div className="mb-4">
+          <ValuePanel value={p.value} />
         </div>
       )}
 

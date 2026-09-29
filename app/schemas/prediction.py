@@ -137,12 +137,41 @@ class CallOut(BaseModel):
 class CallsOut(BaseModel):
     """What the engine calls across every market it can price."""
 
-    # The one call worth leading with: highest lift among selections likely
-    # enough to print. See ml.markets.headline_call.
+    # The fixture's one prediction: the likeliest selection across every
+    # market. See ml.markets.headline_call.
     headline: CallOut | None = None
-    # The strongest call in each market, in reading order — so a reader sees
-    # the spread of questions rather than three near-identical goals lines.
+    # The strongest call in each market, in reading order. Fixture page only
+    # — a board row listing several markets answers the question several
+    # times over, which is not what a row is for.
     by_market: list[CallOut] = []
+
+
+class ValueOut(BaseModel):
+    """Where the market price looks wrong, and how much to trust that.
+
+    Not a prediction. A long price on an unlikely outcome is worth surfacing
+    and is routinely the *least* likely thing on the fixture, which is why it
+    lives here rather than anywhere a reader looks for the call.
+
+    `thin_evidence` is the field that matters. A large positive expected
+    value usually means the model lacks history for a competitor rather than
+    that the market is wrong — the engine's own backtest returns -6.74%
+    against bookmaker odds — so it must never be presented as free money.
+    """
+
+    market: str
+    selection: str
+    label: str
+    model_probability: float
+    market_implied_probability: float
+    fair_price: float
+    offered_price: float
+    expected_value: float
+    positive_value: bool
+    thin_evidence: bool
+    min_competitor_matches: int | None = None
+    candidates_considered: int = 0
+    rationale: str
 
 
 class PredictionOut(BaseModel):
@@ -185,6 +214,9 @@ class PredictionOut(BaseModel):
     # Every market's call, ranked by how far the model sits above that
     # selection's own base rate. Absent for sports with no base-rate table.
     calls: CallsOut | None = None
+    # The market comparison. Shown on the fixture page only — it is a
+    # different subject from the prediction and crowded the board row.
+    value: ValueOut | None = None
     generated_at: datetime
 
 

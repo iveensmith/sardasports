@@ -222,3 +222,121 @@ def test_a_football_prediction_carries_calls_for_every_market(client, db_session
     assert len(markets) > 1
     for call in body["calls"]["by_market"]:
         assert 0.0 <= call["probability"] <= 100.0
+
+
+def test_the_fixture_page_carries_the_market_comparison(client, db_session):
+    """The value analysis moved off the board row onto the fixture page.
+
+    It used to sit under every row, where it competed with the prediction and
+    put a "+1344% expected value" in larger type than anything else on the
+    card. The endpoint the fixture page reads has to carry it, or the
+    information is simply lost.
+    """
+    from datetime import datetime, timedelta
+
+    from app.models import Match, Team
+
+    home = Team(name="Value Home", league="Test League", sport="football")
+    away = Team(name="Value Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+
+    start = datetime(2024, 1, 1)
+    for index in range(250):
+        db_session.add(
+            Match(
+                external_id=f"value-{index}",
+                match_date=start + timedelta(days=index),
+                competition="Test League",
+                season="2024",
+                home_team_id=home.id,
+                away_team_id=away.id,
+                home_score=2,
+                away_score=1,
+                status="completed",
+                sport="football",
+            )
+        )
+    upcoming = Match(
+        external_id="value-upcoming",
+        match_date=start + timedelta(days=400),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="scheduled",
+        sport="football",
+        odds_markets={"match_winner": {"home": 1.50, "draw": 4.00, "away": 6.50}},
+    )
+    db_session.add(upcoming)
+    db_session.commit()
+    match_id = upcoming.id
+
+    from app.services.base_rates import reset_cache
+
+    reset_cache()
+    try:
+        body = client.get(f"/predict/{match_id}").json()
+    finally:
+        reset_cache()
+
+    value = body.get("value")
+    assert value is not None, "the fixture page has nothing to show without this"
+    assert value["offered_price"] > 1.0
+    assert "rationale" in value and value["rationale"]
+    # Both sides have 250 completed matches, so this is well-evidenced.
+    assert value["thin_evidence"] is False
+
+
+def test_an_unpriced_fixture_reports_no_value_rather_than_an_empty_one(client, db_session):
+    """Absence of odds is reported as absence, not as a zero-price comparison."""
+    from datetime import datetime, timedelta
+
+    from app.models import Match, Team
+
+    home = Team(name="Unpriced Home", league="Test League", sport="football")
+    away = Team(name="Unpriced Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    start = datetime(2024, 1, 1)
+    for index in range(250):
+        db_session.add(
+            Match(
+                external_id=f"unpriced-{index}",
+                match_date=start + timedelta(days=index),
+                competition="Test League",
+                season="2024",
+                home_team_id=home.id,
+                away_team_id=away.id,
+                home_score=1,
+                away_score=1,
+                status="completed",
+                sport="football",
+            )
+        )
+    upcoming = Match(
+        external_id="unpriced-upcoming",
+        match_date=start + timedelta(days=400),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="scheduled",
+        sport="football",
+        odds_markets=None,
+    )
+    db_session.add(upcoming)
+    db_session.commit()
+    match_id = upcoming.id
+
+    from app.services.base_rates import reset_cache
+
+    reset_cache()
+    try:
+        body = client.get(f"/predict/{match_id}").json()
+    finally:
+        reset_cache()
+
+    assert body["value"] is None
+    # The prediction itself does not depend on anyone pricing the fixture.
+    assert body["calls"]["headline"] is not None

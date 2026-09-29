@@ -90,11 +90,14 @@ def _over_under(market: str, entries, label_for) -> list[Call]:
     return calls
 
 
-def candidate_calls(prediction: dict | None, home_team: str, away_team: str) -> list[Call]:
+def candidate_calls(prediction: dict | None) -> list[Call]:
     """Every selection this fixture supports, unranked.
 
-    Labels name the teams rather than the market's side, because "Spain or
-    draw" is what a reader understands and "1X" is not.
+    Labels are the market's own terms — "Home or draw", "Over 2.5 goals" —
+    not the competitors' names. They sit in a fixed-width slot on the board
+    directly beneath the fixture, which already names both sides, so
+    repeating a name there costs the width that makes long ties readable and
+    tells the reader nothing twice.
     """
     if not prediction:
         return []
@@ -106,15 +109,15 @@ def candidate_calls(prediction: dict | None, home_team: str, away_team: str) -> 
     away = _number(prediction.get("away_win"))
     if None not in (home, draw, away):
         calls += [
-            Call(MATCH_RESULT, "home", f"{home_team} to win", home),
+            Call(MATCH_RESULT, "home", "Home", home),
             Call(MATCH_RESULT, "draw", "Draw", draw),
-            Call(MATCH_RESULT, "away", f"{away_team} to win", away),
+            Call(MATCH_RESULT, "away", "Away", away),
             # Derived, not modelled. A double chance is exactly the sum of two
             # mutually exclusive outcomes, so this introduces no new estimate
             # and cannot disagree with the match-result call.
-            Call(DOUBLE_CHANCE, "home_draw", f"{home_team} or draw", home + draw),
-            Call(DOUBLE_CHANCE, "away_draw", f"{away_team} or draw", away + draw),
-            Call(DOUBLE_CHANCE, "home_away", "Either team to win", home + away),
+            Call(DOUBLE_CHANCE, "home_draw", "Home or draw", home + draw),
+            Call(DOUBLE_CHANCE, "away_draw", "Away or draw", away + draw),
+            Call(DOUBLE_CHANCE, "home_away", "Home or away", home + away),
         ]
 
     btts_yes, btts_no = _number(prediction.get("btts_yes")), _number(prediction.get("btts_no"))
