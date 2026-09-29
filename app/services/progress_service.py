@@ -1,0 +1,185 @@
+"""The public track record: what the engine called, and how it went.
+
+Every claim on this page is a count, not an assertion. The engine's calls are
+regenerated from the stored probabilities and graded against the final score
+by `app.services.settlement`, so a number here can always be traced to
+specific fixtures.
+
+The distinction this module exists to preserve
+----------------------------------------------
+There are two very different things a prediction record can be, and running
+them together is the single most common dishonesty in this industry:
+
+    live       the prediction was stored *before* kick-off. Nobody could
+               have known the result. This is a forecast that was published
+               and then judged.
+    backtest   the prediction was generated *after* the match, from history
+               truncated at kick-off. The model saw nothing it should not
+               have — the feature pipeline is leakage-safe — but it is still
+               a reconstruction, and it was never exposed to the risk of
+               being wrong in public.
+
+A backtest is evidence. It is weaker evidence than a live record, and a page
+that blurs the two is claiming credit it has not earned. They are counted
+separately here and the API returns both, so the interface cannot
+accidentally present one as the other.
+
+At the time of writing every stored prediction is a backtest, because the
+board only began running forward recently. The live record will fill in on
+its own as fixtures are predicted and then played; nothing needs to be
+backfilled for that to start counting.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy.orm import Session
+
+from app.models.match import Match
+from app.models.prediction import Prediction
+from app.services.base_rates import market_base_rates
+from app.services.settlement import Outcome, Record, result_from_match, settle_key
+from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
+
+# How many days of daily results the "recent form" chart covers.
+RECENT_DAYS = 30
+
+
+@dataclass
+class _Graded:
+    """One settled prediction, reduced to what every breakdown needs."""
+
+    match_date: datetime
+    competition: str
+    confidence: float | None
+    headline: Outcome
+    per_market: dict[str, Outcome]
+    # True when the prediction was stored before kick-off.
+    live: bool
+
+
+def _prediction_payload(prediction: Prediction) -> dict:
+    """The stored row, back in the shape `ml.markets` expects."""
+    return {
+        "home_win": prediction.prob_home,
+        "draw": prediction.prob_draw,
+        "away_win": prediction.prob_away,
+        "btts_yes": prediction.prob_btts_yes,
+        "btts_no": prediction.prob_btts_no,
+        "goals_markets": prediction.goals_markets or [],
+        "ht_goals_markets": prediction.ht_goals_markets or [],
+        "corners_markets": prediction.corners_markets or [],
+        "cards_markets": prediction.cards_markets or [],
+    }
+
+
+def _grade_all(session: Session) -> list[_Graded]:
+    """Regenerate and settle every stored prediction on a played fixture."""
+    base_rates = market_base_rates(session, "football")
+    rows = (
+        session.query(Prediction, Match)
+        .join(Match, Match.id == Prediction.match_id)
+        .filter(Match.status == "completed", Match.home_score.is_not(None))
+        .all()
+    )
+
+    graded: list[_Graded] = []
+    for prediction, match in rows:
+        result = result_from_match(match)
+        if result is None:
+            continue
+        ranked = rank_calls(candidate_calls(_prediction_payload(prediction)), base_rates)
+        best = headline_call(ranked)
+        if best is None:
+            continue
+        graded.append(
+            _Graded(
+                match_date=match.match_date,
+                competition=match.competition,
+                confidence=prediction.confidence,
+                headline=settle_key(best.call.key, result),
+                # The *best call in each market*, not every candidate. Grading
+                # all of them would settle both sides of every line and report
+                # a mechanical 50% that means nothing.
+                per_market={
+                    entry.call.market: settle_key(entry.call.key, result)
+                    for entry in best_per_market(ranked)
+                },
+                live=prediction.created_at is not None and prediction.created_at < match.match_date,
+            )
+        )
+    return graded
+
+
+def _record(outcomes) -> dict:
+    record = Record()
+    for outcome in outcomes:
+        record = record.plus(outcome)
+    return record.as_dict()
+
+
+def _span(entries: list[_Graded]) -> dict | None:
+    if not entries:
+        return None
+    dates = [entry.match_date for entry in entries]
+    return {"first": min(dates).date().isoformat(), "last": max(dates).date().isoformat()}
+
+
+def build_progress(session: Session) -> dict:
+    """Everything the track-record page shows, all of it counted."""
+    graded = _grade_all(session)
+
+    live = [entry for entry in graded if entry.live]
+    backtest = [entry for entry in graded if not entry.live]
+
+    by_month: dict[str, list[Outcome]] = defaultdict(list)
+    by_market: dict[str, list[Outcome]] = defaultdict(list)
+    by_competition: dict[str, list[Outcome]] = defaultdict(list)
+    by_confidence: dict[int, list[Outcome]] = defaultdict(list)
+    for entry in graded:
+        by_month[entry.match_date.strftime("%Y-%m")].append(entry.headline)
+        by_competition[entry.competition].append(entry.headline)
+        for market, outcome in entry.per_market.items():
+            by_market[market].append(outcome)
+        if entry.confidence is not None:
+            by_confidence[int(entry.confidence // 10)].append(entry.headline)
+
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=RECENT_DAYS)
+    recent: dict[str, list[Outcome]] = defaultdict(list)
+    for entry in graded:
+        if entry.match_date >= cutoff:
+            recent[entry.match_date.date().isoformat()].append(entry.headline)
+
+    return {
+        "generated_at": datetime.now(UTC).isoformat(),
+        # The headline number, over everything settled.
+        "overall": _record(entry.headline for entry in graded),
+        "span": _span(graded),
+        # Split so the interface cannot present a backtest as a live record.
+        "live": {"record": _record(e.headline for e in live), "span": _span(live)},
+        "backtest": {
+            "record": _record(e.headline for e in backtest),
+            "span": _span(backtest),
+        },
+        "by_month": [{"month": month, **_record(by_month[month])} for month in sorted(by_month)],
+        "recent_days": [{"date": day, **_record(recent[day])} for day in sorted(recent)],
+        "by_market": [
+            {"market": market, **_record(by_market[market])}
+            for market in sorted(by_market, key=lambda m: -len(by_market[m]))
+        ],
+        "by_competition": [
+            {"competition": name, **_record(by_competition[name])}
+            for name in sorted(by_competition, key=lambda n: -len(by_competition[n]))
+        ],
+        "by_confidence": [
+            {
+                "bucket": f"{bucket * 10}-{bucket * 10 + 10}",
+                "from": bucket * 10,
+                **_record(by_confidence[bucket]),
+            }
+            for bucket in sorted(by_confidence)
+        ],
+    }

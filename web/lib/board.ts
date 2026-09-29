@@ -133,3 +133,21 @@ export function outcomeColor(outcome: Outcome): string | null {
   if (outcome === "void") return "var(--color-text-faint)";
   return null;
 }
+
+/**
+ * Recover a match id from a URL segment.
+ *
+ * Accepts both `144414` and `spain-vs-croatia-prediction-144414`. The name
+ * part is decoration: a team renamed since the URL was shared still
+ * resolves, and a hand-edited slug cannot land on the wrong fixture, because
+ * only the trailing number is ever read.
+ *
+ * Mirrors `match_id_from_slug` in app/services/board_service.py. If the two
+ * disagree, a link the board generated stops opening.
+ */
+export function matchIdFromSlug(segment: string): number | null {
+  const found = /(\d+)$/.exec(segment ?? "");
+  if (!found) return null;
+  const id = Number(found[1]);
+  return Number.isSafeInteger(id) ? id : null;
+}

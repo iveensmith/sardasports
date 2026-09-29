@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EngineError, getPrediction } from "@/lib/api";
+import { matchIdFromSlug } from "@/lib/board";
 import {
   HeadlineCall,
   MarketCallTable,
@@ -235,8 +236,10 @@ export default async function MatchPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const matchId = Number(id);
-  if (!Number.isInteger(matchId)) notFound();
+  // Accepts both /match/144414 and the readable form the board links to,
+  // /match/spain-vs-croatia-prediction-144414.
+  const matchId = matchIdFromSlug(id);
+  if (matchId === null) notFound();
 
   let prediction: Prediction;
   try {

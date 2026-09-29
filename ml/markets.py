@@ -270,18 +270,39 @@ def rank_calls(calls: list[Call], base_rates: dict[str, float]) -> list[RankedCa
     )
 
 
+def _pick(entries: list[RankedCall]) -> RankedCall | None:
+    """The likeliest call that clears the lift bar, else the likeliest.
+
+    The one selection rule, used for the headline and for each market column
+    alike. Sharing it is not tidiness — the two diverging is a bug that
+    already shipped once. Ranking the columns by lift instead put the 1X2
+    cell on the *highest-lift* result rather than the likeliest, so it
+    preferred a 33% away win over a 45% home win because away beats its base
+    rate by more. Graded over 807 fixtures that column won 24.7% of the time,
+    against 33.3% for picking at random, while the headline beside it — which
+    had always used probability — won 77.7%.
+    """
+    if not entries:
+        return None
+    allowed = [e for e in entries if e.call.key not in HEADLINE_EXCLUDED]
+    eligible = [e for e in allowed if e.lift is not None and e.lift >= MIN_HEADLINE_LIFT]
+    return max(eligible or allowed or entries, key=lambda e: e.call.probability)
+
+
 def best_per_market(ranked: list[RankedCall]) -> list[RankedCall]:
-    """The strongest call in each market, in reading order.
+    """The call to show in each market's column, in reading order.
 
     One per market rather than a global top-N, so the board shows a spread of
     genuinely different questions instead of three near-identical goals lines.
-    Within a market the winner is the highest-lift call, which is already the
-    order `rank_calls` produced.
+    Within a market the winner is chosen by `_pick`, exactly as the headline
+    is — a column labelled "1X2 tip" has to mean the same thing the best-tip
+    column means, or the row contradicts itself.
     """
-    seen: dict[str, RankedCall] = {}
+    grouped: dict[str, list[RankedCall]] = {}
     for entry in ranked:
-        seen.setdefault(entry.call.market, entry)
-    return [seen[market] for market in MARKET_ORDER if market in seen]
+        grouped.setdefault(entry.call.market, []).append(entry)
+    chosen = {market: _pick(entries) for market, entries in grouped.items()}
+    return [chosen[market] for market in MARKET_ORDER if chosen.get(market) is not None]
 
 
 def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
@@ -310,12 +331,6 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     """
     if not ranked:
         return None
-    # The exclusion is absolute and applies to the fallback too. Letting a
-    # barred selection back in when nothing else qualifies would put it on
-    # exactly the fixtures where the engine has least to say, which is the
-    # worst possible moment to print "not a draw" as a prediction.
-    allowed = [entry for entry in ranked if entry.call.key not in HEADLINE_EXCLUDED]
-    eligible = [
-        entry for entry in allowed if entry.lift is not None and entry.lift >= MIN_HEADLINE_LIFT
-    ]
-    return max(eligible or allowed or ranked, key=lambda entry: entry.call.probability)
+    # Exactly the rule each market column uses, so the best tip and the cell
+    # it came from can never disagree.
+    return _pick(ranked)

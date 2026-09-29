@@ -274,11 +274,28 @@ def test_no_calls_means_no_headline():
 # --- one call per market -------------------------------------------------
 
 
-def test_best_per_market_returns_the_strongest_call_in_each():
+def test_best_per_market_uses_the_same_rule_as_the_headline():
+    """Likeliest among calls that clear the lift bar — not highest lift.
+
+    Over 1.5 (82.6%, +7.8) is chosen over Over 2.5 (61.0%, +10.4): both say
+    something, and the first is likelier. Ranking these columns by lift is a
+    bug that shipped once — it put the 1X2 cell on a 33% away win ahead of a
+    45% home win, and that column graded 24.7% over 807 fixtures against
+    33.3% for guessing.
+    """
     per_market = {r.call.market: r for r in best_per_market(_ranked())}
     assert per_market[MATCH_RESULT].call.label == "Home"
     assert per_market[DOUBLE_CHANCE].call.label == "Home or draw"
-    assert per_market[GOALS].call.label == "Over 2.5 goals"  # +10.4 beats over 1.5's +7.8
+    assert per_market[GOALS].call.label == "Over 1.5 goals"
+
+
+def test_a_market_column_agrees_with_the_best_tip_when_they_are_the_same_market():
+    """A cell labelled "1X2 tip" has to mean what the best-tip column means,
+    or the row contradicts itself."""
+    ranked = _ranked()
+    head = headline_call(ranked)
+    per_market = {r.call.market: r for r in best_per_market(ranked)}
+    assert per_market[head.call.market].call.key == head.call.key
 
 
 def test_best_per_market_never_repeats_a_market():
