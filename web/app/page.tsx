@@ -62,7 +62,9 @@ function BoardSection({
     <section className="mt-12">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
-          <h2 className="text-[21px] font-bold tracking-[-0.018em]">{heading}</h2>
+          <h2 className="text-[21px] font-bold tracking-[-0.018em]">
+            {heading}
+          </h2>
           <p className="mt-1 max-w-[68ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
             {copy}
           </p>
@@ -76,7 +78,9 @@ function BoardSection({
               >
                 {board!.counts.won}/{board!.counts.finished}
               </span>{" "}
-              <span className="text-[var(--color-text-faint)]">best tips won</span>
+              <span className="text-[var(--color-text-faint)]">
+                best tips won
+              </span>
             </span>
           )}
           <Link
@@ -126,7 +130,7 @@ export default async function HomePage() {
   const headline = hasLive ? progress!.live.record : progress?.overall;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="max-w-[70ch]">
         <h1 className="text-[clamp(2.1rem,5.5vw,3.25rem)] leading-[1.06] font-bold tracking-[-0.025em]">
           Every prediction,{" "}
@@ -175,7 +179,9 @@ export default async function HomePage() {
       {error && (
         <div className="mt-8 rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       )}
 

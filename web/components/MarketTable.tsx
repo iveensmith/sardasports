@@ -52,9 +52,7 @@ export function MarketTable({ title, markets, unavailableNote }: Props) {
                 <td
                   className="py-2.5 text-right"
                   style={
-                    unavailable
-                      ? { color: "var(--color-unknown)" }
-                      : undefined
+                    unavailable ? { color: "var(--color-unknown)" } : undefined
                   }
                 >
                   {unavailable ? "N/A" : `${m.prob_over!.toFixed(1)}%`}
@@ -62,9 +60,7 @@ export function MarketTable({ title, markets, unavailableNote }: Props) {
                 <td
                   className="py-2.5 text-right"
                   style={
-                    unavailable
-                      ? { color: "var(--color-unknown)" }
-                      : undefined
+                    unavailable ? { color: "var(--color-unknown)" } : undefined
                   }
                 >
                   {unavailable ? "N/A" : `${m.prob_under!.toFixed(1)}%`}

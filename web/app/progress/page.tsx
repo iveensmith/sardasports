@@ -127,10 +127,12 @@ export default async function ProgressPage() {
 
   if (error || !progress) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -140,7 +142,7 @@ export default async function ProgressPage() {
   const hasLive = live.record.settled > 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-8 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
           Every call, counted
@@ -150,10 +152,10 @@ export default async function ProgressPage() {
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every prediction the engine has made is regraded here against the
-          final score — won, lost, or void where the match records no such
-          stat. Void calls are excluded from every rate rather than counted as
-          either, because a corners call on a competition that logs no corners
-          was never settleable.
+          final score — won, lost, or void where the match records no such stat.
+          Void calls are excluded from every rate rather than counted as either,
+          because a corners call on a competition that logs no corners was never
+          settleable.
         </p>
       </header>
 
@@ -163,7 +165,10 @@ export default async function ProgressPage() {
           className="mb-8 rounded-[var(--radius-lg)] border p-5"
           style={{ borderColor: "var(--color-gold-dim)" }}
         >
-          <p className="text-[14px] font-semibold" style={{ color: "var(--color-gold-bright)" }}>
+          <p
+            className="text-[14px] font-semibold"
+            style={{ color: "var(--color-gold-bright)" }}
+          >
             This is a backtest, not a published record.
           </p>
           <p className="mt-2 max-w-[72ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
@@ -199,11 +204,15 @@ export default async function ProgressPage() {
         <StatCard
           label="Settled calls"
           value={overall.settled.toLocaleString()}
-          note={overall.void > 0 ? `${overall.void} void, excluded` : "none void"}
+          note={
+            overall.void > 0 ? `${overall.void} void, excluded` : "none void"
+          }
         />
         <StatCard
           label="Span"
-          value={span ? `${span.first.slice(0, 4)}–${span.last.slice(0, 4)}` : "—"}
+          value={
+            span ? `${span.first.slice(0, 4)}–${span.last.slice(0, 4)}` : "—"
+          }
           note={span ? `${span.first} to ${span.last}` : undefined}
         />
       </div>
@@ -240,7 +249,11 @@ export default async function ProgressPage() {
           rows={progress.by_competition
             .filter((c) => c.settled >= 10)
             .slice(0, 15)
-            .map((c) => ({ key: c.competition, label: c.competition, record: c }))}
+            .map((c) => ({
+              key: c.competition,
+              label: c.competition,
+              record: c,
+            }))}
         />
       </div>
 

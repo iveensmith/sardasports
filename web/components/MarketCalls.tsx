@@ -57,7 +57,9 @@ export function MarketCallTable({ calls }: { calls: Call[] }) {
               <td
                 className="py-2"
                 style={{
-                  color: call.notable ? "var(--color-text)" : "var(--color-text-dim)",
+                  color: call.notable
+                    ? "var(--color-text)"
+                    : "var(--color-text-dim)",
                 }}
               >
                 {call.label}
@@ -66,7 +68,9 @@ export function MarketCallTable({ calls }: { calls: Call[] }) {
                 {call.probability.toFixed(1)}%
               </td>
               <td className="py-2 text-right text-[var(--color-text-faint)]">
-                {call.base_rate === null ? "—" : `${call.base_rate.toFixed(1)}%`}
+                {call.base_rate === null
+                  ? "—"
+                  : `${call.base_rate.toFixed(1)}%`}
               </td>
               <td
                 className="py-2 text-right font-semibold"
@@ -174,7 +178,9 @@ export function ValuePanel({ value }: { value: Value }) {
       </div>
 
       <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-[15px]">
-        <span className="text-[var(--color-text-dim)]">Best-priced selection:</span>
+        <span className="text-[var(--color-text-dim)]">
+          Best-priced selection:
+        </span>
         <span className="font-semibold">{value.label}</span>
         <span className="text-[var(--color-text-dim)]">at</span>
         <span className="font-semibold">{value.offered_price.toFixed(2)}</span>
@@ -216,9 +222,9 @@ export function ValuePanel({ value }: { value: Value }) {
       <p className="mt-3 max-w-[70ch] text-[12px] leading-relaxed text-[var(--color-text-faint)]">
         This is the price, not the prediction. The best-priced selection is
         frequently the least likely outcome on the fixture, and the
-        engine&rsquo;s own backtest returns &minus;6.74% against bookmaker
-        odds &mdash; so a large positive figure here is a reason to look
-        harder, not a reason to bet.
+        engine&rsquo;s own backtest returns &minus;6.74% against bookmaker odds
+        &mdash; so a large positive figure here is a reason to look harder, not
+        a reason to bet.
       </p>
     </section>
   );

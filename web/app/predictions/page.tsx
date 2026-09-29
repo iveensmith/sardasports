@@ -17,7 +17,12 @@
  */
 
 import Link from "next/link";
-import { getBoard, getCompetitions, type BoardEntry, type BoardView } from "@/lib/api";
+import {
+  getBoard,
+  getCompetitions,
+  type BoardEntry,
+  type BoardView,
+} from "@/lib/api";
 import type { Competition } from "@/lib/types";
 import { FixtureRow } from "@/components/FixtureRow";
 
@@ -151,14 +156,14 @@ export default async function PredictionsPage({
   const activeView = VIEWS.find((v) => v.id === view)!;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-7">
         <h1 className="text-[32px] font-bold tracking-[-0.02em]">
           Prediction board
         </h1>
         <p className="mt-2 max-w-[66ch] text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          Every fixture the engine has a trained model for. Competitions
-          without one are left out rather than predicted from an empty rating.
+          Every fixture the engine has a trained model for. Competitions without
+          one are left out rather than predicted from an empty rating.
         </p>
       </header>
 
@@ -170,7 +175,9 @@ export default async function PredictionsPage({
       >
         {view !== "all" && <input type="hidden" name="view" value={view} />}
         <label className="flex flex-col gap-1.5">
-          <span className="text-[12px] text-[var(--color-text-faint)]">Sport</span>
+          <span className="text-[12px] text-[var(--color-text-faint)]">
+            Sport
+          </span>
           <select
             name="sport"
             defaultValue={sport}
@@ -228,7 +235,9 @@ export default async function PredictionsPage({
       {error ? (
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       ) : (
         <>

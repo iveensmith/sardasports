@@ -37,7 +37,9 @@ function Tile({
         {value}
       </p>
       {note && (
-        <p className="mt-1 text-[11.5px] text-[var(--color-text-faint)]">{note}</p>
+        <p className="mt-1 text-[11.5px] text-[var(--color-text-faint)]">
+          {note}
+        </p>
       )}
     </div>
   );
@@ -45,7 +47,9 @@ function Tile({
 
 export function StatTiles({ counts }: { counts: DayBoard["counts"] }) {
   const settled = counts.finished > 0;
-  const winRate = settled ? Math.round((counts.won / counts.finished) * 100) : null;
+  const winRate = settled
+    ? Math.round((counts.won / counts.finished) * 100)
+    : null;
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -68,7 +72,11 @@ export function StatTiles({ counts }: { counts: DayBoard["counts"] }) {
           accent="var(--color-won)"
         />
       ) : (
-        <Tile label="Finished" value={counts.finished} note="nothing settled yet" />
+        <Tile
+          label="Finished"
+          value={counts.finished}
+          note="nothing settled yet"
+        />
       )}
     </div>
   );

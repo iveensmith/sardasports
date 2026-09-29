@@ -83,10 +83,12 @@ export default async function MatchesPage({
 
   if (error || !board || !dates) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -100,7 +102,7 @@ export default async function MatchesPage({
   const settled = board.counts.finished > 0;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
       <DateStrip days={dates.days} active={board.date} />
 
       <header className="mt-8 mb-5">

@@ -42,7 +42,11 @@ function Stat({ label, value }: { label: string; value: string | number }) {
   );
 }
 
-function FootballBody({ p }: { p: Extract<Prediction, { sport: "football" }> }) {
+function FootballBody({
+  p,
+}: {
+  p: Extract<Prediction, { sport: "football" }>;
+}) {
   return (
     <>
       {/* What the engine calls, before the raw per-line numbers below. The
@@ -187,7 +191,9 @@ function TennisBody({ p }: { p: Extract<Prediction, { sport: "tennis" }> }) {
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
-          <h3 className="text-[15px] font-semibold">Rating, overall and on {p.surface ?? "this surface"}</h3>
+          <h3 className="text-[15px] font-semibold">
+            Rating, overall and on {p.surface ?? "this surface"}
+          </h3>
           <p className="mt-1 mb-4 text-[13px] leading-relaxed text-[var(--color-text-dim)]">
             Clay ability is genuinely not grass ability, so the engine keeps a
             rating per surface. Where these two columns disagree, the surface
@@ -252,7 +258,7 @@ export default async function MatchPage({
   const { home, away } = competitors(prediction);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
       <Link
         href="/predictions"
         className="text-[14px] text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
@@ -262,7 +268,8 @@ export default async function MatchPage({
 
       <header className="mt-5 mb-7">
         <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-bold tracking-[-0.02em]">
-          {home} <span className="text-[var(--color-text-faint)]">v</span> {away}
+          {home} <span className="text-[var(--color-text-faint)]">v</span>{" "}
+          {away}
         </h1>
         <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
           {new Date(prediction.match_date).toLocaleString(undefined, {

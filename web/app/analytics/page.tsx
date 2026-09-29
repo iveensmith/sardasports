@@ -18,7 +18,10 @@ import {
   CalibrationChart,
   type CalibrationBucket,
 } from "@/components/CalibrationChart";
-import { ModelAccuracyChart, type ModelRow } from "@/components/ModelAccuracyChart";
+import {
+  ModelAccuracyChart,
+  type ModelRow,
+} from "@/components/ModelAccuracyChart";
 
 export const revalidate = 600;
 
@@ -35,27 +38,87 @@ export const metadata = {
 const MODELS: Array<{ name: string; label: string; sport: string }> = [
   { name: "xgboost_match_result", label: "Match result", sport: "football" },
   { name: "gbm_btts", label: "Both teams to score", sport: "football" },
-  { name: "lightgbm_over_under_1_5", label: "Goals over 1.5", sport: "football" },
-  { name: "lightgbm_over_under_2_5", label: "Goals over 2.5", sport: "football" },
+  {
+    name: "lightgbm_over_under_1_5",
+    label: "Goals over 1.5",
+    sport: "football",
+  },
+  {
+    name: "lightgbm_over_under_2_5",
+    label: "Goals over 2.5",
+    sport: "football",
+  },
   {
     name: "lightgbm_over_under_ht_goals_0_5",
     label: "Half-time goals over 0.5",
     sport: "football",
   },
-  { name: "lightgbm_over_under_corners_7_5", label: "Corners over 7.5", sport: "football" },
-  { name: "lightgbm_over_under_corners_8_5", label: "Corners over 8.5", sport: "football" },
-  { name: "lightgbm_over_under_corners_9_5", label: "Corners over 9.5", sport: "football" },
-  { name: "gbm_over_under_cards_2_5", label: "Cards over 2.5", sport: "football" },
-  { name: "gbm_over_under_cards_3_5", label: "Cards over 3.5", sport: "football" },
-  { name: "gbm_over_under_cards_4_5", label: "Cards over 4.5", sport: "football" },
-  { name: "lightgbm_basketball_winner", label: "NBA winner", sport: "basketball" },
-  { name: "lightgbm_basketball_total_215_5", label: "NBA total 215.5", sport: "basketball" },
-  { name: "lightgbm_basketball_total_225_5", label: "NBA total 225.5", sport: "basketball" },
-  { name: "lightgbm_basketball_total_235_5", label: "NBA total 235.5", sport: "basketball" },
+  {
+    name: "lightgbm_over_under_corners_7_5",
+    label: "Corners over 7.5",
+    sport: "football",
+  },
+  {
+    name: "lightgbm_over_under_corners_8_5",
+    label: "Corners over 8.5",
+    sport: "football",
+  },
+  {
+    name: "lightgbm_over_under_corners_9_5",
+    label: "Corners over 9.5",
+    sport: "football",
+  },
+  {
+    name: "gbm_over_under_cards_2_5",
+    label: "Cards over 2.5",
+    sport: "football",
+  },
+  {
+    name: "gbm_over_under_cards_3_5",
+    label: "Cards over 3.5",
+    sport: "football",
+  },
+  {
+    name: "gbm_over_under_cards_4_5",
+    label: "Cards over 4.5",
+    sport: "football",
+  },
+  {
+    name: "lightgbm_basketball_winner",
+    label: "NBA winner",
+    sport: "basketball",
+  },
+  {
+    name: "lightgbm_basketball_total_215_5",
+    label: "NBA total 215.5",
+    sport: "basketball",
+  },
+  {
+    name: "lightgbm_basketball_total_225_5",
+    label: "NBA total 225.5",
+    sport: "basketball",
+  },
+  {
+    name: "lightgbm_basketball_total_235_5",
+    label: "NBA total 235.5",
+    sport: "basketball",
+  },
   { name: "lightgbm_tennis_winner", label: "Tennis winner", sport: "tennis" },
-  { name: "lightgbm_tennis_total_games_19_5", label: "Tennis games over 19.5", sport: "tennis" },
-  { name: "lightgbm_tennis_total_games_21_5", label: "Tennis games over 21.5", sport: "tennis" },
-  { name: "lightgbm_tennis_total_games_23_5", label: "Tennis games over 23.5", sport: "tennis" },
+  {
+    name: "lightgbm_tennis_total_games_19_5",
+    label: "Tennis games over 19.5",
+    sport: "tennis",
+  },
+  {
+    name: "lightgbm_tennis_total_games_21_5",
+    label: "Tennis games over 21.5",
+    sport: "tennis",
+  },
+  {
+    name: "lightgbm_tennis_total_games_23_5",
+    label: "Tennis games over 23.5",
+    sport: "tennis",
+  },
 ];
 
 /**
@@ -132,9 +195,9 @@ export default async function AnalyticsPage() {
     rows = MODELS.map((model, i) => {
       const performance = performances[i];
       const metrics = performance?.active_version?.metrics as
-        | Record<string, unknown>
-        | undefined;
-      const accuracy = typeof metrics?.accuracy === "number" ? metrics.accuracy : null;
+        Record<string, unknown> | undefined;
+      const accuracy =
+        typeof metrics?.accuracy === "number" ? metrics.accuracy : null;
       if (accuracy === null) return null;
       const { value, kind } = baselineFrom(metrics);
       return {
@@ -162,22 +225,24 @@ export default async function AnalyticsPage() {
   const beating = withBaseline.filter((r) => r.accuracy - r.baseline! > 1);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-8">
         <h1 className="text-[32px] font-bold tracking-[-0.02em]">
           Model analytics
         </h1>
         <p className="mt-2 max-w-[68ch] text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          How the models actually perform, measured against what each one has
-          to beat. Accuracy on its own flatters an easy market, so everything
-          here is ranked by the gap to that baseline instead.
+          How the models actually perform, measured against what each one has to
+          beat. Accuracy on its own flatters an easy market, so everything here
+          is ranked by the gap to that baseline instead.
         </p>
       </header>
 
       {error ? (
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       ) : (
         <>
@@ -238,8 +303,8 @@ export default async function AnalyticsPage() {
             <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
               The ROI backtest flat-stakes every value edge over the held-out
               test period. It is not loaded here: measured on the full
-              144,000-match dataset it takes roughly twenty minutes, so
-              fetching it with the page would simply hang it.
+              144,000-match dataset it takes roughly twenty minutes, so fetching
+              it with the page would simply hang it.
             </p>
             <p className="mt-3 max-w-[70ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
               The last figure on record is{" "}

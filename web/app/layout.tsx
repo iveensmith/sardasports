@@ -46,7 +46,7 @@ export default function RootLayout({
     <html lang="en" className={archivo.variable}>
       <body className="min-h-dvh antialiased">
         <header className="sticky top-0 z-50 border-b border-[var(--color-line)] bg-[var(--color-base)]/85 backdrop-blur-md">
-          <nav className="mx-auto flex h-16 max-w-6xl items-center gap-8 px-4">
+          <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-8">
             <Link
               href="/"
               className="text-[17px] font-bold tracking-[-0.02em] whitespace-nowrap"
@@ -70,7 +70,7 @@ export default function RootLayout({
         <main>{children}</main>
 
         <footer className="mt-24 border-t border-[var(--color-line)]">
-          <div className="mx-auto max-w-6xl px-4 py-10 text-[13px] leading-relaxed text-[var(--color-text-faint)]">
+          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10 text-[13px] leading-relaxed text-[var(--color-text-faint)]">
             <p className="max-w-[68ch]">
               Every number on this site is computed by the prediction engine
               from ingested match data. Where a market cannot be priced, it is

@@ -33,7 +33,9 @@ export function AgreementPill({ agreement }: { agreement: Agreement | null }) {
     <span
       className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] font-medium whitespace-nowrap"
       style={{
-        borderColor: unanimous ? "var(--color-line-strong)" : "var(--color-away)",
+        borderColor: unanimous
+          ? "var(--color-line-strong)"
+          : "var(--color-away)",
         color: unanimous ? "var(--color-text-dim)" : "var(--color-away)",
       }}
       title={

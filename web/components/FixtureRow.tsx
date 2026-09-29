@@ -53,7 +53,9 @@ function StatusChip({ status }: { status: string }) {
         aria-hidden
         className="inline-block h-1.5 w-1.5 rounded-full"
         style={{
-          background: upcoming ? "var(--color-gold)" : "var(--color-text-faint)",
+          background: upcoming
+            ? "var(--color-gold)"
+            : "var(--color-text-faint)",
         }}
       />
       <span style={{ color: "var(--color-text-faint)" }}>
@@ -89,7 +91,8 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
                 color: "var(--color-text-faint)",
               }}
             >
-              {SPORT_BADGE[fixture.sport] ?? fixture.sport.slice(0, 3).toUpperCase()}
+              {SPORT_BADGE[fixture.sport] ??
+                fixture.sport.slice(0, 3).toUpperCase()}
             </span>
             <span className="truncate text-[12.5px] font-medium text-[var(--color-text-dim)]">
               {fixture.competition}
@@ -101,7 +104,9 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
 
           <h3 className="mt-1.5 truncate text-[17.5px] font-semibold tracking-[-0.015em]">
             {fixture.home_team}{" "}
-            <span className="font-normal text-[var(--color-text-faint)]">vs</span>{" "}
+            <span className="font-normal text-[var(--color-text-faint)]">
+              vs
+            </span>{" "}
             {fixture.away_team}
           </h3>
         </div>
@@ -117,7 +122,9 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
             >
               <span
                 className="px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap"
-                style={{ color: MARKET_COLOR[call.market] ?? "var(--color-text)" }}
+                style={{
+                  color: MARKET_COLOR[call.market] ?? "var(--color-text)",
+                }}
               >
                 {call.label}
               </span>

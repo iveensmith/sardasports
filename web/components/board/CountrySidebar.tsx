@@ -26,7 +26,12 @@ export function CountrySidebar({
 }) {
   const total = countries.reduce((sum, c) => sum + c.count, 0);
 
-  const row = (label: string, count: number, href: string, isActive: boolean) => (
+  const row = (
+    label: string,
+    count: number,
+    href: string,
+    isActive: boolean,
+  ) => (
     <Link
       key={label}
       href={href}

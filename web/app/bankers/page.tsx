@@ -48,10 +48,12 @@ export default async function BankersPage({
 
   if (error || !bankers) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -65,7 +67,7 @@ export default async function BankersPage({
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-6 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
           {shown}

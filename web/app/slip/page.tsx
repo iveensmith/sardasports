@@ -56,7 +56,10 @@ function Controls({
       </p>
       <div className="flex flex-wrap gap-1.5">
         {options.map((option) => {
-          const query = new URLSearchParams({ ...other, [param]: String(option) });
+          const query = new URLSearchParams({
+            ...other,
+            [param]: String(option),
+          });
           const isActive = option === active;
           return (
             <Link
@@ -103,7 +106,11 @@ export default async function SlipPage({
   let slip: Slip | null = null;
   let error: string | null = null;
   try {
-    slip = await getSlip({ targetOdds, maxLegs, minLegs: Math.min(3, maxLegs) });
+    slip = await getSlip({
+      targetOdds,
+      maxLegs,
+      minLegs: Math.min(3, maxLegs),
+    });
   } catch (e) {
     error =
       e instanceof EngineError || e instanceof Error
@@ -113,10 +120,12 @@ export default async function SlipPage({
 
   if (error || !slip) {
     return (
-      <div className="mx-auto max-w-5xl px-4 py-12">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -134,7 +143,7 @@ export default async function SlipPage({
       : null;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-7 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
           Built from today&rsquo;s card
@@ -144,8 +153,8 @@ export default async function SlipPage({
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           An accumulator from the engine&rsquo;s surest priced picks, one leg
-          per fixture. Two selections from the same match tend to land
-          together, so combining them would overstate the price.
+          per fixture. Two selections from the same match tend to land together,
+          so combining them would overstate the price.
         </p>
       </header>
 
@@ -200,18 +209,18 @@ export default async function SlipPage({
 
       {!slip.reached_target && slip.leg_count > 0 && (
         <p className="mt-4 text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-          Today&rsquo;s card could not reach {targetOdds}x within {maxLegs}{" "}
-          legs at these prices. The slip below is what it could do. Raising the
-          leg cap would get closer to the target and lower the chance of a
-          return &mdash; that trade is the whole of what this page does.
+          Today&rsquo;s card could not reach {targetOdds}x within {maxLegs} legs
+          at these prices. The slip below is what it could do. Raising the leg
+          cap would get closer to the target and lower the chance of a return
+          &mdash; that trade is the whole of what this page does.
         </p>
       )}
 
       {slip.short_of_minimum && (
         <p className="mt-4 text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-          Not enough priced fixtures on this card to build a full slip. Odds
-          are only ingested for the next few days, so older and further-out
-          dates have fewer legs available.
+          Not enough priced fixtures on this card to build a full slip. Odds are
+          only ingested for the next few days, so older and further-out dates
+          have fewer legs available.
         </p>
       )}
 
@@ -221,7 +230,9 @@ export default async function SlipPage({
           <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
             Nothing on today&rsquo;s card has a bookmaker price inside the leg
             limits. Run{" "}
-            <code className="text-[var(--color-text)]">scripts/fetch_odds.py</code>{" "}
+            <code className="text-[var(--color-text)]">
+              scripts/fetch_odds.py
+            </code>{" "}
             to pull prices.
           </p>
         </div>

@@ -11,7 +11,11 @@
  * top a table on noise alone.
  */
 
-import { getLeaderboard, type LeaderboardRow, type LeaderboardSort } from "@/lib/api";
+import {
+  getLeaderboard,
+  type LeaderboardRow,
+  type LeaderboardSort,
+} from "@/lib/api";
 
 export const revalidate = 600;
 
@@ -123,7 +127,7 @@ export default async function LeaderboardPage({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-7">
         <h1 className="text-[32px] font-bold tracking-[-0.02em]">
           Model leaderboard
@@ -139,7 +143,9 @@ export default async function LeaderboardPage({
       {error ? (
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       ) : (
         <>

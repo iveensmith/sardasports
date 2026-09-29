@@ -49,7 +49,9 @@ export function ConfidenceMeter({ value, label, variant = "bar" }: Props) {
         <span className="text-[13px] text-[var(--color-text-dim)]">
           Model confidence
         </span>
-        <span className="text-[13px] text-[var(--color-text-dim)]">{label}</span>
+        <span className="text-[13px] text-[var(--color-text-dim)]">
+          {label}
+        </span>
       </div>
 
       <div

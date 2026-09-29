@@ -115,7 +115,11 @@ export function ModelAccuracyChart({ rows }: { rows: ModelRow[] }) {
           margin={{ top: 4, right: 52, bottom: 8, left: 4 }}
           barCategoryGap={6}
         >
-          <CartesianGrid stroke={GRID} strokeDasharray="2 4" horizontal={false} />
+          <CartesianGrid
+            stroke={GRID}
+            strokeDasharray="2 4"
+            horizontal={false}
+          />
           <XAxis
             type="number"
             domain={[0, 100]}

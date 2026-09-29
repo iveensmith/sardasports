@@ -47,7 +47,10 @@ export function WinRateChart({ months }: { months: MonthRecord[] }) {
 
       <div className="mt-4 h-[260px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 8, right: 8, bottom: 4, left: -18 }}>
+          <ComposedChart
+            data={data}
+            margin={{ top: 8, right: 8, bottom: 4, left: -18 }}
+          >
             <CartesianGrid stroke="var(--color-line)" vertical={false} />
             <XAxis
               dataKey="month"
@@ -73,7 +76,8 @@ export function WinRateChart({ months }: { months: MonthRecord[] }) {
               }}
               labelStyle={{ color: "var(--color-text)" }}
               formatter={(value, name) => {
-                const figure = typeof value === "number" ? value : Number(value);
+                const figure =
+                  typeof value === "number" ? value : Number(value);
                 return name === "rate"
                   ? [`${figure.toFixed(1)}%`, "Win rate"]
                   : [String(figure), "Settled calls"];

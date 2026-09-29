@@ -88,7 +88,11 @@ function CalibrationTooltip({
   );
 }
 
-export function CalibrationChart({ buckets }: { buckets: CalibrationBucket[] }) {
+export function CalibrationChart({
+  buckets,
+}: {
+  buckets: CalibrationBucket[];
+}) {
   if (buckets.length === 0) {
     return (
       <p className="py-10 text-center text-[14px] text-[var(--color-text-dim)]">

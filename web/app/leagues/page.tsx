@@ -35,17 +35,19 @@ export default async function LeaguesPage() {
 
   if (error || !leagues) {
     return (
-      <div className="mx-auto max-w-6xl px-4 py-12">
+      <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
         <div className="rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
           <p className="text-[15px] font-medium">The engine is unreachable</p>
-          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">{error}</p>
+          <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
+            {error}
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-12">
+    <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-8 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
           {leagues.competition_count} competitions · {leagues.country_count}{" "}
@@ -56,9 +58,9 @@ export default async function LeaguesPage() {
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Everything the engine has a trained model for. The match count beside
-          each is how much completed history it was built from, and it varies
-          by two orders of magnitude &mdash; which is the single best predictor
-          of how much to trust a call in it.
+          each is how much completed history it was built from, and it varies by
+          two orders of magnitude &mdash; which is the single best predictor of
+          how much to trust a call in it.
         </p>
       </header>
 

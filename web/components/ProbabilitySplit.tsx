@@ -33,7 +33,14 @@ export function ProbabilitySplit({
     { key: "home", value: home, color: "var(--color-home)", label: homeLabel },
     ...(draw === undefined
       ? []
-      : [{ key: "draw", value: draw, color: "var(--color-draw)", label: "Draw" }]),
+      : [
+          {
+            key: "draw",
+            value: draw,
+            color: "var(--color-draw)",
+            label: "Draw",
+          },
+        ]),
     { key: "away", value: away, color: "var(--color-away)", label: awayLabel },
   ];
 

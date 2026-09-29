@@ -60,7 +60,9 @@ function srOutcome(outcome: Outcome) {
 function TipCell({ tip }: { tip: Tip | undefined }) {
   if (!tip) {
     return (
-      <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">—</td>
+      <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">
+        —
+      </td>
     );
   }
   return (
@@ -92,7 +94,11 @@ function OddsCell({ price }: { price: number | null }) {
 
 function ConfidenceCell({ value }: { value: number | null }) {
   if (value === null) {
-    return <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">—</td>;
+    return (
+      <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">
+        —
+      </td>
+    );
   }
   // Gold only at the top of the range, so the column has a shape a reader can
   // scan rather than nine identical highlighted numbers.
@@ -101,7 +107,9 @@ function ConfidenceCell({ value }: { value: number | null }) {
     <td className="px-2 py-2 text-center whitespace-nowrap">
       <span
         className="text-[13px] font-semibold"
-        style={{ color: strong ? "var(--color-gold-bright)" : "var(--color-text-dim)" }}
+        style={{
+          color: strong ? "var(--color-gold-bright)" : "var(--color-text-dim)",
+        }}
       >
         {value.toFixed(1)}
       </span>
@@ -110,19 +118,42 @@ function ConfidenceCell({ value }: { value: number | null }) {
   );
 }
 
-function TeamLine({ name, goals }: { name: string; goals: number | null }) {
+/**
+ * The fixture cell: both team names, with the score beside them.
+ *
+ * Names and goals are two adjacent blocks rather than one row with the score
+ * pushed to the far side. This cell absorbs whatever width the numeric
+ * columns leave over, so on a wide screen `justify-between` would strand the
+ * score a couple of hundred pixels from the team it belongs to. Here the
+ * score column sits immediately after the names and the spare width falls
+ * after both.
+ *
+ * The names block sizes to its content rather than taking `flex-1`. With
+ * `flex-1` it filled its 260px cap whatever the names were, so "Al Riyadh"
+ * left almost two hundred pixels of nothing before its own scoreline. The
+ * cap still truncates the long ones.
+ */
+function Fixture({ row }: { row: BoardRow }) {
+  const played = row.score !== null;
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <span className="truncate text-[13.5px]">{name}</span>
-      {goals !== null && (
-        <span className="shrink-0 text-[13.5px] font-semibold tabular-nums">{goals}</span>
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="min-w-0 max-w-[260px]">
+        <p className="truncate text-[13.5px] leading-tight">{row.home_team}</p>
+        <p className="mt-1 truncate text-[13.5px] leading-tight">
+          {row.away_team}
+        </p>
+      </div>
+      {played && (
+        <div className="shrink-0 text-right text-[13.5px] font-semibold tabular-nums">
+          <p className="leading-tight">{row.score!.home}</p>
+          <p className="mt-1 leading-tight">{row.score!.away}</p>
+        </div>
       )}
     </div>
   );
 }
 
 function Row({ row }: { row: BoardRow }) {
-  const played = row.score !== null;
   const verdict = row.best_tip?.outcome ?? null;
 
   return (
@@ -149,13 +180,15 @@ function Row({ row }: { row: BoardRow }) {
         </div>
       </td>
 
-      <td className="min-w-0 px-2 py-2">
+      {/* `w-full` makes this the column that soaks up the table's spare
+          width, so the numeric columns stay at their natural size instead of
+          each being stretched a little. */}
+      <td className="w-full min-w-0 px-2 py-2">
         <Link
           href={`/match/${row.slug}`}
           className="block min-w-0 hover:text-[var(--color-gold-bright)]"
         >
-          <TeamLine name={row.home_team} goals={played ? row.score!.home : null} />
-          <TeamLine name={row.away_team} goals={played ? row.score!.away : null} />
+          <Fixture row={row} />
         </Link>
       </td>
 
@@ -185,7 +218,7 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
         <thead>
           <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
             <th className="px-2 pb-2 text-left font-medium">Time</th>
-            <th className="px-2 pb-2 text-left font-medium">Match</th>
+            <th className="w-full px-2 pb-2 text-left font-medium">Match</th>
             <th className="px-2 pb-2 text-center font-medium">1</th>
             <th className="px-2 pb-2 text-center font-medium">X</th>
             <th className="px-2 pb-2 text-center font-medium">2</th>
