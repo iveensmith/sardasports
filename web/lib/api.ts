@@ -12,6 +12,7 @@
  */
 
 import type { BoardDates, DayBoard } from "./board";
+import type { Progress } from "./progress";
 import type {
   Call,
   Calls,
@@ -282,6 +283,16 @@ export function getDayBoard(options: {
 /** The date strip, with a fixture count per day. */
 export function getBoardDates(span = 3): Promise<BoardDates> {
   return engineFetch<BoardDates>(`/board/dates?span=${span}`, { revalidate: 600 });
+}
+
+/**
+ * The public track record, regraded from stored predictions.
+ *
+ * Revalidated hourly: it only moves when yesterday's fixtures settle, and a
+ * page this argumentative should not be recomputed on every view.
+ */
+export function getProgress(): Promise<Progress> {
+  return engineFetch<Progress>("/progress", { revalidate: 3600 });
 }
 
 /** The active version and recent history for one model. */
