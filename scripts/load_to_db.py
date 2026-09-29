@@ -25,6 +25,7 @@ from app.models import EloHistory, Match, Team
 from app.utils.config import get_settings
 from app.utils.team_names import fold_team_key
 from ml.elo.engine import EloEngine, MatchResult
+from ml.elo.football import FOOTBALL_COMPETITION_K
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -175,6 +176,10 @@ def rebuild_elo_history(session, settings) -> None:
                 k_factor=settings.elo_k_factor,
                 home_advantage=settings.elo_home_advantage,
                 initial_rating=settings.elo_initial_rating,
+                # Football only: the mapping is keyed by football competition
+                # names, and internationals are the pool that needs it. Other
+                # sports see no listed competition and so keep the flat K.
+                competition_k=FOOTBALL_COMPETITION_K if sport == "football" else None,
             )
         return engines[sport]
 
@@ -191,6 +196,7 @@ def rebuild_elo_history(session, settings) -> None:
                 away_score=match.away_score,
                 match_date=match.match_date,
                 neutral_venue=match.neutral_venue,
+                competition=match.competition,
             )
         )
 

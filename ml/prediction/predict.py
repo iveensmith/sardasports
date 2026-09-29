@@ -20,6 +20,7 @@ import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
 
+from ml.competitions import fit_pool
 from ml.elo.engine import EloEngine
 from ml.ensemble import EnsembleInput, EnsembleOutput, combine
 from ml.feature_engineering.features import (
@@ -183,8 +184,10 @@ def _count_stat_matches(history: list[dict], competition: str | None, value_fn) 
     docs/architecture.md's "Corners and cards" and "Half-time goals"
     sections) are skipped, not zero-filled."""
     result = []
+    # Pooled, not raw: internationals all share one fit (see ml.competitions).
+    pool = fit_pool(competition)
     for m in history:
-        if competition is not None and m.get("competition") != competition:
+        if pool is not None and fit_pool(m.get("competition")) != pool:
             continue
         home_value, away_value = value_fn(m, True), value_fn(m, False)
         if _is_missing(home_value) or _is_missing(away_value):
@@ -246,15 +249,25 @@ def build_shared_fits(
     """
     index = build_team_history_index(history)
 
-    by_competition: dict[str | None, list[dict]] = {}
+    # Bucket by fitting pool rather than by raw competition name, so every
+    # international competition lands in one bucket. Domestic leagues are
+    # unaffected: their pool key *is* their competition name.
+    by_pool: dict[str | None, list[dict]] = {}
     for match in history:
-        by_competition.setdefault(match.get("competition"), []).append(match)
+        by_pool.setdefault(fit_pool(match.get("competition")), []).append(match)
 
     fits: dict[str | None, SharedFit] = {}
+    # One SharedFit per pool, reused by every competition mapping to it — so a
+    # card with three international competitions on it fits once, not thrice.
+    by_pool_fit: dict[str | None, SharedFit] = {}
     for competition in competitions:
+        pool = fit_pool(competition)
+        if pool in by_pool_fit:
+            fits[competition] = by_pool_fit[pool]
+            continue
         # `None` means "no league scoping" and keeps the pre-multi-league
         # behaviour of fitting on the whole window.
-        scoped = history if competition is None else by_competition.get(competition, [])
+        scoped = history if pool is None else by_pool.get(pool, [])
         poisson_matches = [
             {
                 "home_team": m["home_team"],
@@ -264,7 +277,7 @@ def build_shared_fits(
             }
             for m in scoped
         ]
-        fits[competition] = SharedFit(
+        by_pool_fit[pool] = fits[competition] = SharedFit(
             history_index=index,
             poisson=(PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel()),
             # Scoping already happened, so these pass `None` to avoid a
@@ -378,6 +391,9 @@ def predict_match(
     elo_probs = elo_engine.result_probabilities(home_team, away_team)
 
     # --- Poisson model ----------------------------------------------------
+    # Internationals pool into one fit; leagues keep their own. See
+    # ml.competitions for the measurements behind that.
+    _pool = fit_pool(competition)
     poisson_matches = [
         {
             "home_team": m["home_team"],
@@ -386,7 +402,7 @@ def predict_match(
             "away_score": m["away_score"],
         }
         for m in history
-        if competition is None or m.get("competition") == competition
+        if _pool is None or fit_pool(m.get("competition")) == _pool
     ]
     # With no completed history yet (a brand-new league, or literally the
     # first match ever ingested), there's nothing to fit attack/defense

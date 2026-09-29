@@ -18,6 +18,7 @@ from app.database.base import Base
 from app.database.session import SessionLocal, get_engine
 from app.models import ModelVersion, TrainingRun
 from ml.elo.engine import EloEngine, MatchResult
+from ml.elo.football import FOOTBALL_COMPETITION_K
 from ml.feature_engineering.features import build_match_features, build_team_history_index
 
 logger = logging.getLogger(__name__)
@@ -175,6 +176,12 @@ def build_feature_frame(matches: list[dict], settings) -> pd.DataFrame:
         k_factor=settings.elo_k_factor,
         home_advantage=settings.elo_home_advantage,
         initial_rating=settings.elo_initial_rating,
+        # Must match the replay in scripts/load_to_db.py. If these two
+        # diverge, the elo_* features a model trains on stop matching the
+        # ratings it is served at prediction time — a silent train/serve skew
+        # in the single most important feature (elo_diff is the top SHAP
+        # contributor on most fixtures).
+        competition_k=FOOTBALL_COMPETITION_K,
     )
 
     rows = []
@@ -218,6 +225,7 @@ def build_feature_frame(matches: list[dict], settings) -> pd.DataFrame:
                 # went multi-sport, and for any source that doesn't set it —
                 # defaulting to False keeps those as ordinary home games.
                 neutral_venue=bool(m.get("neutral_venue", False)),
+                competition=m.get("competition"),
             )
         )
 

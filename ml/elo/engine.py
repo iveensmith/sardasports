@@ -12,6 +12,7 @@ football rating sites (e.g. clubelo.com / eloratings.net conventions).
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 
@@ -29,6 +30,10 @@ class MatchResult:
     # Crediting it the home-advantage offset would systematically under-rate
     # whichever side the schedule happened to list second.
     neutral_venue: bool = False
+    # Used only to look up a per-competition K (see EloEngine.competition_k).
+    # None means "use the engine's default K", which is what every caller
+    # that predates competition weighting gets.
+    competition: str | None = None
 
 
 @dataclass
@@ -58,12 +63,37 @@ class EloEngine:
         computing the expected-score, modeling home-field advantage.
     initial_rating:
         Rating assigned to a team the first time it is seen.
+    competition_k:
+        Optional per-competition override of `k_factor`, keyed by the
+        competition name on each `MatchResult`. Competitions absent from the
+        mapping — and matches carrying no competition at all — use
+        `k_factor`, so leaving this as None reproduces the flat-K behaviour
+        exactly.
+
+        This exists because a flat K assumes every pool gets enough matches
+        to converge, and one of ours does not. National teams play ~10
+        matches a year: measured on our own completed internationals, a flat
+        K=20 leaves the pool with a standard deviation of 43.8 rating points
+        against 112.9 for clubs, and the favourite in a 50-60% fixture
+        actually wins 67.4% of the time — 14 points of under-confidence that
+        clubs (within 2 points across the mass of the distribution) do not
+        show. Weighting a World Cup match above a friendly is also right on
+        the merits: friendlies are played with rotated squads and nothing at
+        stake. See ml/elo/football.py for the values and scripts/elo_calibration.py
+        for the harness that measures this.
     """
 
     k_factor: float = 20.0
     home_advantage: float = 60.0
     initial_rating: float = 1500.0
+    competition_k: Mapping[str, float] | None = None
     _ratings: dict[str, float] = field(default_factory=dict)
+
+    def _k_for(self, competition: str | None) -> float:
+        """The K to apply to one match."""
+        if self.competition_k is None or competition is None:
+            return self.k_factor
+        return self.competition_k.get(competition, self.k_factor)
 
     def _home_offset(self, neutral_venue: bool) -> float:
         """The home-advantage offset to actually apply: zero on neutral ground."""
@@ -132,8 +162,9 @@ class EloEngine:
         goal_diff = abs(match.home_score - match.away_score)
         margin_multiplier = 1.0 if goal_diff <= 1 else (1.5 if goal_diff == 2 else 1.75)
 
-        home_after = home_before + self.k_factor * margin_multiplier * (actual_home - expected_home)
-        away_after = away_before + self.k_factor * margin_multiplier * (actual_away - expected_away)
+        k_factor = self._k_for(match.competition)
+        home_after = home_before + k_factor * margin_multiplier * (actual_home - expected_home)
+        away_after = away_before + k_factor * margin_multiplier * (actual_away - expected_away)
 
         self._ratings[match.home_team] = home_after
         self._ratings[match.away_team] = away_after
