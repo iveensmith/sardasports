@@ -89,6 +89,27 @@ Ordered by what blocks the most.
   where there is genuinely no data, which is the honest answer for a column
   that isn't the one thing a reader is told to trust most.
 
+- **Double chance crowded out every other headline — rebalanced.** Asked
+  directly for more variety in the best-tip column. The 75% figure above was
+  a symptom of the same cause: a double chance is a sum of two match-result
+  outcomes, so its probability starts inflated before the model contributes
+  anything, and the flat `MIN_HEADLINE_LIFT` let it win the probability
+  contest on that structural edge alone. `headline_call` already documents
+  that banning it outright was tried once and made things worse — it just
+  handed the same crowding-out problem to "Over 1.5 goals" instead. So
+  rather than re-trying that, double chance now answers to a higher bar
+  specifically (`DOUBLE_CHANCE_MIN_HEADLINE_LIFT = 20.0`, against the
+  ordinary 5.0), tuned against the same 150-fixture sample: goals, match
+  result and double chance now split close to evenly (30% / 29% / 27%)
+  instead of double chance taking three in four rows, and match result — the
+  market most readers actually relate to — went from 3% of headlines to a
+  real share. Verified live: the same 29-fixture graded card that was 100%
+  double-chance-headed earlier the same day now reads goals 34% / match
+  result 28% / double chance 24% / half-time goals 10% / BTTS 3%. Per-market
+  columns and the fixture-page table are unaffected — the higher bar only
+  applies to who gets to lead the row, not to which selection represents
+  double chance on its own.
+
 - **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
   accounts, the Hit&Win prediction game, and subscription gating.
 - **Bookmaker links.** Asked several times, never answered. A "Bet now

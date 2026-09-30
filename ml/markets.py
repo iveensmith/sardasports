@@ -199,6 +199,27 @@ NOTABLE_LIFT = 5.0
 # that tells a reader nothing about the fixture in front of them.
 MIN_HEADLINE_LIFT = 5.0
 
+# The same bar, but held higher for double chance specifically.
+#
+# A double chance is a sum of two match-result outcomes, so its probability
+# starts inflated before the model contributes anything — that is exactly
+# why "Home or away" is barred outright below. Home-or-draw and away-or-draw
+# are not that extreme (they do say something about this fixture, not just
+# "not a draw"), but they inherit enough of the same structural edge that a
+# flat MIN_HEADLINE_LIFT lets them win the headline on it alone: measured on
+# 150 real completed fixtures, double chance led 75% of rows at the ordinary
+# bar, most of them adding little over what the market already implies.
+#
+# This is not the banning `headline_call` already tried and rejected — that
+# made "Over 1.5 goals" the new near-universal headline instead, which is
+# just the crowding-out problem wearing a different market. Asking double
+# chance to clear a higher bar keeps the same rule ("does this beat its own
+# baseline by enough to be worth leading with") and answers it against a
+# baseline the market itself has already inflated. At this threshold the
+# same 150 fixtures split close to evenly across goals, match result and
+# double chance instead of double chance crowding out the other two.
+DOUBLE_CHANCE_MIN_HEADLINE_LIFT = 20.0
+
 # Selections that never lead a row whatever their probability.
 #
 # "Home or away" is the sum of both wins, so it says only "not a draw" —
@@ -270,7 +291,9 @@ def rank_calls(calls: list[Call], base_rates: dict[str, float]) -> list[RankedCa
     )
 
 
-def _pick(entries: list[RankedCall]) -> RankedCall | None:
+def _pick(
+    entries: list[RankedCall], *, double_chance_min_lift: float | None = None
+) -> RankedCall | None:
     """The likeliest call that clears the lift bar, else the likeliest.
 
     The one selection rule, used for the headline and for each market column
@@ -281,11 +304,25 @@ def _pick(entries: list[RankedCall]) -> RankedCall | None:
     rate by more. Graded over 807 fixtures that column won 24.7% of the time,
     against 33.3% for picking at random, while the headline beside it — which
     had always used probability — won 77.7%.
+
+    `double_chance_min_lift` raises the bar for double-chance calls alone,
+    without touching how any market picks its own representative — only
+    `headline_call` passes it. A market column choosing among its own
+    selections (`best_per_market`) has no crowding-out problem to solve;
+    giving it the stricter bar too would just make the double-chance row on
+    the fixture page go blank on fixtures where it is still the best reading
+    of that one market, for no benefit to the headline it doesn't drive.
     """
     if not entries:
         return None
     allowed = [e for e in entries if e.call.key not in HEADLINE_EXCLUDED]
-    eligible = [e for e in allowed if e.lift is not None and e.lift >= MIN_HEADLINE_LIFT]
+
+    def _bar(entry: RankedCall) -> float:
+        if double_chance_min_lift is not None and entry.call.market == DOUBLE_CHANCE:
+            return double_chance_min_lift
+        return MIN_HEADLINE_LIFT
+
+    eligible = [e for e in allowed if e.lift is not None and e.lift >= _bar(e)]
     return max(eligible or allowed or entries, key=lambda e: e.call.probability)
 
 
@@ -309,10 +346,11 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     """The one call the fixture leads with.
 
     The likeliest thing to happen — but only among selections that beat their
-    own base rate by `MIN_HEADLINE_LIFT` and are not in `HEADLINE_EXCLUDED`.
-    Probability decides the winner; those two rules decide who is eligible.
+    own base rate by `MIN_HEADLINE_LIFT` (`DOUBLE_CHANCE_MIN_HEADLINE_LIFT`
+    for a double chance) and are not in `HEADLINE_EXCLUDED`. Probability
+    decides the winner; those rules decide who is eligible.
 
-    Both exist because "likeliest" and "worth saying" pull in opposite
+    They exist because "likeliest" and "worth saying" pull in opposite
     directions, and a pure probability rule collapses onto whichever market
     is most common rather than whichever reading is strongest. A double
     chance is the sum of two outcomes and over 1.5 goals a low line, so they
@@ -322,7 +360,11 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     same card it left 21 of 29 rows showing "Over 1.5 goals" at roughly the
     74.8% that line lands anyway. That is more variety and less meaning.
     Filtering on lift instead keeps the likeliest call in each case and
-    removes only the empty ones.
+    removes only the empty ones — but a double chance's lift is measured
+    against a base rate the market has already inflated by construction, so
+    the ordinary bar alone still let it dominate (75% of headlines on a real
+    150-fixture sample). Raising its bar specifically is the same fix taken
+    one step further, not a different one: `DOUBLE_CHANCE_MIN_HEADLINE_LIFT`.
 
     When nothing qualifies the likeliest call is returned anyway, with its
     lift intact so the interface can show it quietly. A blank row helps
@@ -331,6 +373,10 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     """
     if not ranked:
         return None
-    # Exactly the rule each market column uses, so the best tip and the cell
-    # it came from can never disagree.
-    return _pick(ranked)
+    # Not quite the rule each market column uses — double chance answers to
+    # a higher bar here, see `_pick` — so the best tip and the column it came
+    # from can still disagree on a double-chance headline specifically. They
+    # cannot disagree on which selection represents a market once both have
+    # decided that market gets to speak, which is the invariant that matters:
+    # see `test_a_market_column_agrees_with_the_best_tip_when_they_are_the_same_market`.
+    return _pick(ranked, double_chance_min_lift=DOUBLE_CHANCE_MIN_HEADLINE_LIFT)

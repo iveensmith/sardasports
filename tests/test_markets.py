@@ -23,6 +23,7 @@ import pytest
 
 from ml.markets import (
     DOUBLE_CHANCE,
+    DOUBLE_CHANCE_MIN_HEADLINE_LIFT,
     GOALS,
     HEADLINE_EXCLUDED,
     MATCH_RESULT,
@@ -180,19 +181,33 @@ def test_notable_marks_a_lift_worth_a_readers_attention():
 def test_the_headline_is_the_likeliest_call_that_clears_the_lift_bar():
     """The product rule: likeliest, among calls that actually say something.
 
-    For Spain v Croatia that is "Home or draw" at 85.9% — likelier than the
-    65.3% match-result favourite, and its +15.4 lift clears the bar.
+    For Spain v Croatia, "Home or draw" reads highest at 85.9%, but its
+    +15.4 lift does not clear the higher bar a double chance answers to
+    (`DOUBLE_CHANCE_MIN_HEADLINE_LIFT`) — so the headline falls to "Over 1.5
+    goals" at 82.6%, whose ordinary +7.8 lift does clear its own bar.
     """
     head = headline_call(_ranked())
-    assert head.call.label == "Home or draw"
-    assert head.call.probability == pytest.approx(85.9)
+    assert head.call.label == "Over 1.5 goals"
+    assert head.call.probability == pytest.approx(82.6)
     assert head.lift >= MIN_HEADLINE_LIFT
+
+
+def test_a_double_chance_with_a_big_enough_lift_can_still_lead():
+    """Held to a higher bar, not barred outright — see `HEADLINE_EXCLUDED`
+    for the one that is."""
+    calls = [
+        Call(DOUBLE_CHANCE, "home_draw", "Home or draw", 95.0),  # +24.5, clears it
+        Call(MATCH_RESULT, "home", "Home", 80.0),  # +35.6 — bigger lift, lower probability
+    ]
+    head = headline_call(rank_calls(calls, BASE_RATES))
+    assert head.call.label == "Home or draw"
+    assert head.lift >= DOUBLE_CHANCE_MIN_HEADLINE_LIFT
 
 
 def test_lift_never_displaces_a_likelier_eligible_call():
     """Among eligible calls, probability alone decides.
 
-    "Home" has the bigger lift (+20.9 against +15.4) and is still not the
+    "Home" has the bigger lift (+20.9 against +7.8) and is still not the
     prediction, because it is less likely to happen.
     """
     ranked = _ranked()

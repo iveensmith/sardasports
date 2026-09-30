@@ -180,12 +180,23 @@ def test_a_row_carries_a_pick_in_every_board_column():
     assert row["confidence"] == 8.4
 
 
-def test_the_best_tip_gets_a_real_derived_price_when_one_is_available():
-    """This fixture's headline is the double-chance call (84% beats 62% for
-    a plain home win) — a market with no bookmaker line of its own, but a
-    real price derivable from the 1X2 prices already ingested. It should
-    use that, not the fair-price fallback."""
+def test_the_headline_gets_a_real_bookmaker_price_when_one_is_quoted():
+    """This fixture's headline is the plain match-result favourite (double
+    chance needs a much bigger lift to lead — see ml.markets), and a real
+    1X2 price is quoted for it, so that's what should show."""
     row = _row()
+    assert row["best_tip"]["market"] == "match_result"
+    assert row["best_tip"]["odds"] == pytest.approx(1.55)
+    assert row["best_tip"]["odds_is_estimated"] is False
+
+
+def test_the_best_tip_gets_a_real_derived_price_when_double_chance_leads():
+    """A big enough lift lets double chance lead (see ml.markets). It has no
+    bookmaker line of its own, but a real price is derivable from the 1X2
+    prices already ingested, and that's what should show — not the
+    fair-price fallback."""
+    lopsided = {**PREDICTION, "home_win": 85.0, "draw": 10.0, "away_win": 5.0}
+    row = build_row(_match(), lopsided, BASE_RATES, "Real Madrid", "Getafe")
     assert row["best_tip"]["market"] == "double_chance"
     assert row["best_tip"]["odds"] is not None
     assert row["best_tip"]["odds_is_estimated"] is False
