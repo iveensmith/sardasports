@@ -56,6 +56,19 @@ def test_the_feeds_own_spelling_is_what_resolves():
     assert badge_for("FYR Macedonia").code == "mk"
 
 
+def test_smaller_national_associations_get_flags_too():
+    """These four showed up as monograms on a real international-break board
+    (Eritrea, Seychelles, Sri Lanka and New Caledonia all had live fixtures
+    that day) purely because the dictionary only covered the confederations'
+    more prominent members — not because a monogram was the right call for
+    them. A national side lacking a well-known league is still a national
+    side."""
+    assert badge_for("Eritrea").code == "er"
+    assert badge_for("Seychelles").code == "sc"
+    assert badge_for("Sri Lanka").code == "lk"
+    assert badge_for("New Caledonia").code == "nc"
+
+
 def test_youth_and_womens_sides_inherit_the_senior_flag():
     """ "Croatia U18" is still Croatia. A monogram beside it while the senior
     side showed a flag would look broken rather than precise."""
