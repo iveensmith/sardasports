@@ -33,6 +33,32 @@ class TeamFormSummary(BaseModel):
     btts: int
 
 
+class SeasonStatOut(BaseModel):
+    """One stat's per-match average, this season. `sample_size` is how many
+    of this season's matches actually reported it — `value` is `None` when
+    that's zero, never a fabricated 0.0."""
+
+    value: float | None
+    sample_size: int
+
+
+class SeasonStatsOut(BaseModel):
+    """Season averages beyond goals (already on `TeamFormSummary`) — shots,
+    corners, cards, and the three fields only `scripts/fetch_match_stats.py`
+    can fill (possession, offsides, fouls). See
+    `app.services.team_service.compute_season_stat_averages`."""
+
+    season: str
+    matches_played: int
+    shots: SeasonStatOut
+    shots_on_target: SeasonStatOut
+    corners: SeasonStatOut
+    cards: SeasonStatOut
+    possession: SeasonStatOut
+    offsides: SeasonStatOut
+    fouls: SeasonStatOut
+
+
 class RecentMatchOut(BaseModel):
     match_id: int
     match_date: datetime
@@ -48,3 +74,5 @@ class TeamDetailOut(BaseModel):
     form_last5: TeamFormSummary
     form_last10: TeamFormSummary
     recent_matches: list[RecentMatchOut]
+    # None only for a team with no completed match history at all.
+    season_stats: SeasonStatsOut | None = None

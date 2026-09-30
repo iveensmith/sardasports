@@ -10,10 +10,11 @@
 
 import Link from "next/link";
 
-export type MatchTab = "tips" | "stats" | "form" | "h2h" | "recent";
+export type MatchTab = "tips" | "season" | "stats" | "form" | "h2h" | "recent";
 
 const LABELS: Record<MatchTab, string> = {
   tips: "Match Tips",
+  season: "Statistics",
   stats: "Predicted vs Actual",
   form: "Form",
   h2h: "H2H",

@@ -38,6 +38,7 @@ import { agreementFrom } from "@/lib/agreement";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import { GoalTimeline } from "@/components/match/GoalTimeline";
 import { StatsComparison } from "@/components/match/StatsComparison";
+import { SeasonStatsPanel } from "@/components/match/SeasonStatsPanel";
 import { FormPanel } from "@/components/match/FormPanel";
 import { H2HPanel } from "@/components/match/H2HPanel";
 import { RecentMatchesPanel } from "@/components/match/RecentMatchesPanel";
@@ -307,7 +308,14 @@ function TennisBody({ p }: { p: Extract<Prediction, { sport: "tennis" }> }) {
   );
 }
 
-const VALID_TABS: MatchTab[] = ["tips", "stats", "form", "h2h", "recent"];
+const VALID_TABS: MatchTab[] = [
+  "tips",
+  "season",
+  "stats",
+  "form",
+  "h2h",
+  "recent",
+];
 
 export default async function MatchPage({
   params,
@@ -345,7 +353,7 @@ export default async function MatchPage({
 
   // Every other tab is its own further engine call, made only when a reader
   // has actually asked for that tab rather than on every visit to the page.
-  const [homeTeam, awayTeam] = ["form", "recent"].includes(tab)
+  const [homeTeam, awayTeam] = ["season", "form", "recent"].includes(tab)
     ? await Promise.all([getTeam(home), getTeam(away)])
     : [null, null];
   const h2h =
@@ -359,8 +367,8 @@ export default async function MatchPage({
       : null;
 
   const tabs: MatchTab[] = isFootball(prediction)
-    ? ["tips", "stats", "form", "h2h", "recent"]
-    : ["tips", "form", "h2h", "recent"];
+    ? ["tips", "season", "stats", "form", "h2h", "recent"]
+    : ["tips", "season", "form", "h2h", "recent"];
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
@@ -412,6 +420,15 @@ export default async function MatchPage({
             {isBasketball(prediction) && <BasketballBody p={prediction} />}
             {isTennis(prediction) && <TennisBody p={prediction} />}
           </>
+        )}
+
+        {tab === "season" && (
+          <SeasonStatsPanel
+            home={homeTeam?.season_stats ?? null}
+            away={awayTeam?.season_stats ?? null}
+            homeLabel={home}
+            awayLabel={away}
+          />
         )}
 
         {tab === "stats" && isFootball(prediction) && (

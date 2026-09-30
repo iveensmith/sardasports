@@ -325,11 +325,36 @@ export interface RecentMatch {
   away_score: number | null;
 }
 
+/** One stat's per-match average this season. `sample_size` is how many of
+ *  this season's matches actually reported it — `value` is `null` when
+ *  that's zero, never a fabricated 0. */
+export interface SeasonStat {
+  value: number | null;
+  sample_size: number;
+}
+
+/** Season averages beyond goals (already on `TeamFormSummary`) — shots,
+ *  corners, cards, and the three fields only the engine's
+ *  `fetch_match_stats.py` can fill (possession, offsides, fouls). */
+export interface SeasonStats {
+  season: string;
+  matches_played: number;
+  shots: SeasonStat;
+  shots_on_target: SeasonStat;
+  corners: SeasonStat;
+  cards: SeasonStat;
+  possession: SeasonStat;
+  offsides: SeasonStat;
+  fouls: SeasonStat;
+}
+
 export interface TeamDetail {
   team: { id: number; name: string; league: string | null; elo_rating: number };
   form_last5: TeamFormSummary;
   form_last10: TeamFormSummary;
   recent_matches: RecentMatch[];
+  /** `null` only for a team with no completed match history at all. */
+  season_stats: SeasonStats | null;
 }
 
 export interface Competition {

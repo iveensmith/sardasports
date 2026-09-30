@@ -247,7 +247,14 @@ Team name is normalized (`app/utils/team_names.py`), so `man utd` and
   "form_last5": {"matches_played": 5, "wins": 3, "draws": 1, "losses": 1, "points_per_game": 2.0,
     "over_1_5": 4, "over_2_5": 3, "over_3_5": 1, "btts": 3, "..."},
   "form_last10": {"...": "..."},
-  "recent_matches": [{"match_id": 40, "match_date": "...", "home_team": "...", "away_team": "...", "home_goals": 2, "away_goals": 1}]
+  "recent_matches": [{"match_id": 40, "match_date": "...", "home_team": "...", "away_team": "...", "home_goals": 2, "away_goals": 1}],
+  "season_stats": {
+    "season": "2025-2026", "matches_played": 12,
+    "shots": {"value": 14.2, "sample_size": 12}, "shots_on_target": {"value": 5.1, "sample_size": 12},
+    "corners": {"value": 6.4, "sample_size": 10}, "cards": {"value": 1.8, "sample_size": 12},
+    "possession": {"value": 58.0, "sample_size": 3}, "offsides": {"value": 1.7, "sample_size": 3},
+    "fouls": {"value": 9.5, "sample_size": 3}
+  }
 }
 ```
 
@@ -256,6 +263,20 @@ Team name is normalized (`app/utils/team_names.py`), so `man utd` and
 `ml.feature_engineering.features.compute_goal_rate_form`. Nothing in
 `TeamFormSummary` is read by a training pipeline; that's `TeamForm`
 (`compute_team_form`), a separate type entirely.
+
+`season_stats` is `null` for a team with no completed match history at all.
+"Current season" is whichever season the team's most recent completed match
+falls in — matches from any other season are excluded, not blended in. Each
+stat's `sample_size` is how many of that season's matches actually reported
+it, independent of `matches_played`: `possession`/`offsides`/`fouls` only
+exist from the point `scripts/fetch_match_stats.py` started running, so a
+team can have a full season of `shots`/`corners` (long-ingested historical
+columns) alongside a `sample_size` of 2 or 3 for those three. `value` is
+`null` when `sample_size` is 0 — never a fabricated 0.0. There is no
+`expected_goals` or `total_passes` row here (both real fields on the
+reference site this was modelled on) — this engine has no recorded xG
+independent of its own predictions, and no passes data at all; inventing
+either would blur a prediction with a fact, or show a stat from nowhere.
 
 ## `GET /elo/{team}`
 

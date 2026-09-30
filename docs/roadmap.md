@@ -1244,3 +1244,65 @@ query param), made only when a reader actually opens that tab rather than
 on every page load. Also fixed in passing: the page's "back" link pointed
 at `/predictions`, a route not in the site's nav at all — it now points at
 `/matches`.
+
+### The bars didn't match the reference's own mechanic — fixed, twice
+
+Reported directly, twice. First pass: the predicted-vs-actual panel was a
+plain two-colour split bar with "predicted X" as separate text underneath,
+not the reference's real shape — one bar per stat, split at a shared centre
+line, each side filling *outward* from it, both figures visible as marks on
+the same track. Rebuilt to match: each side fills solid out to the smaller
+of {actual, predicted}, then extends with a hatched texture (this site's
+own "not a hard number" texture, the same one `BoardTable` puts on an
+estimated price) out to the larger, so the gap between prediction and
+reality reads directly off the bar. Checked against the reference's own XG
+row (predicted 1.23/actual 0.81 one side, predicted 1.14/actual 1.97 the
+other) to confirm the solid-then-hatch ordering reads correctly in both
+directions.
+
+Second pass, checking every other tab against the same reference now that
+one panel was right: Form had the identical mismatch — "7/10" as plain
+text, no bar at all, where the reference uses the exact same bidirectional
+bar. Extracted the mechanic into `components/match/CenterBar.tsx` (was
+duplicated inline in the stats panel) so Form and Predicted vs Actual share
+one real implementation. Also brought H2H (a coloured left edge per
+meeting, win/draw/loss from the queried team's perspective) and Recent
+Matches (the W/D/L indicator moved from a summary strip only to one badge
+per row as well) in line with how the reference actually reads down each
+list. This site's own home/away colours are kept throughout rather than
+the reference's single-hue vivid/muted-by-magnitude scheme, since every
+other chart on the site already commits to fixed semantic colours
+(`ProbabilitySplit`, `BoardTable`) — matching the reference's *mechanic*,
+not re-skinning this product in its palette.
+
+### Season statistics tab — done, live-verified
+
+The reference's fifth tab, added once asked directly: per-match season
+averages for both sides, on the same bidirectional bar. Needed one new
+piece — `compute_season_stat_averages` in `team_service.py` — since
+`get_team_matches_as_dicts` only ever carried scores, not the shot/corner/
+card/possession/offsides/fouls columns already sitting on `Match`. "Current
+season" is whichever season a team's most recent completed match falls in;
+anything from an earlier season is excluded rather than blended in, and
+each stat's `sample_size` travels with its value so a team can show a full
+season of `shots` (a long-ingested historical column) alongside a
+`sample_size` of 2 or 3 for `possession` (only real since
+`fetch_match_stats.py` started running) without either looking like the
+other's kind of number.
+
+Two of the reference's rows are deliberately absent: **Expected Goals**
+and **Total Passes**. This engine has no recorded xG independent of its own
+pre-match prediction — averaging past predictions into a "season stat"
+would present a model output as a recorded fact, exactly the blur this
+product has refused everywhere else. Passes were never ingested at all, by
+any source. Both are omitted entirely rather than shown empty or estimated.
+Live-verified against Spain's real September 2026 fixture (16.0 shots/
+match, 64% possession, sample sizes correctly at 1 this early in the
+season for the fields `fetch_match_stats.py` only just started filling).
+
+One unrelated bug surfaced and fixed while restarting services to pick up
+the schema change: two backend processes were both bound to port 8000 from
+earlier in the session, and concurrent writes from both against the same
+SQLite file produced `database is locked` errors on `/predict`. Not a code
+bug — a leftover process from an earlier restart — but a reminder that this
+pipeline has no guard against two servers running at once.
