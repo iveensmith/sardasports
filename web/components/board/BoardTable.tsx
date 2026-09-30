@@ -1,28 +1,38 @@
 /**
  * The prediction board, as a table.
  *
- * One row per fixture, one column per market: when it kicks off, who is
- * playing, the 1/X/2 prices, the engine's pick in each of three markets, the
- * one pick worth leading with, and how confident it is out of ten. Once the
- * match is played the score fills in and every pick on the row is marked won
- * or lost.
+ * One row per fixture, one column per market: kick-off, the fixture with
+ * both crests, the 1/X/2 prices, the engine's pick in each of three markets,
+ * the one pick worth leading with, and confidence out of ten. Once the match
+ * is played the score fills in and every pick on the row is marked won or
+ * lost.
  *
  * That last part is the argument the whole product rests on. A board that
  * shows tips before kick-off and forgets them afterwards is asking to be
  * believed; one that shows yesterday's card with every pick graded has
- * earned it or not, visibly. So the graded state is not a nice-to-have on
- * this component — it is the reason it is a table rather than a list of
- * cards, because a table is what you can scan a hundred results down.
+ * earned it or not, visibly. So the graded state is not a nice-to-have here
+ * — it is the reason this is a table rather than a list of cards, because a
+ * table is what you can scan a hundred results down.
  *
- * Colour never carries a verdict alone. A settled cell shows a tick or a
- * cross as well as the colour, because green-versus-red is precisely the
- * pair a red-green colourblind reader cannot separate, and "did my tip win"
- * is not information to encode in the one channel some readers lack.
+ * The visual treatment follows the reference site, which gets two things
+ * right that a plain table does not. Prices sit in pills, and the one the
+ * engine picked is outlined, so the row shows what was chosen *and* what it
+ * was chosen over. And a settled pick's price is filled with a tint of its
+ * verdict, which turns the column into something read at a glance rather
+ * than cell by cell.
+ *
+ * Colour never carries a verdict alone. Every settled cell shows a tick or a
+ * cross beside the colour, screen readers get it in words, and the row
+ * carries a coloured left edge as a third channel — green-versus-red is
+ * precisely the pair a red-green colourblind reader cannot separate, and
+ * "did my tip win" is not information to put in the one channel some readers
+ * lack.
  */
 
 import Link from "next/link";
 import type { BoardRow, Outcome, Tip } from "@/lib/board";
 import { kickoffLabel } from "@/lib/board";
+import { TeamCrest } from "@/components/board/TeamCrest";
 
 /** Markets given their own column, matching the API's BOARD_COLUMNS. */
 const COLUMNS: Array<{ market: string; heading: string }> = [
@@ -31,11 +41,40 @@ const COLUMNS: Array<{ market: string; heading: string }> = [
   { market: "btts", heading: "BTTS" },
 ];
 
-function outcomeStyle(outcome: Outcome) {
-  if (outcome === "won") return { color: "var(--color-won)" };
-  if (outcome === "lost") return { color: "var(--color-lost)" };
-  if (outcome === "void") return { color: "var(--color-text-faint)" };
-  return { color: "var(--color-text)" };
+function labelColor(outcome: Outcome) {
+  if (outcome === "won") return "var(--color-won)";
+  if (outcome === "lost") return "var(--color-lost)";
+  if (outcome === "void") return "var(--color-text-faint)";
+  return "var(--color-text)";
+}
+
+/**
+ * The tint behind a settled price.
+ *
+ * Low-alpha fills of the verdict colours rather than the colours themselves,
+ * so a column of them reads as a wash a reader can scan without any single
+ * cell shouting. Before kick-off there is no verdict, so there is no tint.
+ */
+function pillStyle(outcome: Outcome) {
+  if (outcome === "won") {
+    return {
+      background: "color-mix(in srgb, var(--color-won) 15%, transparent)",
+      borderColor: "color-mix(in srgb, var(--color-won) 38%, transparent)",
+      color: "var(--color-won)",
+    };
+  }
+  if (outcome === "lost") {
+    return {
+      background: "color-mix(in srgb, var(--color-lost) 14%, transparent)",
+      borderColor: "color-mix(in srgb, var(--color-lost) 34%, transparent)",
+      color: "var(--color-lost)",
+    };
+  }
+  return {
+    background: "var(--color-surface-raised)",
+    borderColor: "var(--color-line-strong)",
+    color: "var(--color-text-dim)",
+  };
 }
 
 /** The non-colour half of a verdict. Nothing at all before kick-off. */
@@ -56,38 +95,83 @@ function srOutcome(outcome: Outcome) {
   return "";
 }
 
-/** One market cell: the pick, its price beneath, and its verdict. */
+/** One market cell: the pick above, its price in a pill below. */
 function TipCell({ tip }: { tip: Tip | undefined }) {
   if (!tip) {
     return (
-      <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">
+      <td className="px-1.5 py-2 text-center text-[12px] text-[var(--color-unknown)]">
         —
       </td>
     );
   }
   return (
-    <td className="px-2 py-2 text-center whitespace-nowrap">
+    <td className="px-1.5 py-2 text-center whitespace-nowrap">
       <span
-        className="text-[12.5px] font-semibold"
-        style={outcomeStyle(tip.outcome)}
+        className="block text-[12.5px] leading-tight font-semibold"
+        style={{ color: labelColor(tip.outcome) }}
         title={`${tip.label} · ${tip.probability.toFixed(1)}%`}
       >
         {tip.short_label}
         <OutcomeMark outcome={tip.outcome} />
         <span className="sr-only">{srOutcome(tip.outcome)}</span>
       </span>
-      <span className="block text-[11px] text-[var(--color-text-faint)]">
-        {tip.odds === null ? "—" : tip.odds.toFixed(2)}
-      </span>
+      {tip.odds !== null ? (
+        <span
+          className="mt-1 inline-block min-w-[46px] rounded-[5px] border px-1.5 py-[3px] text-[11px] leading-none font-semibold tabular-nums"
+          style={pillStyle(tip.outcome)}
+        >
+          {tip.odds.toFixed(2)}
+        </span>
+      ) : (
+        <span className="mt-1 block text-[11px] text-[var(--color-text-faint)]">
+          —
+        </span>
+      )}
     </td>
   );
 }
 
-/** A bare 1 / X / 2 price. */
-function OddsCell({ price }: { price: number | null }) {
+/**
+ * A 1 / X / 2 price.
+ *
+ * Outlined when it is the selection the engine picked, so the row shows not
+ * just what was chosen but what it was chosen over — which is most of what
+ * makes a price column worth printing.
+ */
+function OddsCell({
+  price,
+  picked,
+}: {
+  price: number | null;
+  picked: boolean;
+}) {
+  if (price === null) {
+    return (
+      <td className="px-1.5 py-2 text-center text-[12px] text-[var(--color-unknown)]">
+        —
+      </td>
+    );
+  }
   return (
-    <td className="px-2 py-2 text-center text-[12.5px] whitespace-nowrap text-[var(--color-text-dim)]">
-      {price === null ? "—" : price.toFixed(2)}
+    <td className="px-1.5 py-2 text-center whitespace-nowrap">
+      <span
+        className="inline-block min-w-[48px] rounded-[5px] border px-2 py-[5px] text-[12px] leading-none font-medium tabular-nums"
+        style={
+          picked
+            ? {
+                borderColor: "var(--color-gold-dim)",
+                background:
+                  "color-mix(in srgb, var(--color-gold) 10%, transparent)",
+                color: "var(--color-text)",
+              }
+            : {
+                borderColor: "var(--color-line)",
+                color: "var(--color-text-dim)",
+              }
+        }
+      >
+        {price.toFixed(2)}
+      </span>
     </td>
   );
 }
@@ -95,7 +179,7 @@ function OddsCell({ price }: { price: number | null }) {
 function ConfidenceCell({ value }: { value: number | null }) {
   if (value === null) {
     return (
-      <td className="px-2 py-2 text-center text-[12px] text-[var(--color-unknown)]">
+      <td className="px-1.5 py-2 text-center text-[12px] text-[var(--color-unknown)]">
         —
       </td>
     );
@@ -104,49 +188,53 @@ function ConfidenceCell({ value }: { value: number | null }) {
   // scan rather than nine identical highlighted numbers.
   const strong = value >= 8;
   return (
-    <td className="px-2 py-2 text-center whitespace-nowrap">
+    <td className="px-1.5 py-2 text-center whitespace-nowrap">
       <span
-        className="text-[13px] font-semibold"
+        className="text-[14px] font-bold tabular-nums"
         style={{
           color: strong ? "var(--color-gold-bright)" : "var(--color-text-dim)",
         }}
       >
         {value.toFixed(1)}
       </span>
-      <span className="text-[10px] text-[var(--color-text-faint)]">/10</span>
     </td>
   );
 }
 
 /**
- * The fixture cell: both team names, with the score beside them.
+ * The fixture cell: both crests, both names, and the score beside them.
  *
- * Names and goals are two adjacent blocks rather than one row with the score
+ * Names and goals are adjacent blocks rather than one row with the score
  * pushed to the far side. This cell absorbs whatever width the numeric
- * columns leave over, so on a wide screen `justify-between` would strand the
- * score a couple of hundred pixels from the team it belongs to. Here the
- * score column sits immediately after the names and the spare width falls
- * after both.
+ * columns leave over, so `justify-between` would strand the score a couple
+ * of hundred pixels from the team it belongs to.
  *
- * The names block sizes to its content rather than taking `flex-1`. With
- * `flex-1` it filled its 260px cap whatever the names were, so "Al Riyadh"
- * left almost two hundred pixels of nothing before its own scoreline. The
- * cap still truncates the long ones.
+ * The home side is set a shade brighter than the away side — once the crests
+ * are in, it is the only thing left saying which is which, and it costs
+ * nothing.
  */
 function Fixture({ row }: { row: BoardRow }) {
   const played = row.score !== null;
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="min-w-0 max-w-[260px]">
-        <p className="truncate text-[13.5px] leading-tight">{row.home_team}</p>
-        <p className="mt-1 truncate text-[13.5px] leading-tight">
-          {row.away_team}
+        <p className="flex items-center gap-2 text-[13.5px] leading-tight">
+          <TeamCrest badge={row.home_badge} name={row.home_team} />
+          <span className="truncate font-medium text-[var(--color-text)]">
+            {row.home_team}
+          </span>
+        </p>
+        <p className="mt-1.5 flex items-center gap-2 text-[13.5px] leading-tight">
+          <TeamCrest badge={row.away_badge} name={row.away_team} />
+          <span className="truncate text-[var(--color-text-dim)]">
+            {row.away_team}
+          </span>
         </p>
       </div>
       {played && (
         <div className="shrink-0 text-right text-[13.5px] font-semibold tabular-nums">
           <p className="leading-tight">{row.score!.home}</p>
-          <p className="mt-1 leading-tight">{row.score!.away}</p>
+          <p className="mt-1.5 leading-tight">{row.score!.away}</p>
         </div>
       )}
     </div>
@@ -155,16 +243,17 @@ function Fixture({ row }: { row: BoardRow }) {
 
 function Row({ row }: { row: BoardRow }) {
   const verdict = row.best_tip?.outcome ?? null;
+  const picked = row.tips.match_result?.selection ?? null;
 
   return (
     <tr className="border-t border-[var(--color-line)] transition-colors hover:bg-[var(--color-surface-raised)]">
       {/* A settled row is flagged on its left edge as well as in its cells,
           so a reader skimming for losses has something to catch on. */}
-      <td className="w-[52px] px-2 py-2 align-middle">
+      <td className="w-[56px] px-1.5 py-2 align-middle">
         <div className="flex items-center gap-2">
           <span
             aria-hidden
-            className="h-8 w-[3px] shrink-0 rounded-full"
+            className="h-9 w-[3px] shrink-0 rounded-full"
             style={{
               background:
                 verdict === "won"
@@ -192,9 +281,9 @@ function Row({ row }: { row: BoardRow }) {
         </Link>
       </td>
 
-      <OddsCell price={row.odds.home} />
-      <OddsCell price={row.odds.draw} />
-      <OddsCell price={row.odds.away} />
+      <OddsCell price={row.odds.home} picked={picked === "home"} />
+      <OddsCell price={row.odds.draw} picked={picked === "draw"} />
+      <OddsCell price={row.odds.away} picked={picked === "away"} />
 
       {COLUMNS.map(({ market }) => (
         <TipCell key={market} tip={row.tips[market]} />
@@ -214,21 +303,21 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
     // the point of the table, and a phone-width layout that hides them is a
     // different product.
     <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <table className="w-full min-w-[720px] border-collapse">
+      <table className="w-full min-w-[760px] border-collapse">
         <thead>
           <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
-            <th className="px-2 pb-2 text-left font-medium">Time</th>
+            <th className="px-1.5 pb-2 text-left font-medium">Time</th>
             <th className="w-full px-2 pb-2 text-left font-medium">Match</th>
-            <th className="px-2 pb-2 text-center font-medium">1</th>
-            <th className="px-2 pb-2 text-center font-medium">X</th>
-            <th className="px-2 pb-2 text-center font-medium">2</th>
+            <th className="px-1.5 pb-2 text-center font-medium">1</th>
+            <th className="px-1.5 pb-2 text-center font-medium">X</th>
+            <th className="px-1.5 pb-2 text-center font-medium">2</th>
             {COLUMNS.map(({ market, heading }) => (
-              <th key={market} className="px-2 pb-2 text-center font-medium">
+              <th key={market} className="px-1.5 pb-2 text-center font-medium">
                 {heading}
               </th>
             ))}
-            <th className="px-2 pb-2 text-center font-medium">Best tip</th>
-            <th className="px-2 pb-2 text-center font-medium">Conf</th>
+            <th className="px-1.5 pb-2 text-center font-medium">Best tip</th>
+            <th className="px-1.5 pb-2 text-center font-medium">Conf</th>
           </tr>
         </thead>
         <tbody>

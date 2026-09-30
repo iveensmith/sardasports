@@ -34,6 +34,7 @@ from ml.markets import (
     headline_call,
     rank_calls,
 )
+from ml.team_badges import badge_dict
 
 # Which markets get their own column on the board, in reading order. Corners,
 # cards and half-time goals are priced by the engine but left to the fixture
@@ -176,6 +177,10 @@ def build_row(
         },
         "home_team": home_team,
         "away_team": away_team,
+        # What to render beside each name: a flag for a national side, a
+        # monogram for anything we have no licensed crest for.
+        "home_badge": badge_dict(home_team),
+        "away_badge": badge_dict(away_team),
         # None until played, rather than 0-0, which is a real scoreline.
         "score": (
             {"home": match.home_score, "away": match.away_score} if result is not None else None

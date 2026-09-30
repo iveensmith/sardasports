@@ -43,6 +43,15 @@ export interface CompetitionRef {
   tier: number | null;
 }
 
+/** What to render beside a team name: a flag, or initials for a club. */
+export interface Badge {
+  kind: "flag" | "monogram";
+  /** Lowercase ISO code — "br", "gb-eng". Null for a monogram. */
+  code: string | null;
+  /** One or two letters. Null for a flag. */
+  initials: string | null;
+}
+
 export interface BoardRow {
   match_id: number;
   /** "spain-vs-croatia-prediction-144414" */
@@ -53,6 +62,8 @@ export interface BoardRow {
   competition: CompetitionRef;
   home_team: string;
   away_team: string;
+  home_badge: Badge | null;
+  away_badge: Badge | null;
   /** Null until played. Not 0-0, which is a real scoreline. */
   score: { home: number; away: number } | null;
   odds: { home: number | null; draw: number | null; away: number | null };
