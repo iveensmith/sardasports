@@ -98,7 +98,7 @@ model, `null` if no match-result model has been trained yet.
 
 `goals_markets`/`ht_goals_markets`/`corners_markets`/`cards_markets` each
 list one entry per offered line (`ml.prediction.predict.GOALS_LINES` =
-1.5/2.5, `HT_GOALS_LINES` = 0.5, `CORNERS_LINES` = 7.5/8.5/9.5,
+1.5/2.5/3.5, `HT_GOALS_LINES` = 0.5, `CORNERS_LINES` = 7.5/8.5/9.5,
 `CARDS_LINES` = 2.5/3.5/4.5 — each its own genuine market with its own
 trained model, not one number the API interpolates between). A line's
 `model_used` is per-line: a competition might have enough data for the

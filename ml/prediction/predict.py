@@ -63,7 +63,7 @@ CARDS_MAX = 10
 # ml/training/train_ht_goals.py's docstring for why a half isn't just
 # "half the full-time fit" statistically) and its own truncation bound —
 # generous above the observed per-side max in our own data (7).
-GOALS_LINES = [1.5, 2.5]
+GOALS_LINES = [1.5, 2.5, 3.5]
 HT_GOALS_LINES = [0.5]
 HT_GOALS_MAX = 10
 

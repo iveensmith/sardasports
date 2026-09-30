@@ -110,6 +110,16 @@ Ordered by what blocks the most.
   applies to who gets to lead the row, not to which selection represents
   double chance on its own.
 
+- **Over/Under 3.5 goals — added.** Asked directly whether the engine trains
+  for it. It didn't: `GOALS_LINES` only offered 1.5 and 2.5. The market is
+  fully generic per line — a dedicated LightGBM classifier trained the same
+  way as every other over/under line, blended with the same reused Poisson
+  scoreline fit, `/predict`'s `goals_markets` array just picks up whatever
+  `GOALS_LINES` lists — so this was a one-line addition plus training the
+  new model (`train_over_under.py --line 3.5`): accuracy and log-loss land
+  in the same range as the existing 1.5/2.5 models. Live-verified on a real
+  fixture's `/predict` response and the match page's Goals table.
+
 - **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
   accounts, the Hit&Win prediction game, and subscription gating.
 - **Bookmaker links.** Asked several times, never answered. A "Bet now

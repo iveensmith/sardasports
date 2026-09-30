@@ -64,8 +64,8 @@ whenever a model has been trained; if not, the Poisson probability is used
 alone — `/predict` always returns a real answer either way, and reports
 which path was taken: `btts_model_used` for BTTS, and a per-line
 `model_used` flag inside `goals_markets` for Over/Under goals, which offers
-two lines (1.5/2.5 — `ml.prediction.predict.GOALS_LINES`) and so trains one
-model per line (`train_over_under.py --line`), exactly like corners/cards
+three lines (1.5/2.5/3.5 — `ml.prediction.predict.GOALS_LINES`) and so trains
+one model per line (`train_over_under.py --line`), exactly like corners/cards
 below. Both
 models are deliberately shallow (see the comments in their training scripts)
 because the deeper config copied from the match-result model overfit ~900

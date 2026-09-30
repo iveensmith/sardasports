@@ -95,7 +95,7 @@ def test_predict_returns_a_full_valid_ensemble_payload(client, db_session):
     # (which reuses the main Poisson fit, always available when any goals
     # exist) must be genuinely available — real numbers, just no dedicated
     # model (none trained in this test DB).
-    assert len(body["goals_markets"]) == 2  # 1.5, 2.5
+    assert len(body["goals_markets"]) == 3  # 1.5, 2.5, 3.5
     for market in body["goals_markets"]:
         assert market["prob_over"] + market["prob_under"] == approx100(100.0)
         assert market["model_used"] is False
