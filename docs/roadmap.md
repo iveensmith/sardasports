@@ -45,7 +45,31 @@ Ordered by what blocks the most.
   the live side actually receive completed matches, and it now does. It
   will keep growing day over day rather than needing anything further.
 
-### Needs a decision from the project owner
+- **A concurrent write could wipe every pick off the board — fixed.** Reported
+  directly: a graded day's board showed real scores and odds but a dash in
+  every pick column. Traced to `predict_for_matches` sharing one SQLAlchemy
+  session across a whole day's fixtures — when a concurrent writer (originally
+  found via `fetch_odds.py`'s backfill pass, but any concurrent DB write
+  would do it) held SQLite's single write lock, the first fixture's failed
+  statement left that shared session unable to run another one, cascading
+  "one bad fixture" into "every fixture after it in the same batch has no
+  pick" without ever showing an error. Fixed by rolling back the session the
+  moment a fixture (or a whole day's shared setup) fails, so the promise the
+  code already documented — "a fixture the engine cannot price yields None
+  rather than failing the batch" — is actually true instead of only true
+  until the first lock contention.
+
+- **`fetch_odds.py`'s bulk pass alone left real gaps — patched.** Its
+  `/odds?date=` call paginates every fixture API-Football knows about that
+  day, and a free plan caps that pagination at 3 pages; our own modelled
+  fixtures don't always land in the first 3, and once a match kicks off
+  there's no going back to price it from that endpoint. Confirmed directly
+  against the API that `/odds?fixture={id}` is not paginated and does return
+  prices for fixtures the bulk pass missed, so a per-fixture fallback now
+  runs after it, scoped to `apif-`-sourced fixtures still missing a price,
+  capped by `--max-backfill`, and resilient to the free plan's per-minute
+  rate limit (a 429 stops the run cleanly rather than crashing it, leaving
+  the rest for the next scheduled run).
 
 - **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
   accounts, the Hit&Win prediction game, and subscription gating.

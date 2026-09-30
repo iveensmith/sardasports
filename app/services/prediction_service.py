@@ -603,22 +603,38 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
 
     results: dict[int, dict | None] = {}
     for (sport, _day), group in by_window.items():
-        # The window must cover every fixture in the group, so use the
-        # earliest kick-off: anything later would leak a same-day result
-        # into a fixture that kicks off before it.
-        cutoff = min(m.match_date for m in group)
-        history = _all_completed_history(session, before_date=cutoff, sport=sport)
+        try:
+            # The window must cover every fixture in the group, so use the
+            # earliest kick-off: anything later would leak a same-day result
+            # into a fixture that kicks off before it.
+            cutoff = min(m.match_date for m in group)
+            history = _all_completed_history(session, before_date=cutoff, sport=sport)
 
-        # The reusable fits depend on (history, competition), not on the
-        # fixture, so they're built once for the whole group — sharing the
-        # one history index across every league on the card. Football only:
-        # the basketball and tennis paths have no Poisson baseline and build
-        # their far cheaper state internally.
-        shared_by_competition: dict[str | None, object] = {}
-        if sport == "football":
-            shared_by_competition = build_shared_fits(
-                history, sorted({m.competition for m in group}, key=str)
+            # The reusable fits depend on (history, competition), not on the
+            # fixture, so they're built once for the whole group — sharing
+            # the one history index across every league on the card.
+            # Football only: the basketball and tennis paths have no Poisson
+            # baseline and build their far cheaper state internally.
+            shared_by_competition: dict[str | None, object] = {}
+            if sport == "football":
+                shared_by_competition = build_shared_fits(
+                    history, sorted({m.competition for m in group}, key=str)
+                )
+        except Exception as exc:  # noqa: BLE001
+            # A transient failure here (a concurrent writer holding SQLite's
+            # single write lock, say) would otherwise take out this whole
+            # group rather than the one fixture that hit it — worse than the
+            # per-match case below, since nothing in the group ever got a
+            # chance to run. Roll back for the same reason as the per-match
+            # branch: a failed statement leaves the session unable to run
+            # another one until it does.
+            logger.warning(
+                "Batch prediction setup failed for %s fixtures on %s: %s", sport, _day, exc
             )
+            session.rollback()
+            for match in group:
+                results[match.id] = None
+            continue
 
         for match in group:
             try:
@@ -629,7 +645,13 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
                     shared=shared_by_competition.get(match.competition),
                 )
             except Exception as exc:  # noqa: BLE001
+                # Roll back before the next match, not just log and move on:
+                # a failed statement (a lock timeout, say) leaves the session
+                # unable to run another one until it does, which would
+                # otherwise fail every match after the first one in this
+                # group too — cascading one bad fixture into an empty board.
                 logger.warning("Batch prediction failed for match %s: %s", match.id, exc)
+                session.rollback()
                 results[match.id] = None
 
     return [results.get(m.id) for m in matches]
