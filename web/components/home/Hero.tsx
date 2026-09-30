@@ -58,13 +58,15 @@ export function Hero({
 
       {/* The figure, height-fitted and standing on the bottom edge. `meet`
           rather than `slice`: slicing a 900-wide box into a short hero
-          cropped the head clean off. No opacity on the wrapper — the SVG
-          carries its own, so the backlight stays bright while the body stays
-          dark, and flattening both with one `opacity` is what made the first
-          version invisible. */}
+          cropped the head clean off. `--hero-figure-opacity` is 1 in dark
+          mode — flattening the SVG's own backlight and body together with
+          one opacity is what made an early version invisible — but light
+          mode wants the whole figure fainter, not just dissolved sooner by
+          the veil, so it gets its own lower value there. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-10 bottom-0 -z-20 flex justify-center"
+        style={{ opacity: "var(--hero-figure-opacity)" }}
       >
         <HeroFigure className="h-full w-auto" />
       </div>

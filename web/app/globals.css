@@ -110,6 +110,7 @@
     rgba(9, 13, 18, 0.58) 58%,
     rgba(9, 13, 18, 0.96) 100%
   );
+  --hero-figure-opacity: 1;
 
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
@@ -172,6 +173,7 @@
     rgba(9, 13, 18, 0.58) 58%,
     rgba(9, 13, 18, 0.96) 100%
   );
+  --hero-figure-opacity: 1;
 }
 
 /*
@@ -264,6 +266,15 @@
     rgba(243, 245, 248, 0.7) 45%,
     rgba(243, 245, 248, 0.95) 100%
   );
+
+  /* The figure itself, separately from the veil that dissolves it: on
+     paper, even a fully re-inked dark theme figure reads as a heavier
+     presence competing with the headline than the same shape ever does
+     on a dark ground, where white text sits well above anything the
+     figure can do. Faded further here rather than by leaning harder on
+     the veil again, which was already tried and just dulled the whole
+     scene back down. */
+  --hero-figure-opacity: 0.45;
 }
 
 html {
