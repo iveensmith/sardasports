@@ -80,6 +80,9 @@ _CATALOGUE: tuple[CompetitionMeta, ...] = (
     # --- Rest of the world ------------------------------------------------
     CompetitionMeta("Major League Soccer", "United States", "MLS", 1, "US"),
     CompetitionMeta("Saudi Pro League", "Saudi Arabia", "Pro League", 1, "SA"),
+    CompetitionMeta("Argentine Primera Division", "Argentina", "Primera División", 1, "AR"),
+    CompetitionMeta("Brazilian Serie A", "Brazil", "Série A", 1, "BR"),
+    CompetitionMeta("Japanese J1 League", "Japan", "J1 League", 1, "JP"),
     # --- International ----------------------------------------------------
     CompetitionMeta("FIFA World Cup", WORLD, "World Cup"),
     CompetitionMeta("International Friendlies", WORLD, "Friendlies"),

@@ -99,13 +99,21 @@ def main() -> None:
 
     if args.league:
         before = len(df)
-        df = df[df["League"] == args.league]
+        # Stripped comparison: this source is inconsistent about a trailing
+        # space on the League column (e.g. Argentina's file has both
+        # "Liga Profesional" and "Liga Profesional " for the same
+        # competition) — an exact match silently drops close to half the
+        # rows for some countries.
+        df = df[df["League"].str.strip() == args.league.strip()]
         logger.info("Filtered League=%s: %d -> %d rows", args.league, before, len(df))
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     saved = []
     for year in years:
-        season_rows = df[df["Season"] == year]
+        # Compared as strings: this source's Season column is int64 for some
+        # countries (Brazil) and a string dtype for others (Argentina), and
+        # an int/str comparison silently matches nothing on the latter.
+        season_rows = df[df["Season"].astype(str) == str(year)]
         if season_rows.empty:
             logger.warning("No rows for %s season %s — skipping", args.country, year)
             continue

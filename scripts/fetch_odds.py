@@ -143,10 +143,10 @@ def fetch_date(target_date, api_key: str, base_url: str) -> list[dict]:
         time.sleep(REQUEST_DELAY_SECONDS)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Fetch bookmaker odds for upcoming fixtures")
     parser.add_argument("--days", type=int, default=3, help="Days ahead, including today")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     settings = get_settings()
     if not settings.api_football_key:

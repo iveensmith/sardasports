@@ -52,6 +52,11 @@ LEAGUE_NAMES = {
     # source fits that script's assumptions (see each script's docstring).
     "MLS1": "Major League Soccer",
     "SAU1": "Saudi Pro League",
+    # Populated by scripts/fetch_extra_league.py, same as MLS1 above — these
+    # three countries publish one file per country rather than per season.
+    "ARG1": "Argentine Primera Division",
+    "BRA1": "Brazilian Serie A",
+    "JPN1": "Japanese J1 League",
     # International (national-team) competitions, from
     # scripts/fetch_international.py. Filed under a plain four-digit
     # tournament year rather than a split-season code — see _season_label.

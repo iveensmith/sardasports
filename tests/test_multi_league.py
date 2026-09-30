@@ -32,7 +32,7 @@ def test_one_hot_competition_sets_exactly_one_column():
 
 
 def test_one_hot_competition_unknown_league_is_all_zero():
-    encoding = one_hot_competition("Brazilian Serie A")  # not in KNOWN_COMPETITIONS
+    encoding = one_hot_competition("Uruguayan Primera Division")  # not in KNOWN_COMPETITIONS
     assert sum(encoding.values()) == 0.0
     assert len(encoding) == len(KNOWN_COMPETITIONS)
 

@@ -69,6 +69,43 @@ def sync_injuries_job() -> None:
         session.close()
 
 
+def fetch_upcoming_fixtures_job() -> None:
+    """Daily: ingest newly-announced fixtures for every modelled competition.
+
+    Fixture lists roll forward day by day — a free API-Football plan only
+    ever shows a few days ahead at any one moment — so running this daily is
+    what turns that narrow window into a continuously up-to-date board
+    instead of a one-off snapshot from whenever someone last ran it by hand.
+    Skipped entirely, not a scheduler failure, if `API_FOOTBALL_KEY` isn't
+    set, matching `sync_injuries_job`'s convention.
+    """
+    settings = get_settings()
+    if not settings.api_football_key:
+        logger.info("fetch_upcoming_fixtures_job skipped: API_FOOTBALL_KEY not set")
+        return
+
+    from scripts.fetch_upcoming_fixtures import main as fetch_fixtures_main
+
+    fetch_fixtures_main([])
+
+
+def fetch_odds_job() -> None:
+    """Daily: refresh bookmaker prices for upcoming fixtures.
+
+    Runs after `fetch_upcoming_fixtures_job` so freshly-ingested fixtures
+    already exist to attach prices to. Skipped entirely, not a scheduler
+    failure, if `API_FOOTBALL_KEY` isn't set.
+    """
+    settings = get_settings()
+    if not settings.api_football_key:
+        logger.info("fetch_odds_job skipped: API_FOOTBALL_KEY not set")
+        return
+
+    from scripts.fetch_odds import main as fetch_odds_main
+
+    fetch_odds_main([])
+
+
 def fetch_results_job() -> None:
     """Every few hours: fill in results for fixtures that have finished.
 
@@ -205,6 +242,15 @@ def start_scheduler() -> BackgroundScheduler | None:
     scheduler = BackgroundScheduler()
     scheduler.add_job(refresh_data_job, CronTrigger(hour=3, minute=0), id="daily_refresh_data")
     scheduler.add_job(sync_injuries_job, CronTrigger(hour=3, minute=30), id="daily_sync_injuries")
+    # Runs a few times a day so the visible board rolls forward as new
+    # fixtures are announced, rather than only ever reflecting whatever was
+    # ingested the last time someone ran the script by hand.
+    scheduler.add_job(
+        fetch_upcoming_fixtures_job, CronTrigger(hour="*/4"), id="fetch_upcoming_fixtures"
+    )
+    # Right after fixtures, so newly-ingested rows have prices by the time
+    # anyone loads the board.
+    scheduler.add_job(fetch_odds_job, CronTrigger(hour="*/4", minute=15), id="fetch_odds")
     # Runs ahead of evaluate_predictions_job's */6 cadence so a completed
     # match's result is already in the database by the time that job looks
     # for one to backfill.

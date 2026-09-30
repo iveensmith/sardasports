@@ -363,6 +363,83 @@ extends to both new leagues, not just Elo+Poisson. `/competitions` lists
 all 18 leagues with real match counts. 139 tests still pass; `black`/`ruff`
 clean.
 
+## Daily ingestion scheduling + 3 more leagues, 18 → 21 leagues — done, live-verified
+
+Asked directly for the board to have fixtures every day, like the reference
+site, which the owner explicitly acknowledged would mean covering more
+leagues. Investigated before building: checked the live API-Football
+response for the days around the request (2026-09-30 / 10-01) and found
+almost no top-flight football anywhere in the world that week — a genuine
+FIFA international break, not a gap in this engine's coverage. League
+breadth cannot fix a week where the leagues themselves aren't playing; the
+two things that *can* be fixed were the actual target of this pass.
+
+**Nothing ever scheduled fixture or odds ingestion.** `fetch_results.py`
+(above) was wired into the scheduler; `fetch_upcoming_fixtures.py` and
+`fetch_odds.py` never were — the board only ever reflected whatever someone
+last ran by hand. Both are now scheduled every 4 hours (odds 15 minutes
+after fixtures, so newly-ingested rows already exist to price). Found and
+fixed a real bug while wiring this in: both scripts called
+`argparse.parse_args()` with no explicit argument list, which reads the
+*host process's actual* `sys.argv` — harmless from a standalone CLI call,
+but would have broken or silently misbehaved the moment either ran as a
+scheduled job inside the live server. Both now take an optional `argv`
+parameter and the scheduler jobs pass `[]` explicitly.
+
+**Three more leagues**, chosen for immediate relevance (all mid-season right
+now, unlike the European calendar during this international break):
+**Argentine Primera División** (API-Football id 128), **Brazilian Série A**
+(id 71), **Japanese J1 League** (id 98). Sourced via the existing
+`scripts/fetch_extra_league.py` adapter, the same one built for MLS.
+
+Found and fixed two real bugs in that script while pulling real data through
+it for the first time since MLS:
+- **Silent whitespace mismatch.** Argentina's and Japan's source files carry
+  the same competition name with and without a trailing space (`"Liga
+  Profesional"` / `"Liga Profesional "`) — an exact-match filter was
+  silently dropping 39% of Argentina's rows and 49% of Japan's. Fixed by
+  stripping both sides before comparing.
+- **Silent dtype mismatch.** The Season column is `int64` for some countries
+  (Brazil) and a string dtype for others (Argentina) — comparing it to a
+  Python `int` matched everything for Brazil and nothing at all for
+  Argentina. Fixed by comparing both sides as strings.
+
+Neither bug threw an error; both would have shipped as "successfully"
+downloaded files missing most of their data. Caught by inspecting row counts
+before trusting the pipeline, not by a test — there wasn't one for this
+script, and this is exactly the kind of silent-corruption risk that argues
+for adding one before the next country goes through it.
+
+Registered all three in every place a competition needs registering:
+`scripts/clean_data.LEAGUE_NAMES`, `ml.training.common.KNOWN_COMPETITIONS`,
+`ml.competition_catalogue`, and `fetch_upcoming_fixtures.LEAGUE_ID_TO_COMPETITION`.
+Downloaded 2019-2025 (2021-2025 for Argentina, whose earlier seasons use a
+split-year format this pipeline doesn't model), loaded **7,073 new matches**
+(dataset now **71,366 football matches, 21 leagues**), rebuilt Elo across
+151,483 completed matches spanning all sports.
+
+Retrained every model. Match-result **49.6%** and BTTS **54.5%** (both
+essentially unchanged from pre-expansion, as expected — three leagues
+totalling under 10% of the dataset barely move overall accuracy). One test
+had to be updated: it used "Brazilian Serie A" as its example of an
+*unmodelled* competition, which broke the moment that stopped being true.
+
+Live-verified with a real `/predict` call on a completed Brazilian Serie A
+match (Ceará vs Palmeiras): returned a sensible, correctly-favored
+prediction (47.7% Palmeiras) using the freshly-trained model version, with
+goals markets available and corners/cards correctly reporting unavailable
+(this source carries no shot/corner/card columns for these countries, same
+as MLS and the Saudi Pro League). `/competitions` lists all 21 football
+leagues. 361 tests pass; `black`/`ruff` clean.
+
+**Not done in this pass, and why:** 12 more Football-Data.co.uk "extra"
+countries are available through the same adapter (Austria, China, Denmark,
+Finland, Ireland, Mexico, Norway, Poland, Romania, Russia, Sweden,
+Switzerland) — left for a deliberate next batch rather than added
+speculatively, since each one needs the same registration, retrain, and
+live-verification, and picking countries whose season is genuinely live
+right now is time-sensitive information rather than a one-off decision.
+
 ## Corners feature + Corners/Cards markets — done, live-verified
 
 *(The single-line design below was superseded by multi-line markets

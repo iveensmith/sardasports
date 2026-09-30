@@ -54,6 +54,9 @@ KNOWN_COMPETITIONS = [
     "Scottish Premiership",
     "Major League Soccer",
     "Saudi Pro League",
+    "Argentine Primera Division",
+    "Brazilian Serie A",
+    "Japanese J1 League",
     # International (national-team) competitions. These are football, so they
     # share the whole domestic pipeline — but they are their own competitions
     # for the one-hot feature and for the per-competition Poisson fit, which

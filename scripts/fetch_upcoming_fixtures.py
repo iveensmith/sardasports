@@ -88,6 +88,9 @@ LEAGUE_ID_TO_COMPETITION = {
     179: "Scottish Premiership",
     253: "Major League Soccer",
     307: "Saudi Pro League",
+    128: "Argentine Primera Division",
+    71: "Brazilian Serie A",
+    98: "Japanese J1 League",
     1: "FIFA World Cup",
     4: "UEFA European Championship",
     5: "UEFA Nations League",
@@ -225,10 +228,10 @@ def load_rows(session, rows: list[dict]) -> tuple[int, int]:
     return inserted, skipped
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Ingest upcoming fixtures for modelled leagues")
     parser.add_argument("--days", type=int, default=7, help="Days ahead to fetch, including today")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     settings = get_settings()
     if not settings.api_football_key:
