@@ -56,7 +56,7 @@ export function DateStrip({
               isActive
                 ? {
                     background: "var(--color-gold)",
-                    color: "#131313",
+                    color: "var(--color-ink-on-accent)",
                     fontWeight: 600,
                   }
                 : { color: "var(--color-text-dim)" }

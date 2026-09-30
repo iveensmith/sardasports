@@ -49,7 +49,7 @@ export default async function LeaguesPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-8 max-w-[72ch]">
-        <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
+        <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
           {leagues.competition_count} competitions · {leagues.country_count}{" "}
           countries
         </p>
@@ -94,7 +94,7 @@ export default async function LeaguesPage() {
                     <span className="shrink-0 text-[12px] text-[var(--color-text-faint)] tabular-nums">
                       {entry.completed.toLocaleString()}
                       {entry.upcoming > 0 && (
-                        <span style={{ color: "var(--color-gold)" }}>
+                        <span style={{ color: "var(--color-gold-bright)" }}>
                           {" "}
                           · {entry.upcoming} up
                         </span>

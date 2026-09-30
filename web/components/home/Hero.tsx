@@ -34,7 +34,14 @@ export function Hero({
   fixturesToday: number;
 }) {
   return (
-    <section className="relative isolate overflow-hidden">
+    <section
+      className="relative isolate overflow-hidden"
+      // Pinned dark regardless of the site's theme toggle: the veil below
+      // is a fixed dark gradient over a hand-drawn figure, not a surface
+      // that repaints for light mode, so the text and gold sitting on it
+      // need to stay the dark theme's values — see globals.css.
+      data-theme="dark"
+    >
       {/* The backlight, full-bleed. A CSS gradient rather than part of the
           SVG so it always spans the viewport — inside the SVG it was bound to
           the figure's own box and left the sides of a wide screen unlit. */}

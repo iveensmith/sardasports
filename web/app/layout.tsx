@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Archivo } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 /*
   One family, doing both jobs. Archivo is a grotesque with real tabular
@@ -39,11 +40,34 @@ const NAV = [
   { href: "/leaderboard", label: "Models" },
 ];
 
+// Runs before paint, outside React's tree, so the theme is correct on the
+// very first frame — a script that ran after hydration would still show one
+// frame of the wrong theme. Reads the stored choice, falling back to the
+// system preference for a first-time visitor; a stored choice always wins
+// over the system, since the toggle exists precisely to let someone
+// override it.
+const THEME_INIT_SCRIPT = `
+(function () {
+  try {
+    var stored = localStorage.getItem("theme");
+    var theme = stored === "light" || stored === "dark"
+      ? stored
+      : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    if (theme === "light") {
+      document.documentElement.setAttribute("data-theme", "light");
+    }
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={archivo.variable}>
+    <html lang="en" className={archivo.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-dvh antialiased">
         <header className="sticky top-0 z-50 border-b border-[var(--color-line)] bg-[var(--color-base)]/85 backdrop-blur-md">
           <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-8">
@@ -53,7 +77,7 @@ export default function RootLayout({
             >
               Unique<span className="text-[var(--color-gold)]">Predict</span>
             </Link>
-            <div className="flex items-center gap-6 text-[14px]">
+            <div className="flex flex-1 items-center gap-6 text-[14px]">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
@@ -64,6 +88,7 @@ export default function RootLayout({
                 </Link>
               ))}
             </div>
+            <ThemeToggle />
           </nav>
         </header>
 

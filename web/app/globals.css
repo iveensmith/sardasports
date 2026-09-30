@@ -87,6 +87,14 @@
   --color-won: #35b37e;
   --color-lost: #ec6a5e;
 
+  /* Text sitting directly on a saturated fill — a button, an active pill,
+     a probability-split segment. Dark mode's fills (gold, home/draw/away)
+     are bright, so this is near-black; light mode's equivalent fills are
+     deliberately darker (see below), so it flips to white there. One token
+     rather than choosing per-component, so a fill's own brightness and its
+     readable ink always travel together. */
+  --color-ink-on-accent: #131313;
+
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
@@ -99,6 +107,108 @@
   color-scheme: dark;
 }
 
+/*
+  The same dark values, again, as an attribute rule rather than `@theme`'s
+  implicit default — so a section can opt back into dark regardless of the
+  page-level theme by setting `data-theme="dark"` on itself. The landing
+  hero is the one place that does: its veil is a fixed dark gradient over a
+  hand-drawn figure, not a surface that repaints for light mode, so its
+  text and gold need to stay the dark theme's values even when the rest of
+  the page is light. A CSS custom property set directly on an element always
+  wins over whatever it would otherwise inherit, which is what makes this
+  work without touching anything outside that one section.
+*/
+[data-theme="dark"] {
+  --color-base: #090d12;
+  --color-surface: #111820;
+  --color-surface-raised: #18212c;
+  --color-line: #1e2833;
+  --color-line-strong: #2b3846;
+
+  --color-text: #f4f7fa;
+  --color-text-dim: #a3b0c0;
+  --color-text-faint: #8593a3;
+
+  --color-gold: #c9a227;
+  --color-gold-bright: #e3bc45;
+  --color-gold-dim: #6b5616;
+
+  --color-home: #3987e5;
+  --color-draw: #199e70;
+  --color-away: #d95926;
+
+  --color-unknown: #69788a;
+
+  --color-won: #35b37e;
+  --color-lost: #ec6a5e;
+
+  --color-ink-on-accent: #131313;
+}
+
+/*
+  Light theme — "the morning line", not the dark theme with the lights on.
+
+  Same publication, a different time of day: the analytical control-room
+  feel of the dark theme becomes the printed match-day sheet read over
+  coffee before kick-off — foil-brass on stock instead of brass lit from
+  behind. The base stays in the same cool blue family as the dark theme's
+  blue-black (never a warm cream) for continuity, not a hue swap.
+
+  Every semantic color below was re-picked for this surface, not inverted:
+  a color that reads as confident on a dark ground often has too little
+  contrast to read as anything on a light one, so lightness and saturation
+  were retuned per token and the outcome trio (home/draw/away) was
+  re-validated as its own set against this surface with the same
+  palette-checker method the dark theme's tokens document (worst pair ΔE
+  8.9 deutan, 21.2 normal — the dark theme's own worst pair is 9.4/20.9, so
+  this clears the same bar rather than a looser one). Won/lost is its own
+  separate pair, also re-validated (ΔE 8.3 deutan on this surface).
+
+  Gold's two steps swap which one is "brighter" for the same reason ink
+  does: on a dark ground, more emphasis means lighter. On paper, more
+  emphasis means a richer, darker brass — a pale one just looks faint. So
+  `--color-gold-bright`, the token components already reach for wherever a
+  reader's eye should land (a confidence number, a stat that is currently
+  true), is the deeper of the two here, not the lighter.
+*/
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --color-base: #f3f5f8;
+  --color-surface: #ffffff;
+  --color-surface-raised: #e8edf2;
+  --color-line: #dce2e9;
+  --color-line-strong: #c3ccd6;
+
+  /*
+    text        18.1:1 on surface — near-black, the dark theme's swap
+    text-dim     7.0:1 on surface — secondary copy, comfortably above AA
+    text-faint   5.7:1 on surface, 4.9:1 on the raised surface — still
+                 clears AA on the harder of the two, so it can carry real
+                 sentences the way the dark theme's faint step does
+  */
+  --color-text: #111621;
+  --color-text-dim: #4e5a6b;
+  --color-text-faint: #5c6779;
+
+  --color-gold: #96751a;
+  --color-gold-bright: #6e540f;
+  --color-gold-dim: #e8daa8;
+
+  --color-home: #1d5fc2;
+  --color-draw: #0e7f59;
+  --color-away: #b8451a;
+
+  /* Unavailable. Kept at the same ~3.6:1 the dark theme deliberately holds
+     this at — visible, but reading as de-emphasised beside real numbers. */
+  --color-unknown: #7c8898;
+
+  --color-won: #0d8a63;
+  --color-lost: #c7472e;
+
+  --color-ink-on-accent: #ffffff;
+}
+
 html {
   background: var(--color-base);
 }
@@ -108,13 +218,17 @@ body {
   color: var(--color-text);
   font-family: var(--font-body);
   /*
-    Deliberately NOT `-webkit-font-smoothing: antialiased`.
-
-    That is a near-reflex in dark-theme CSS and it is the wrong call here:
-    it thins every glyph stroke, and light-on-dark text is already optically
-    thinner than dark-on-light. Combined with a 400 weight it was the other
-    half of why this read as washed out. Subpixel rendering keeps the
+    Deliberately NOT `-webkit-font-smoothing: antialiased` — in the dark
+    theme. That is a near-reflex in dark-theme CSS and it is the wrong call
+    there: it thins every glyph stroke, and light-on-dark text is already
+    optically thinner than dark-on-light. Subpixel rendering keeps the
     strokes at full density.
+
+    Light mode inverts that reasoning along with the ground it is reasoning
+    about: dark-on-light text is already optically heavier, so the same
+    subpixel rendering that rescues dark-mode strokes would overshoot here.
+    Antialiased plus the ordinary 400 weight (not the dark theme's
+    compensating 420) is what keeps this from reading heavy-handed.
   */
   -webkit-font-smoothing: auto;
   text-rendering: optimizeLegibility;
@@ -124,6 +238,11 @@ body {
   */
   font-weight: 420;
   letter-spacing: -0.003em;
+}
+
+:root[data-theme="light"] body {
+  -webkit-font-smoothing: antialiased;
+  font-weight: 400;
 }
 
 /*
@@ -146,10 +265,13 @@ input,
 button,
 table {
   font-variant-numeric: tabular-nums lining-nums;
-  font-feature-settings: "tnum" 1, "lnum" 1;
+  font-feature-settings:
+    "tnum" 1,
+    "lnum" 1;
 }
 
-/* Focus that is actually visible on a dark surface. */
+/* Focus that is actually visible against the surface — gold-bright is the
+   theme's own high-contrast step against its own ground either way. */
 :focus-visible {
   outline: 2px solid var(--color-gold-bright);
   outline-offset: 2px;
@@ -193,8 +315,20 @@ table {
   width: 100%;
   overflow: hidden;
   /* Items fade in and out at the edges instead of being sliced. */
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 6%,
+    #000 94%,
+    transparent
+  );
 }
 
 .nt-marquee__track {

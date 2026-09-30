@@ -69,7 +69,7 @@ export default async function BankersPage({
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-6 max-w-[72ch]">
-        <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold)] uppercase">
+        <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
           {shown}
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">

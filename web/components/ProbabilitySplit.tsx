@@ -56,7 +56,7 @@ export function ProbabilitySplit({
         {segments.map((s) => (
           <div
             key={s.key}
-            className="flex items-center justify-center text-[13px] font-semibold text-[#06090d] transition-[flex-grow] duration-500"
+            className="flex items-center justify-center text-[13px] font-semibold text-[var(--color-ink-on-accent)] transition-[flex-grow] duration-500"
             style={{ flexGrow: Math.max(s.value, 0.001), background: s.color }}
           >
             {/* Below ~8% the label cannot fit legibly; the legend carries it. */}
