@@ -95,6 +95,22 @@
      readable ink always travel together. */
   --color-ink-on-accent: #131313;
 
+  /* The landing hero's backlight and dissolve veil. Values equal to
+     `--color-base` at increasing opacity, so the figure fades into the
+     page exactly rather than into an approximated grey — see Hero.tsx. */
+  --hero-glow: radial-gradient(
+    58% 62% at 50% 24%,
+    rgba(227, 188, 69, 0.16),
+    rgba(201, 162, 39, 0.055) 45%,
+    transparent 72%
+  );
+  --hero-veil: linear-gradient(
+    180deg,
+    rgba(9, 13, 18, 0.3) 0%,
+    rgba(9, 13, 18, 0.58) 58%,
+    rgba(9, 13, 18, 0.96) 100%
+  );
+
   --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
   --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
 
@@ -143,6 +159,19 @@
   --color-lost: #ec6a5e;
 
   --color-ink-on-accent: #131313;
+
+  --hero-glow: radial-gradient(
+    58% 62% at 50% 24%,
+    rgba(227, 188, 69, 0.16),
+    rgba(201, 162, 39, 0.055) 45%,
+    transparent 72%
+  );
+  --hero-veil: linear-gradient(
+    180deg,
+    rgba(9, 13, 18, 0.3) 0%,
+    rgba(9, 13, 18, 0.58) 58%,
+    rgba(9, 13, 18, 0.96) 100%
+  );
 }
 
 /*
@@ -207,6 +236,24 @@
   --color-lost: #c7472e;
 
   --color-ink-on-accent: #ffffff;
+
+  /* The reference site's own hero holds its light mode's structure —
+     a bright wash the figure stands in, dissolving to the page colour —
+     rather than the dark theme's veil with the lights on. Same shape as
+     the dark tokens above, re-based on this theme's own base and gold so
+     it dissolves into *this* surface. */
+  --hero-glow: radial-gradient(
+    58% 62% at 50% 24%,
+    rgba(150, 117, 26, 0.16),
+    rgba(150, 117, 26, 0.06) 45%,
+    transparent 72%
+  );
+  --hero-veil: linear-gradient(
+    180deg,
+    rgba(243, 245, 248, 0.18) 0%,
+    rgba(243, 245, 248, 0.6) 55%,
+    rgba(243, 245, 248, 0.97) 100%
+  );
 }
 
 html {
@@ -399,7 +446,7 @@ table {
 
 .nt-cta--primary {
   background: var(--color-gold);
-  color: #131313;
+  color: var(--color-ink-on-accent);
   /* A contained glow, not a halo: it marks the primary action on a dark
      page without competing with the figure behind it. */
   box-shadow: 0 10px 30px -12px rgba(201, 162, 39, 0.65);

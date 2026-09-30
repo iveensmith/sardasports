@@ -8,6 +8,18 @@
  * roughly 68% → 78% → 97% opacity down the frame; this uses the same shape in
  * this site's own base colour.
  *
+ * Full viewport height, again matching the reference: `min-h-[calc(100svh-4rem)]`
+ * accounts for the sticky header above it (`h-16`) so hero-plus-header fills
+ * exactly one screen on load, the same way their negative-margin-under-a-
+ * transparent-header trick does without needing a transparent header here.
+ *
+ * The veil and backlight are theme tokens (`--hero-veil`, `--hero-glow`),
+ * not hardcoded colours — the reference's own hero is light by default, and
+ * re-inks itself rather than staying dark when the reader is in dark mode.
+ * This does the same: the dissolve target is always *this theme's*
+ * `--color-base`, at increasing opacity, so the figure fades into whichever
+ * surface is actually showing instead of into an approximated grey.
+ *
  * Centred type is the exception on this site, which is left-aligned
  * everywhere else. It is earned here: the figure is symmetrical and the
  * headline sits on its shoulder line, so ranging the text left would leave
@@ -34,24 +46,14 @@ export function Hero({
   fixturesToday: number;
 }) {
   return (
-    <section
-      className="relative isolate overflow-hidden"
-      // Pinned dark regardless of the site's theme toggle: the veil below
-      // is a fixed dark gradient over a hand-drawn figure, not a surface
-      // that repaints for light mode, so the text and gold sitting on it
-      // need to stay the dark theme's values — see globals.css.
-      data-theme="dark"
-    >
+    <section className="relative isolate flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center overflow-hidden">
       {/* The backlight, full-bleed. A CSS gradient rather than part of the
           SVG so it always spans the viewport — inside the SVG it was bound to
           the figure's own box and left the sides of a wide screen unlit. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-30"
-        style={{
-          background:
-            "radial-gradient(58% 62% at 50% 24%, rgba(227,188,69,0.16), rgba(201,162,39,0.055) 45%, transparent 72%)",
-        }}
+        style={{ background: "var(--hero-glow)" }}
       />
 
       {/* The figure, height-fitted and standing on the bottom edge. `meet`
@@ -75,13 +77,10 @@ export function Hero({
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
-        style={{
-          background:
-            "linear-gradient(180deg, rgba(9,13,18,0.30) 0%, rgba(9,13,18,0.58) 58%, rgba(9,13,18,0.96) 100%)",
-        }}
+        style={{ background: "var(--hero-veil)" }}
       />
 
-      <div className="mx-auto w-full max-w-[1200px] px-4 pt-20 pb-16 text-center sm:px-6 sm:pt-28 sm:pb-20 lg:px-10">
+      <div className="mx-auto w-full max-w-[1200px] px-4 py-16 text-center sm:px-6 lg:px-10">
         <h1 className="mx-auto max-w-[16ch] text-[clamp(2.4rem,6.4vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.03em]">
           Every prediction,{" "}
           <span style={{ color: "var(--color-gold-bright)" }}>graded</span>.
