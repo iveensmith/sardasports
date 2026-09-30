@@ -241,7 +241,13 @@
      a bright wash the figure stands in, dissolving to the page colour —
      rather than the dark theme's veil with the lights on. Same shape as
      the dark tokens above, re-based on this theme's own base and gold so
-     it dissolves into *this* surface. */
+     it dissolves into *this* surface.
+
+     Heavier than the dark theme's own stops, and deliberately so: dark
+     text loses contrast fast against a mid-tone shape the way light text
+     never does against one, so the wash has to already be most of the way
+     to solid by the headline's own band (roughly the 20–45% mark) rather
+     than easing into it the way the dark veil can afford to. */
   --hero-glow: radial-gradient(
     58% 62% at 50% 24%,
     rgba(150, 117, 26, 0.16),
@@ -250,9 +256,9 @@
   );
   --hero-veil: linear-gradient(
     180deg,
-    rgba(243, 245, 248, 0.18) 0%,
-    rgba(243, 245, 248, 0.6) 55%,
-    rgba(243, 245, 248, 0.97) 100%
+    rgba(243, 245, 248, 0.62) 0%,
+    rgba(243, 245, 248, 0.86) 45%,
+    rgba(243, 245, 248, 0.98) 100%
   );
 }
 

@@ -313,33 +313,43 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
   if (rows.length === 0) return null;
 
   return (
-    // Horizontal scroll rather than dropped columns: the market columns are
-    // the point of the table, and a phone-width layout that hides them is a
-    // different product.
-    <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <table className="w-full min-w-[760px] border-collapse">
-        <thead>
-          <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
-            <th className="px-1.5 pb-2 text-left font-medium">Time</th>
-            <th className="w-full px-2 pb-2 text-left font-medium">Match</th>
-            <th className="px-1.5 pb-2 text-center font-medium">1</th>
-            <th className="px-1.5 pb-2 text-center font-medium">X</th>
-            <th className="px-1.5 pb-2 text-center font-medium">2</th>
-            {COLUMNS.map(({ market, heading }) => (
-              <th key={market} className="px-1.5 pb-2 text-center font-medium">
-                {heading}
-              </th>
+    // A bordered card, matching every other grouped listing on the site
+    // (the leagues page's country blocks, the bankers record panel). The
+    // border lives on this wrapper rather than `overflow-x-auto`'s own div,
+    // so the rounded corners clip the table's background instead of getting
+    // squared off by it.
+    <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)]">
+      {/* Horizontal scroll rather than dropped columns: the market columns
+          are the point of the table, and a phone-width layout that hides
+          them is a different product. */}
+      <div className="overflow-x-auto px-4 py-3 sm:px-5 sm:py-4">
+        <table className="w-full min-w-[760px] border-collapse">
+          <thead>
+            <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
+              <th className="px-1.5 pb-2 text-left font-medium">Time</th>
+              <th className="w-full px-2 pb-2 text-left font-medium">Match</th>
+              <th className="px-1.5 pb-2 text-center font-medium">1</th>
+              <th className="px-1.5 pb-2 text-center font-medium">X</th>
+              <th className="px-1.5 pb-2 text-center font-medium">2</th>
+              {COLUMNS.map(({ market, heading }) => (
+                <th
+                  key={market}
+                  className="px-1.5 pb-2 text-center font-medium"
+                >
+                  {heading}
+                </th>
+              ))}
+              <th className="px-1.5 pb-2 text-center font-medium">Best tip</th>
+              <th className="px-1.5 pb-2 text-center font-medium">Conf</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <Row key={row.match_id} row={row} />
             ))}
-            <th className="px-1.5 pb-2 text-center font-medium">Best tip</th>
-            <th className="px-1.5 pb-2 text-center font-medium">Conf</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <Row key={row.match_id} row={row} />
-          ))}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
