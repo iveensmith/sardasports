@@ -67,6 +67,10 @@ class RecentMatchOut(BaseModel):
     away_team: str
     home_score: int | None
     away_score: int | None
+    # None where the source never recorded a half-time score, not a
+    # fabricated 0-0 — see docs/architecture.md's "Half-time goals" section.
+    home_ht_score: int | None
+    away_ht_score: int | None
 
 
 class TeamDetailOut(BaseModel):

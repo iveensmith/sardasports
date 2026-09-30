@@ -28,6 +28,8 @@ def _seed(db_session):
                 home_shots=14,
                 away_shots=9,
                 home_corners=7,
+                home_ht_goals=1,
+                away_ht_goals=0,
             ),
             Match(
                 match_date=datetime(2025, 1, 1),
@@ -62,6 +64,19 @@ def test_team_detail_carries_season_stats(client, db_session):
     # Never fetched for this team/season — None, not a fabricated 0.0.
     assert season_stats["possession"]["value"] is None
     assert season_stats["possession"]["sample_size"] == 0
+
+
+def test_recent_matches_carry_the_half_time_score_where_recorded(client, db_session):
+    _seed(db_session)
+    response = client.get("/team/Arsenal")
+    recent = response.json()["recent_matches"]
+    by_season = {m["match_date"][:4]: m for m in recent}
+
+    assert by_season["2026"]["home_ht_score"] == 1
+    assert by_season["2026"]["away_ht_score"] == 0
+    # The 2024-2025 fixture never had a half-time score recorded.
+    assert by_season["2025"]["home_ht_score"] is None
+    assert by_season["2025"]["away_ht_score"] is None
 
 
 def test_a_team_with_no_history_has_no_season_stats(client, db_session):

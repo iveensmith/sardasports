@@ -323,6 +323,10 @@ export interface RecentMatch {
   away_team: string;
   home_score: number | null;
   away_score: number | null;
+  /** `null` where the source never recorded a half-time score — not every
+   *  competition does. */
+  home_ht_score: number | null;
+  away_ht_score: number | null;
 }
 
 /** One stat's per-match average this season. `sample_size` is how many of

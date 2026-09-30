@@ -1306,3 +1306,35 @@ earlier in the session, and concurrent writes from both against the same
 SQLite file produced `database is locked` errors on `/predict`. Not a code
 bug — a leftover process from an earlier restart — but a reminder that this
 pipeline has no guard against two servers running at once.
+
+### Recent Matches: the Total/Home/Away and Full Time/Half Time toggles — done, live-verified
+
+The one piece of the reference's Recent Matches tab not yet matched, added
+once asked directly. Checked the reference's own behaviour first rather
+than guessing: Home/Away turned out to be a client-side filter of the same
+last-10 list already fetched, not a deeper query (a "Home" click yields a
+strict subset of the same dated rows "Total" already showed) — so no new
+backend data was needed for that half. Half Time was the real gap: the
+engine already stores a half-time score (`Match.home_ht_goals`/
+`away_ht_goals`, same "Half-time goals" column the season-stats tab reads
+for other things) but `recent_matches` never carried it. Added
+`home_ht_score`/`away_ht_score` to `RecentMatchOut`, `null` wherever the
+source never recorded one — the same competitions that go without a
+half-time score anywhere else in this product.
+
+`RecentMatchesPanel` became a client component (`components/match/
+RecentMatchesPanel.tsx`) with two independent toggles per side, matching
+the reference exactly: switching to Half Time doesn't just swap the printed
+score, it recomputes each row's W/D/L result from that score too — a match
+led at half-time and drawn by full-time is a different result either way,
+and showing the wrong one would misrepresent what actually happened at
+that point in the game. A match with no half-time score on record shows
+"—" and a neutral marker in that mode rather than a fabricated 0-0.
+
+Caught one real staleness bug while verifying: Next's `getTeam` fetch
+cache (`revalidate: 300`) served the pre-change response shape after the
+backend picked up the new fields, rendering `undefined-undefined` for
+every score until the dev cache was cleared and both servers restarted
+clean. Not a code bug in the new feature — a reminder to always clear
+`.next` after a backend schema change lands mid-session, which this
+project has hit before.

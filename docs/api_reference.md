@@ -247,7 +247,8 @@ Team name is normalized (`app/utils/team_names.py`), so `man utd` and
   "form_last5": {"matches_played": 5, "wins": 3, "draws": 1, "losses": 1, "points_per_game": 2.0,
     "over_1_5": 4, "over_2_5": 3, "over_3_5": 1, "btts": 3, "..."},
   "form_last10": {"...": "..."},
-  "recent_matches": [{"match_id": 40, "match_date": "...", "home_team": "...", "away_team": "...", "home_goals": 2, "away_goals": 1}],
+  "recent_matches": [{"match_id": 40, "match_date": "...", "competition": "...", "home_team": "...", "away_team": "...",
+    "home_score": 2, "away_score": 1, "home_ht_score": 1, "away_ht_score": 0}],
   "season_stats": {
     "season": "2025-2026", "matches_played": 12,
     "shots": {"value": 14.2, "sample_size": 12}, "shots_on_target": {"value": 5.1, "sample_size": 12},
@@ -263,6 +264,13 @@ Team name is normalized (`app/utils/team_names.py`), so `man utd` and
 `ml.feature_engineering.features.compute_goal_rate_form`. Nothing in
 `TeamFormSummary` is read by a training pipeline; that's `TeamForm`
 (`compute_team_form`), a separate type entirely.
+
+`recent_matches[].home_ht_score`/`away_ht_score` are `null` wherever the
+source never recorded a half-time score (see docs/architecture.md's
+"Half-time goals" section) — never a fabricated 0-0. The match page's
+Recent Matches tab uses these for its Full Time / Half Time toggle, which
+recomputes each row's W/D/L result from whichever score is selected, not
+just the printed number.
 
 `season_stats` is `null` for a team with no completed match history at all.
 "Current season" is whichever season the team's most recent completed match

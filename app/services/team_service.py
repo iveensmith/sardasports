@@ -41,6 +41,11 @@ def get_team_matches_as_dicts(
             "away_team": id_to_name[m.away_team_id],
             "home_score": m.home_score,
             "away_score": m.away_score,
+            # Not every source records a half-time score (see
+            # docs/architecture.md's "Half-time goals" section) — None
+            # there, never a fabricated 0-0.
+            "home_ht_score": m.home_ht_goals,
+            "away_ht_score": m.away_ht_goals,
             # Season-average stats (see `compute_season_stat_averages`) —
             # None where the source never recorded it, which is skipped
             # from the average rather than counted as zero.
