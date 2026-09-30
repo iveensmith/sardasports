@@ -1,14 +1,25 @@
 /**
  * What the engine expected, beside what actually happened.
  *
- * Goals is the only row with a genuine predicted number — `expected_goals_*`
- * is a first-class model output. Corners and cards are priced as over/under
- * lines with a probability each, not a single expected count, and inventing
- * one by interpolating those probabilities would be a number the model
- * never actually produced. So every other row here is actual-only: real,
- * once `fetch_match_stats.py` has reported it, and simply absent from the
- * list otherwise — never a fabricated "predicted" figure standing in for
- * one the engine doesn't have.
+ * The bar follows the reference site's own shape for this panel: one bar
+ * per stat, split at a shared centre line, each side growing outward from
+ * it rather than the two sides just splitting a single track. Where a
+ * genuine prediction exists, the bar shows both numbers on the same track —
+ * a solid fill out to the smaller of the two, then a hatched extension out
+ * to the larger, so the *gap* between prediction and reality is the part
+ * that's visible, not just the two figures printed beside each other.
+ * Hatching reuses this site's own "not a hard number" texture (the same
+ * dashed styling `BoardTable` already puts on an estimated price), rather
+ * than borrowing the reference's plain grey.
+ *
+ * Goals is the only row with a genuine predicted number —
+ * `expected_goals_*` is a first-class model output. Corners and cards are
+ * priced as over/under lines with a probability each, not a single expected
+ * count, and inventing one by interpolating those probabilities would be a
+ * number the model never actually produced. So every other row is
+ * actual-only: real, once `fetch_match_stats.py` has reported it, and
+ * simply absent otherwise — never a fabricated "predicted" figure standing
+ * in for one the engine doesn't have.
  */
 
 import type { ActualStats, MatchScore } from "@/lib/types";
@@ -21,53 +32,119 @@ interface Row {
   predictedAway?: number;
   /** Shown after the value — "%" for possession. */
   suffix?: string;
+  /** Round the displayed predicted figure to this many decimals (goals'
+   *  expected value wants 2; everything else predicted is a whole count). */
+  predictedDecimals?: number;
+}
+
+/** One side's fill: solid to `min(actual, predicted)`, a hatched extension
+ *  out to the larger of the two when they differ, empty beyond that. Grows
+ *  away from the centre line, so the segment order reverses by side. */
+function Bar({
+  actual,
+  predicted,
+  scale,
+  color,
+  side,
+}: {
+  actual: number;
+  predicted: number | undefined;
+  scale: number;
+  color: string;
+  side: "home" | "away";
+}) {
+  const hi = predicted === undefined ? actual : Math.max(actual, predicted);
+  const lo = predicted === undefined ? actual : Math.min(actual, predicted);
+  const solidFraction = scale > 0 ? lo / scale : 0;
+  const hatchFraction = scale > 0 ? (hi - lo) / scale : 0;
+  const emptyFraction = Math.max(1 - solidFraction - hatchFraction, 0);
+
+  const solid = (
+    <div
+      key="solid"
+      className="transition-[flex-grow] duration-500"
+      style={{ flexGrow: Math.max(solidFraction, 0.001), background: color }}
+    />
+  );
+  const hatch = hatchFraction > 0.001 && (
+    <div
+      key="hatch"
+      className="transition-[flex-grow] duration-500"
+      style={{
+        flexGrow: hatchFraction,
+        backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px)`,
+        opacity: 0.65,
+      }}
+    />
+  );
+  const empty = (
+    <div key="empty" aria-hidden style={{ flexGrow: emptyFraction }} />
+  );
+
+  return (
+    <div className="flex h-2 flex-1 overflow-hidden">
+      {side === "home" ? [empty, hatch, solid] : [solid, hatch, empty]}
+    </div>
+  );
 }
 
 function StatRow({ row }: { row: Row }) {
   if (row.home === null && row.away === null) return null;
-  const total = (row.home ?? 0) + (row.away ?? 0);
-  const homeShare = total > 0 ? (row.home ?? 0) / total : 0.5;
-  const awayShare = total > 0 ? (row.away ?? 0) / total : 0.5;
-  const hasPrediction =
-    row.predictedHome !== undefined && row.predictedAway !== undefined;
+  const home = row.home ?? 0;
+  const away = row.away ?? 0;
+  const scale =
+    Math.max(home, away, row.predictedHome ?? 0, row.predictedAway ?? 0) *
+      1.05 || 1;
+  const decimals = row.predictedDecimals ?? 0;
 
   return (
     <div>
-      <div className="flex items-baseline justify-between gap-3 text-[14px]">
-        <span className="font-semibold tabular-nums">
-          {row.home ?? "—"}
-          {row.suffix ?? ""}
-        </span>
-        <span className="text-[11px] tracking-wider text-[var(--color-text-faint)] uppercase">
+      <div className="flex items-end justify-between gap-3">
+        <div className="text-left">
+          <p className="text-[14px] font-semibold tabular-nums">
+            {row.home ?? "—"}
+            {row.suffix ?? ""}
+          </p>
+          {row.predictedHome !== undefined && (
+            <p className="text-[11px] tabular-nums text-[var(--color-text-faint)]">
+              {row.predictedHome.toFixed(decimals)}
+              {row.suffix ?? ""}
+            </p>
+          )}
+        </div>
+        <span className="pb-0.5 text-[11px] tracking-wider text-[var(--color-text-faint)] uppercase">
           {row.label}
         </span>
-        <span className="font-semibold tabular-nums">
-          {row.away ?? "—"}
-          {row.suffix ?? ""}
-        </span>
-      </div>
-      <div className="mt-1.5 flex h-1.5 w-full overflow-hidden rounded-full bg-[var(--color-line)]">
-        <div
-          className="transition-[flex-grow] duration-500"
-          style={{
-            flexGrow: Math.max(homeShare, 0.02),
-            background: "var(--color-home)",
-          }}
-        />
-        <div
-          className="transition-[flex-grow] duration-500"
-          style={{
-            flexGrow: Math.max(awayShare, 0.02),
-            background: "var(--color-away)",
-          }}
-        />
-      </div>
-      {hasPrediction && (
-        <div className="mt-1 flex items-baseline justify-between text-[11px] text-[var(--color-text-faint)]">
-          <span>predicted {row.predictedHome!.toFixed(2)}</span>
-          <span>predicted {row.predictedAway!.toFixed(2)}</span>
+        <div className="text-right">
+          <p className="text-[14px] font-semibold tabular-nums">
+            {row.away ?? "—"}
+            {row.suffix ?? ""}
+          </p>
+          {row.predictedAway !== undefined && (
+            <p className="text-[11px] tabular-nums text-[var(--color-text-faint)]">
+              {row.predictedAway.toFixed(decimals)}
+              {row.suffix ?? ""}
+            </p>
+          )}
         </div>
-      )}
+      </div>
+      <div className="mt-1.5 flex w-full overflow-hidden rounded-full bg-[var(--color-line)]">
+        <Bar
+          actual={home}
+          predicted={row.predictedHome}
+          scale={scale}
+          color="var(--color-home)"
+          side="home"
+        />
+        <div className="w-px shrink-0 bg-[var(--color-line-strong)]" />
+        <Bar
+          actual={away}
+          predicted={row.predictedAway}
+          scale={scale}
+          color="var(--color-away)"
+          side="away"
+        />
+      </div>
     </div>
   );
 }
@@ -90,6 +167,7 @@ export function StatsComparison({
       away: score?.away ?? null,
       predictedHome: expectedGoalsHome,
       predictedAway: expectedGoalsAway,
+      predictedDecimals: 2,
     },
   ];
 
@@ -139,11 +217,12 @@ export function StatsComparison({
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
       <h2 className="text-[15px] font-semibold">Predicted vs actual</h2>
       <p className="mt-1 mb-5 text-[13px] text-[var(--color-text-dim)]">
-        {score
-          ? "Goals is the only row with a genuine predicted figure — corners and cards are priced as over/under lines, not a single count, so the rest is what actually happened."
-          : "Fills in once the match has been played."}
+        Goals is the only row with a genuine predicted figure (shown small,
+        beneath the actual count) &mdash; corners and cards are priced as
+        over/under lines, not a single count, so the rest is what actually
+        happened.
       </p>
-      <div className="space-y-4">
+      <div className="space-y-5">
         {visibleRows.map((row) => (
           <StatRow key={row.label} row={row} />
         ))}
