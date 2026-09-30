@@ -1172,10 +1172,75 @@ verdict in words, and the row carries a coloured edge as a third channel.
 ### Not built, and why
 
 - **Log In, Hit&Win, subscription gating** — need auth, blocked on Supabase.
-- **The match page's tabs and its predicted-vs-actual stats panel.** The
-  strongest feature on the reference site: xG, possession, shots, corners,
-  cards, offsides and fouls, each showing what was predicted against what
-  happened. This engine predicts corners and cards and stores the actuals,
-  so it is a genuine fit and the highest-value remaining UI work.
 - **Team crests and flags** — needs an asset source.
 - **Blog** — needs a content setup.
+
+## Match page rebuild: tabs, the predicted-vs-actual panel, live goal events — done, live-verified
+
+Asked directly for the reference site's match-detail page, "every single
+thing." Two parts of that are impossible without either fabricating data or
+new infrastructure, and both were said plainly before building anything:
+a live goal-by-goal timeline needs real scorer/assist/minute data this
+engine never ingested, and possession/offsides/fouls need real match
+statistics it never ingested either. The agreed scope: ingest all of it for
+real via API-Football's existing endpoints, predict what there's already
+history to train on, and show the rest as actual-only rather than invent a
+predicted number the model never produced.
+
+**New ingestion, `scripts/fetch_match_stats.py`.** `fetch_results.py`
+fetches only the final score for a fixture it closes out — its own
+docstring already flagged statistics as "a deliberate follow-up, not an
+oversight." This is that follow-up: two more requests per completed
+fixture, at `/fixtures/statistics` and `/fixtures/events`, filling in
+shots/shots-on-target/corners/cards (columns that existed but were never
+live-fetched for a match this engine actually predicted — only the
+historical Football-Data.co.uk bulk load ever populated them), three new
+columns for possession/offsides/fouls, and a new `match_events` table for
+the goals themselves. Scoped by a new `stats_fetched_at` timestamp rather
+than "is `home_shots` null" — several competitions genuinely report none
+of this, and without a separate "tried" marker every scheduled run would
+re-request the same uncovered fixtures forever. Team assignment is by name
+(`fold_team_key`, the same normalization the rest of the pipeline already
+uses), not a stored API-Football team id, so it costs no extra request.
+Wired into the scheduler ten minutes after `fetch_results`, so it only ever
+sees fixtures that already have a score. Live-verified against 5 real
+completed fixtures on a rate-limited free plan (Spain 4-1 Croatia came back
+with all five goals, real scorers and assists, real HT score 2-1, real
+shots/possession/corners/cards/offsides/fouls for both sides).
+
+**`GET /predict/{match_id}` carries "what's actually true right now" for
+the first time.** `match_status`/`match_score`/`odds_1x2` (all three
+sports) and `ht_score`/`actual_stats`/`events` (football) are read straight
+off the match row in the route, not the cached prediction service — the
+same separation `value` already used, so a completed match's real score
+doesn't get trapped behind the 10-minute prediction cache. `actual_stats`
+is `null` until `stats_fetched_at` is set, genuinely distinct from a
+completed match whose competition reports none of it (which comes back
+with every field present and `null`).
+
+**The predicted-vs-actual panel only claims a prediction where one exists.**
+Goals is the only row with a real predicted figure —
+`expected_goals_home`/`away` is a first-class model output. Corners and
+cards are priced as over/under lines with a probability each, not a single
+expected count, and interpolating one from those probabilities would be a
+number the model never actually produced — so those, and
+shots/shots-on-target/possession/offsides/fouls, are actual-only rows,
+present only once there's something real to show.
+
+**Form, H2H and Recent Matches needed no new data at all** — every
+completed match this engine has on record was already enough. `GET
+/matches` gained an `opponent` param (paired with `team`, either side) for
+head-to-head, reusing the existing browse endpoint rather than a new one.
+`GET /team/{team}` gained `over_1_5`/`over_2_5`/`over_3_5`/`btts` counts
+(`ml.feature_engineering.features.compute_goal_rate_form`, a display-only
+sibling of the training-facing `compute_team_form` next to it) for the Form
+tab. Both `/team/{team}` and the whole `get_team_detail`/`TeamDetailOut`
+path already existed in the codebase, unused by any page — this is the
+first thing to actually read them.
+
+Each non-"Match Tips" tab is its own further engine call
+(`components/match/*`, orchestrated by `app/match/[id]/page.tsx`'s `?tab=`
+query param), made only when a reader actually opens that tab rather than
+on every page load. Also fixed in passing: the page's "back" link pointed
+at `/predictions`, a route not in the site's nav at all — it now points at
+`/matches`.

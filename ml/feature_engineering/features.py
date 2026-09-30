@@ -79,6 +79,22 @@ class TeamForm:
         return self.goals_conceded / self.matches_played if self.matches_played else 0.0
 
 
+@dataclass
+class GoalRateForm:
+    """How often a team's matches cleared common goals-market lines, over
+    the same "last n" window `compute_team_form` uses.
+
+    Display-only, for the match page's Form tab — unlike `TeamForm` above,
+    nothing here is read by a training pipeline.
+    """
+
+    matches_played: int = 0
+    over_1_5: int = 0
+    over_2_5: int = 0
+    over_3_5: int = 0
+    btts: int = 0
+
+
 def _team_matches_before(
     team: str, history: list[dict] | TeamHistoryIndex, before_date: datetime
 ) -> list[dict]:
@@ -128,6 +144,29 @@ def compute_team_form(
             form.draws += 1
         else:
             form.losses += 1
+    return form
+
+
+def compute_goal_rate_form(
+    team: str, history: list[dict] | TeamHistoryIndex, before_date: datetime, n: int | None = None
+) -> GoalRateForm:
+    """Over the last `n` matches before `before_date`, how many cleared each
+    goals line and how many saw both teams score."""
+    prior = _prior_matches(team, history, before_date)
+    if n is not None:
+        prior = prior[:n]
+
+    form = GoalRateForm(matches_played=len(prior))
+    for m in prior:
+        total = m["home_score"] + m["away_score"]
+        if total > 1.5:
+            form.over_1_5 += 1
+        if total > 2.5:
+            form.over_2_5 += 1
+        if total > 3.5:
+            form.over_3_5 += 1
+        if m["home_score"] > 0 and m["away_score"] > 0:
+            form.btts += 1
     return form
 
 

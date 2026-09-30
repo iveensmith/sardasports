@@ -100,6 +100,56 @@ export interface Scoreline {
   probability: number;
 }
 
+export interface MatchScore {
+  home: number;
+  away: number;
+}
+
+/** Bookmaker 1X2 prices, read off the match row. `draw` is null for a sport
+ *  with no draw market (basketball). */
+export interface Odds1X2 {
+  home: number | null;
+  draw: number | null;
+  away: number | null;
+}
+
+/** One stat, both sides. Independently nullable — a completed match whose
+ *  competition doesn't report a given stat shows `null`, not a fabricated
+ *  zero. */
+export interface ActualStat {
+  home: number | null;
+  away: number | null;
+}
+
+/**
+ * What actually happened, once the match has been played — see
+ * `scripts/fetch_match_stats.py` in the engine. Present only once the
+ * fixture is completed *and* statistics have been fetched for it; absent
+ * beforehand, which is different from "fetched, nothing to report".
+ */
+export interface ActualStats {
+  shots: ActualStat;
+  shots_on_target: ActualStat;
+  corners: ActualStat;
+  yellow_cards: ActualStat;
+  red_cards: ActualStat;
+  possession: ActualStat;
+  offsides: ActualStat;
+  fouls: ActualStat;
+}
+
+/** One goal, in the order it happened. */
+export interface MatchEvent {
+  minute: number;
+  added_time: number | null;
+  side: "home" | "away";
+  player: string;
+  assist: string | null;
+  detail: string;
+  home_score_after: number;
+  away_score_after: number;
+}
+
 export interface FootballPrediction {
   sport: "football";
   match_id: number;
@@ -109,6 +159,11 @@ export interface FootballPrediction {
   home_badge: Badge | null;
   away_badge: Badge | null;
   match_date: string;
+  competition: string;
+  match_status: string;
+  match_score: MatchScore | null;
+  ht_score: MatchScore | null;
+  odds_1x2: Odds1X2 | null;
   home_win: number;
   draw: number;
   away_win: number;
@@ -134,6 +189,10 @@ export interface FootballPrediction {
   calls: Calls | null;
   /** The market comparison. Fixture page only. */
   value: Value | null;
+  /** What actually happened, once there is something to report — null for a
+   *  fixture yet to be played. Never zero-filled. */
+  actual_stats: ActualStats | null;
+  events: MatchEvent[];
   generated_at: string;
 }
 
@@ -144,6 +203,9 @@ export interface BasketballPrediction {
   away_team: string;
   match_date: string;
   competition: string;
+  match_status: string;
+  match_score: MatchScore | null;
+  odds_1x2: Odds1X2 | null;
   /** No `draw`: zero ties in 4,149 ingested NBA games. Sums to 100 alone. */
   home_win: number;
   away_win: number;
@@ -172,6 +234,9 @@ export interface TennisPrediction {
   competition: string;
   surface: string | null;
   best_of: number | null;
+  match_status: string;
+  match_score: MatchScore | null;
+  odds_1x2: Odds1X2 | null;
   home_win: number;
   away_win: number;
   /** Overall and per-surface ratings differ sharply for the same player. */
@@ -189,9 +254,7 @@ export interface TennisPrediction {
 }
 
 export type Prediction =
-  | FootballPrediction
-  | BasketballPrediction
-  | TennisPrediction;
+  FootballPrediction | BasketballPrediction | TennisPrediction;
 
 export type ConfidenceLabel = "Low" | "Medium" | "High" | "Very High";
 
@@ -229,6 +292,44 @@ export interface MatchesResponse {
   limit: number;
   offset: number;
   matches: MatchSummary[];
+}
+
+/**
+ * A team's recent form, in the same "last 5 / last 10" windows the engine
+ * uses for its own features — see `ml.feature_engineering.features`. The
+ * `over_*`/`btts` counts are display-only, not read by any training
+ * pipeline.
+ */
+export interface TeamFormSummary {
+  matches_played: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goals_scored: number;
+  goals_conceded: number;
+  clean_sheets: number;
+  points_per_game: number;
+  over_1_5: number;
+  over_2_5: number;
+  over_3_5: number;
+  btts: number;
+}
+
+export interface RecentMatch {
+  match_id: number;
+  match_date: string;
+  competition: string;
+  home_team: string;
+  away_team: string;
+  home_score: number | null;
+  away_score: number | null;
+}
+
+export interface TeamDetail {
+  team: { id: number; name: string; league: string | null; elo_rating: number };
+  form_last5: TeamFormSummary;
+  form_last10: TeamFormSummary;
+  recent_matches: RecentMatch[];
 }
 
 export interface Competition {

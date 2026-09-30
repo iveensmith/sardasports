@@ -21,6 +21,7 @@ import type {
   FixturesResponse,
   MatchesResponse,
   Prediction,
+  TeamDetail,
   Value,
 } from "./types";
 
@@ -110,6 +111,8 @@ export function getPrediction(matchId: number): Promise<Prediction> {
 export function getMatches(params: {
   sport?: string;
   competition?: string;
+  team?: string;
+  opponent?: string;
   status?: string;
   limit?: number;
   offset?: number;
@@ -127,6 +130,20 @@ export function getCompetitions(sport?: string): Promise<CompetitionsResponse> {
   return engineFetch<CompetitionsResponse>(`/competitions${query}`, {
     revalidate: 3600,
   });
+}
+
+/** A team's current form and recent results — the match page's Form and
+ *  Recent Matches tabs. Null for a team the engine has no match history
+ *  for at all, rather than an empty-but-present shape. */
+export async function getTeam(name: string): Promise<TeamDetail | null> {
+  try {
+    return await engineFetch<TeamDetail>(`/team/${encodeURIComponent(name)}`, {
+      revalidate: 300,
+    });
+  } catch (error) {
+    if (error instanceof EngineError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /**
@@ -266,12 +283,14 @@ export function getBoard(
  * fixtures kick off, scores arrive, and picks settle. A stale graded board is
  * worse than a stale unplayed one — it shows verdicts that have since changed.
  */
-export function getDayBoard(options: {
-  date?: string;
-  country?: string;
-  competition?: string;
-  sport?: string;
-} = {}): Promise<DayBoard> {
+export function getDayBoard(
+  options: {
+    date?: string;
+    country?: string;
+    competition?: string;
+    sport?: string;
+  } = {},
+): Promise<DayBoard> {
   const query = new URLSearchParams();
   if (options.date) query.set("on_date", options.date);
   if (options.country) query.set("country", options.country);
@@ -283,7 +302,9 @@ export function getDayBoard(options: {
 
 /** The date strip, with a fixture count per day. */
 export function getBoardDates(span = 3): Promise<BoardDates> {
-  return engineFetch<BoardDates>(`/board/dates?span=${span}`, { revalidate: 600 });
+  return engineFetch<BoardDates>(`/board/dates?span=${span}`, {
+    revalidate: 600,
+  });
 }
 
 /**
@@ -308,13 +329,15 @@ export function getBankers(date?: string): Promise<Bankers> {
 }
 
 /** An accumulator assembled from the day's picks. */
-export function getSlip(options: {
-  date?: string;
-  targetOdds?: number;
-  minLegs?: number;
-  maxLegs?: number;
-  markets?: string;
-} = {}): Promise<Slip> {
+export function getSlip(
+  options: {
+    date?: string;
+    targetOdds?: number;
+    minLegs?: number;
+    maxLegs?: number;
+    markets?: string;
+  } = {},
+): Promise<Slip> {
   const query = new URLSearchParams();
   if (options.date) query.set("on_date", options.date);
   if (options.targetOdds) query.set("target_odds", String(options.targetOdds));

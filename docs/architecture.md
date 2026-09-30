@@ -669,6 +669,20 @@ confirms they stay properly separated, and a test that the three corners
 lines are genuinely distinct, monotonically-decreasing calculations rather
 than all collapsing to the same number.
 
+This section is the historical bulk-load side of corners/cards — the
+Football-Data.co.uk columns every training run reads. Nothing here ever
+fetched what actually happened in a *live* fixture this engine had already
+predicted; `scripts/fetch_match_stats.py` (see the roadmap's "Match page
+rebuild" entry) is that follow-up, filling the same `home_corners`/
+`away_corners`/`*_yellow_cards`/`*_red_cards` columns from API-Football's
+`/fixtures/statistics` for a completed `apif-`-sourced match, alongside
+three columns this historical data never had at all (possession, offsides,
+fouls) and a `match_events` table for the goals themselves. None of it
+feeds back into training — it's read-only, for the match page's
+predicted-vs-actual panel and for settling a live match's corners/cards
+markets, which this pipeline could not do correctly before (`home_corners`
+stayed `null` for every match not sourced from the historical bulk load).
+
 ## Feature-engineering performance at scale
 
 `ml/feature_engineering/features.py`'s `compute_*` functions originally

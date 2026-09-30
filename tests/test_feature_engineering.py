@@ -8,6 +8,7 @@ from ml.feature_engineering.features import (
     build_match_features,
     build_team_history_index,
     compute_corner_form,
+    compute_goal_rate_form,
     compute_head_to_head,
     compute_rest_days,
     compute_team_form,
@@ -67,6 +68,28 @@ def test_compute_team_form_only_counts_prior_matches():
     assert form.losses == 0
     assert form.goals_scored == 2 + 1 + 3
     assert form.goals_conceded == 0 + 1 + 1
+
+
+def test_compute_goal_rate_form_only_counts_prior_matches():
+    history = _history()
+    target_date = datetime(2024, 1, 20)  # same window as the TeamForm test above
+
+    form = compute_goal_rate_form("A", history, before_date=target_date)
+    assert form.matches_played == 3
+    assert form.over_1_5 == 3  # 2, 2, 4 total goals — all clear 1.5
+    assert form.over_2_5 == 1  # only the 3-1 (4 total) clears 2.5
+    assert form.over_3_5 == 1  # only the 3-1 clears 3.5
+    assert form.btts == 2  # 1-1 and 3-1; the 2-0 is not BTTS
+
+
+def test_compute_goal_rate_form_respects_n():
+    history = _history()
+    target_date = datetime(2024, 1, 20)
+
+    form = compute_goal_rate_form("A", history, before_date=target_date, n=1)
+    assert form.matches_played == 1
+    # Most recent of the three is the 3-1 win (Jan 15).
+    assert form.over_1_5 == 1 and form.over_2_5 == 1 and form.over_3_5 == 1 and form.btts == 1
 
 
 def test_feature_leakage_guard_ignores_future_matches():

@@ -34,7 +34,7 @@ export function TeamCrest({
   badge: Badge | null | undefined;
   /** Used for the alt text, so a missing image still says who is playing. */
   name: string;
-  size?: 18 | 20 | 28;
+  size?: 18 | 20 | 28 | 48;
 }) {
   const box = { width: size, height: size };
 
@@ -66,7 +66,7 @@ export function TeamCrest({
       aria-hidden
       title={name}
       className="inline-flex shrink-0 items-center justify-center rounded-full border border-[var(--color-line-strong)] bg-[var(--color-surface-raised)] font-semibold text-[var(--color-text-faint)]"
-      style={{ ...box, fontSize: size <= 20 ? 8.5 : 11 }}
+      style={{ ...box, fontSize: size <= 20 ? 8.5 : size >= 40 ? 16 : 11 }}
     >
       {badge?.initials ?? "?"}
     </span>

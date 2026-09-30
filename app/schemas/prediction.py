@@ -25,6 +25,64 @@ class ScorelineOut(BaseModel):
     probability: float
 
 
+class ScoreOut(BaseModel):
+    home: int
+    away: int
+
+
+class OddsOut(BaseModel):
+    """Bookmaker 1X2 prices, read straight off the match row — the same
+    numbers the board's odds columns show. `draw` is null for a sport with
+    no draw market (basketball)."""
+
+    home: float | None
+    draw: float | None
+    away: float | None
+
+
+class ActualStatOut(BaseModel):
+    """One stat, both sides, once the match has actually been played.
+
+    Every field is independently nullable: a completed match with
+    `stats_fetched_at` set but no possession reported (a competition that
+    genuinely doesn't record it) shows `possession: None`, not a fabricated
+    0-0.
+    """
+
+    home: int | None
+    away: int | None
+
+
+class ActualStatsOut(BaseModel):
+    """What actually happened, alongside the prediction — see
+    `scripts/fetch_match_stats.py`. Present only once the match is
+    completed; a fixture still to be played has nothing here yet, which is
+    different from a completed one whose competition reports none of this.
+    """
+
+    shots: ActualStatOut
+    shots_on_target: ActualStatOut
+    corners: ActualStatOut
+    yellow_cards: ActualStatOut
+    red_cards: ActualStatOut
+    possession: ActualStatOut
+    offsides: ActualStatOut
+    fouls: ActualStatOut
+
+
+class MatchEventOut(BaseModel):
+    """One goal, in the order it happened — see `app.models.match_event`."""
+
+    minute: int
+    added_time: int | None
+    side: str  # "home" | "away"
+    player: str
+    assist: str | None
+    detail: str
+    home_score_after: int
+    away_score_after: int
+
+
 class FeatureImpactOut(BaseModel):
     feature: str
     impact_percentage_points: float  # signed: + pushes toward the predicted outcome, - away from it
@@ -67,6 +125,10 @@ class BasketballPredictionOut(BaseModel):
     match_date: datetime
     competition: str
 
+    match_status: str = "scheduled"
+    match_score: ScoreOut | None = None
+    odds_1x2: OddsOut | None = None
+
     home_win: float
     away_win: float
 
@@ -104,6 +166,10 @@ class TennisPredictionOut(BaseModel):
     competition: str
     surface: str | None
     best_of: int | None
+
+    match_status: str = "scheduled"
+    match_score: ScoreOut | None = None
+    odds_1x2: OddsOut | None = None
 
     home_win: float
     away_win: float
@@ -198,6 +264,12 @@ class PredictionOut(BaseModel):
     home_badge: BadgeOut | None = None
     away_badge: BadgeOut | None = None
     match_date: datetime
+    competition: str
+
+    match_status: str = "scheduled"
+    match_score: ScoreOut | None = None
+    ht_score: ScoreOut | None = None
+    odds_1x2: OddsOut | None = None
 
     home_win: float
     draw: float
@@ -235,6 +307,11 @@ class PredictionOut(BaseModel):
     # The market comparison. Shown on the fixture page only — it is a
     # different subject from the prediction and crowded the board row.
     value: ValueOut | None = None
+    # What actually happened, once there is something to report — see
+    # `ActualStatsOut`/`MatchEventOut` above. Both absent for a fixture yet
+    # to be played, not zero-filled.
+    actual_stats: ActualStatsOut | None = None
+    events: list[MatchEventOut] = []
     generated_at: datetime
 
 

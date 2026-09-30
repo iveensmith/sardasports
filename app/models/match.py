@@ -62,6 +62,25 @@ class Match(Base):
     away_red_cards: Mapped[int | None] = mapped_column(Integer, nullable=True)
     referee: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
+    # Possession, offsides and fouls — added alongside `match_events` below,
+    # both only ever filled from API-Football's `/fixtures/statistics` for a
+    # match this engine has fetched a result for (see
+    # `scripts/fetch_match_stats.py`). The historical Football-Data.co.uk
+    # training data never carried these three, unlike shots/corners/cards
+    # above, so there is no trained model for them yet and none of this is
+    # used as a training feature — it exists to answer "what actually
+    # happened", not to predict it.
+    home_possession: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_possession: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_offsides: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_offsides: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    home_fouls: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    away_fouls: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Set once `scripts/fetch_match_stats.py` has tried this fixture, whether
+    # or not the response carried any usable stats — see that script for why
+    # this can't just be "home_shots is null".
+    stats_fetched_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     # Tennis only: "Hard" | "Clay" | "Grass" | "Carpet". Null for the other
     # sports. Surface is not cosmetic in tennis the way a pitch is in
     # football — a player's clay ability is genuinely a different quantity

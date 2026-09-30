@@ -127,6 +127,27 @@ def fetch_results_job() -> None:
     logger.info("fetch_results_job marked %d fixture(s) completed", updated)
 
 
+def fetch_match_stats_job() -> None:
+    """Every few hours, after `fetch_results_job`: per-fixture statistics and
+    goal events for matches that now have a score but nothing else.
+
+    Runs on the same skip-if-unconfigured convention as `fetch_results_job` —
+    this is two more API-Football requests per fixture on top of that job's
+    one per day, so it is deliberately its own job rather than folded into
+    it, and can be tuned or disabled independently once real request volume
+    is known.
+    """
+    settings = get_settings()
+    if not settings.api_football_key:
+        logger.info("fetch_match_stats_job skipped: API_FOOTBALL_KEY not set")
+        return
+
+    from scripts.fetch_match_stats import fetch_and_apply_match_stats
+
+    updated = fetch_and_apply_match_stats()
+    logger.info("fetch_match_stats_job fetched statistics/events for %d fixture(s)", updated)
+
+
 def evaluate_predictions_job() -> None:
     """After matches: backfill actual results onto prediction_history."""
     from ml.monitoring.evaluation import backfill_actual_results
@@ -255,6 +276,12 @@ def start_scheduler() -> BackgroundScheduler | None:
     # match's result is already in the database by the time that job looks
     # for one to backfill.
     scheduler.add_job(fetch_results_job, CronTrigger(hour="*/3"), id="fetch_results")
+    # A few minutes after fetch_results, so it only ever sees fixtures that
+    # already have a score — it never has anything to do for one that isn't
+    # completed yet.
+    scheduler.add_job(
+        fetch_match_stats_job, CronTrigger(hour="*/3", minute=10), id="fetch_match_stats"
+    )
     scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
     scheduler.add_job(
         retrain_models_job, CronTrigger(day_of_week="mon", hour=4, minute=0), id="weekly_retrain"

@@ -106,6 +106,44 @@ def test_list_matches_filters_by_team(client, db_session):
         assert "Arsenal" in (m["home_team"], m["away_team"])
 
 
+def test_list_matches_filters_by_team_and_opponent_either_side(client, db_session):
+    """Head-to-head: Arsenal have played Chelsea once (as home) and Everton
+    once (as away, in the 2022-2023 season) — `opponent` should catch a
+    meeting regardless of which side `team` was on."""
+    _seed(db_session)
+    response = client.get("/matches", params={"team": "Arsenal", "opponent": "Chelsea"})
+    body = response.json()
+    assert body["count"] == 1
+    assert {body["matches"][0]["home_team"], body["matches"][0]["away_team"]} == {
+        "Arsenal",
+        "Chelsea",
+    }
+
+
+def test_opponent_finds_a_meeting_regardless_of_home_away_side(client, db_session):
+    _seed(db_session)
+    response = client.get("/matches", params={"team": "Everton", "opponent": "Arsenal"})
+    body = response.json()
+    assert body["count"] == 1
+    assert body["matches"][0]["season"] == "2022-2023"
+
+
+def test_a_pair_that_never_met_returns_empty(client, db_session):
+    _seed(db_session)
+    response = client.get("/matches", params={"team": "Arsenal", "opponent": "Nonexistent FC"})
+    assert response.status_code == 200
+    assert response.json()["count"] == 0
+
+
+def test_opponent_without_team_is_ignored(client, db_session):
+    """`opponent` alone is not a meaningful filter and should not be guessed
+    at — the request behaves as if only unfiltered `team` browsing applied."""
+    _seed(db_session)
+    response = client.get("/matches", params={"opponent": "Chelsea"})
+    assert response.status_code == 200
+    assert response.json()["count"] == 4
+
+
 def test_list_matches_unknown_team_returns_empty_not_error(client, db_session):
     _seed(db_session)
     response = client.get("/matches", params={"team": "Nonexistent FC"})

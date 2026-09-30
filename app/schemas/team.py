@@ -25,6 +25,12 @@ class TeamFormSummary(BaseModel):
     goals_conceded: int
     clean_sheets: int
     points_per_game: float
+    # Display-only counts, not used by any training pipeline — see
+    # ml.feature_engineering.features.compute_goal_rate_form.
+    over_1_5: int
+    over_2_5: int
+    over_3_5: int
+    btts: int
 
 
 class RecentMatchOut(BaseModel):

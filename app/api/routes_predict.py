@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.routes_board import agreement_for
 from app.database.session import get_db
 from app.models.match import Match
+from app.models.match_event import MatchEvent
 from app.schemas.prediction import (
     BasketballPredictionOut,
     PredictionOut,
@@ -21,6 +22,71 @@ from ml.markets import best_per_market, candidate_calls, headline_call, rank_cal
 from ml.team_badges import badge_dict
 
 router = APIRouter(tags=["predictions"])
+
+
+def _match_state(match: Match) -> dict:
+    """Status, score and 1X2 price, read straight off the row — the same
+    "what's actually true right now" a board row shows, added here because
+    the fixture page never carried it at all before."""
+    return {
+        "match_status": match.status,
+        "match_score": (
+            {"home": match.home_score, "away": match.away_score}
+            if match.home_score is not None and match.away_score is not None
+            else None
+        ),
+        "odds_1x2": (
+            {"home": match.odds_home_win, "draw": match.odds_draw, "away": match.odds_away_win}
+            if match.odds_home_win is not None
+            or match.odds_draw is not None
+            or match.odds_away_win is not None
+            else None
+        ),
+    }
+
+
+def _actual_stats(match: Match) -> dict | None:
+    """What actually happened, once `fetch_match_stats.py` has tried this
+    fixture — None beforehand, not zero-filled. A field the source didn't
+    report stays None even once the fixture itself has an answer."""
+    if match.stats_fetched_at is None:
+        return None
+
+    def pair(home_attr: str, away_attr: str) -> dict:
+        return {"home": getattr(match, home_attr), "away": getattr(match, away_attr)}
+
+    return {
+        "shots": pair("home_shots", "away_shots"),
+        "shots_on_target": pair("home_shots_on_target", "away_shots_on_target"),
+        "corners": pair("home_corners", "away_corners"),
+        "yellow_cards": pair("home_yellow_cards", "away_yellow_cards"),
+        "red_cards": pair("home_red_cards", "away_red_cards"),
+        "possession": pair("home_possession", "away_possession"),
+        "offsides": pair("home_offsides", "away_offsides"),
+        "fouls": pair("home_fouls", "away_fouls"),
+    }
+
+
+def _events(db: Session, match_id: int) -> list[dict]:
+    rows = (
+        db.query(MatchEvent)
+        .filter(MatchEvent.match_id == match_id)
+        .order_by(MatchEvent.minute.asc(), MatchEvent.id.asc())
+        .all()
+    )
+    return [
+        {
+            "minute": r.minute,
+            "added_time": r.added_time,
+            "side": r.side,
+            "player": r.player,
+            "assist": r.assist,
+            "detail": r.detail,
+            "home_score_after": r.home_score_after,
+            "away_score_after": r.away_score_after,
+        }
+        for r in rows
+    ]
 
 
 def _completed_matches(db: Session, team_id: int | None) -> int | None:
@@ -61,6 +127,10 @@ def predict(
     except MatchNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
+    match = db.get(Match, match_id)
+    if match is not None:
+        payload.update(_match_state(match))
+
     sport = payload.get("sport")
     if sport == "basketball":
         return BasketballPredictionOut(**payload)
@@ -92,7 +162,6 @@ def predict(
     # The market comparison. It used to live only on the board row, where it
     # competed with the prediction for attention; a page someone has opened to
     # read the analysis is where it belongs.
-    match = db.get(Match, match_id)
     if match is not None:
         payload["value"] = best_pick(
             payload,
@@ -101,4 +170,11 @@ def predict(
             home_matches=_completed_matches(db, match.home_team_id),
             away_matches=_completed_matches(db, match.away_team_id),
         )
+        payload["ht_score"] = (
+            {"home": match.home_ht_goals, "away": match.away_ht_goals}
+            if match.home_ht_goals is not None and match.away_ht_goals is not None
+            else None
+        )
+        payload["actual_stats"] = _actual_stats(match)
+        payload["events"] = _events(db, match_id)
     return PredictionOut(**payload)

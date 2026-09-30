@@ -15,8 +15,14 @@ Liveness check. `{"status": "ok", "env": "development"}`.
 
 Browse/search matches — the only way to discover a `match_id` without
 already knowing one. Query params: `competition`, `season`, `team`,
-`status` (`scheduled`|`completed`), `limit` (default 50, max 200),
-`offset`. Unknown `team` returns an empty list, not an error.
+`opponent`, `status` (`scheduled`|`completed`), `limit` (default 50, max
+200), `offset`. Unknown `team` (or `opponent`) returns an empty list, not
+an error.
+
+`opponent` only applies alongside `team` — it narrows to matches between
+those two specific sides, either one at home, which is how the match
+page's head-to-head tab is built (`GET /matches?team=Arsenal&opponent=Chelsea`).
+`opponent` with no `team` is ignored rather than guessed at.
 
 ```json
 {
@@ -58,7 +64,9 @@ The full ensemble prediction. 404 if the match doesn't exist.
 ```json
 {
   "match_id": 42, "home_team": "Arsenal", "away_team": "Chelsea",
-  "match_date": "2026-09-22T15:00:00",
+  "match_date": "2026-09-22T15:00:00", "competition": "English Premier League",
+  "match_status": "completed", "match_score": {"home": 2, "away": 1}, "ht_score": {"home": 1, "away": 0},
+  "odds_1x2": {"home": 2.1, "draw": 3.3, "away": 3.4},
   "home_win": 54.2, "draw": 24.8, "away_win": 21.0,
   "expected_goals_home": 1.8, "expected_goals_away": 1.1,
   "top_scorelines": [{"score": "2-1", "probability": 0.11}, "..."],
@@ -85,9 +93,34 @@ The full ensemble prediction. 404 if the match doesn't exist.
   "model_weights_used": {"elo": 0.25, "poisson": 0.35, "xgboost": 0.4},
   "btts_model_used": true,
   "explanation": [{"feature": "elo_diff", "impact_percentage_points": 6.1}, "... up to 5"],
+  "actual_stats": {
+    "shots": {"home": 14, "away": 9}, "shots_on_target": {"home": 6, "away": 3},
+    "corners": {"home": 7, "away": 4}, "yellow_cards": {"home": 2, "away": 3}, "red_cards": {"home": 0, "away": 0},
+    "possession": {"home": 58, "away": 42}, "offsides": {"home": 1, "away": 2}, "fouls": {"home": 9, "away": 11}
+  },
+  "events": [
+    {"minute": 23, "added_time": null, "side": "home", "player": "B. Saka", "assist": "M. Ødegaard",
+     "detail": "Normal Goal", "home_score_after": 1, "away_score_after": 0}
+  ],
   "generated_at": "2026-09-22T09:00:00Z"
 }
 ```
+
+`match_status`/`match_score`/`odds_1x2` are read straight off the match
+row, the same numbers the board shows — added so the fixture page carries
+"what's actually true right now" alongside the prediction, which it
+previously didn't at all. `ht_score`, `actual_stats` and `events` are
+football-only.
+
+`actual_stats` is `null` until `scripts/fetch_match_stats.py` has actually
+tried this fixture (`stats_fetched_at` set on the row) — genuinely
+different from a completed match whose competition reports none of these
+stats, which instead comes back with every field present and `null`.
+`events` is the goal-by-goal timeline (own goals and penalties included,
+missed penalties excluded — they aren't goals), synced from the same
+script; an empty list means no events are on record, not that nothing was
+scored. Neither is ever fabricated: both are exactly what API-Football's
+`/fixtures/statistics` and `/fixtures/events` reported, or absent.
 
 `btts_model_used` reports whether the dedicated Gradient-Boosting model
 (vs. the Poisson-only baseline) contributed to `btts_yes`; the four
@@ -116,6 +149,11 @@ sections.
 Cached for 10 minutes per match (Redis if available, otherwise recomputed
 every call — see `app/utils/cache.py`). Every call also appends a row to
 `prediction_history`, which is what `/history/{match_id}` reads.
+
+`match_status`/`match_score`/`odds_1x2` also appear on the basketball and
+tennis responses below (read off the same match row), but `ht_score`,
+`actual_stats` and `events` are football-only — there is no comparable
+statistics/events feed wired up for the other two sports.
 
 ### Basketball responses
 
@@ -206,11 +244,18 @@ Team name is normalized (`app/utils/team_names.py`), so `man utd` and
 ```json
 {
   "team": {"id": 1, "name": "Arsenal", "league": "English Premier League", "elo_rating": 1612.4},
-  "form_last5": {"matches_played": 5, "wins": 3, "draws": 1, "losses": 1, "points_per_game": 2.0, "..."},
+  "form_last5": {"matches_played": 5, "wins": 3, "draws": 1, "losses": 1, "points_per_game": 2.0,
+    "over_1_5": 4, "over_2_5": 3, "over_3_5": 1, "btts": 3, "..."},
   "form_last10": {"...": "..."},
   "recent_matches": [{"match_id": 40, "match_date": "...", "home_team": "...", "away_team": "...", "home_goals": 2, "away_goals": 1}]
 }
 ```
+
+`over_1_5`/`over_2_5`/`over_3_5`/`btts` are display-only counts (out of
+`matches_played`) for the match page's Form tab — see
+`ml.feature_engineering.features.compute_goal_rate_form`. Nothing in
+`TeamFormSummary` is read by a training pipeline; that's `TeamForm`
+(`compute_team_form`), a separate type entirely.
 
 ## `GET /elo/{team}`
 

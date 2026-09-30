@@ -496,6 +496,7 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         "home_team": home_team.name,
         "away_team": away_team.name,
         "match_date": match.match_date.isoformat(),
+        "competition": match.competition,
         "home_win": result.home_win,
         "draw": result.draw,
         "away_win": result.away_win,

@@ -6,19 +6,23 @@
  * expected goals and a basketball game has no draw, so each gets its own
  * body and the union is narrowed once, here.
  *
- * Next 16: `params` is a Promise and must be awaited.
+ * Split into tabs (see `MatchTabs`), each fetching only what it needs: the
+ * prediction itself loads on every visit, but a team's form, head-to-head
+ * history and recent results are each a further engine call that only
+ * happens when a reader actually opens that tab.
+ *
+ * Next 16: `params` and `searchParams` are both Promises and must be awaited.
  */
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EngineError, getPrediction } from "@/lib/api";
+import { EngineError, getMatches, getPrediction, getTeam } from "@/lib/api";
 import { matchIdFromSlug } from "@/lib/board";
 import {
   HeadlineCall,
   MarketCallTable,
   ValuePanel,
 } from "@/components/MarketCalls";
-import { TeamCrest } from "@/components/board/TeamCrest";
 import {
   competitors,
   isBasketball,
@@ -31,6 +35,13 @@ import { ConfidenceMeter } from "@/components/ConfidenceMeter";
 import { MarketTable } from "@/components/MarketTable";
 import { EstimatorBreakdown } from "@/components/EstimatorSplit";
 import { agreementFrom } from "@/lib/agreement";
+import { MatchHeader } from "@/components/match/MatchHeader";
+import { GoalTimeline } from "@/components/match/GoalTimeline";
+import { StatsComparison } from "@/components/match/StatsComparison";
+import { FormPanel } from "@/components/match/FormPanel";
+import { H2HPanel } from "@/components/match/H2HPanel";
+import { RecentMatchesPanel } from "@/components/match/RecentMatchesPanel";
+import { MatchTabs, type MatchTab } from "@/components/match/MatchTabs";
 
 export const revalidate = 60;
 
@@ -48,12 +59,39 @@ function FootballBody({
 }: {
   p: Extract<Prediction, { sport: "football" }>;
 }) {
+  const { home, away } = competitors(p);
   return (
     <>
-      {/* What the engine calls, before the raw per-line numbers below. The
-          tables that follow are the working; this is the conclusion. */}
+      {p.calls?.headline && <HeadlineCall call={p.calls.headline} />}
+
+      <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
+          <ProbabilitySplit
+            home={p.home_win}
+            away={p.away_win}
+            draw={p.draw}
+            homeLabel={home}
+            awayLabel={away}
+          />
+        </section>
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <ConfidenceMeter value={p.confidence} label={p.confidence_label} />
+        </section>
+      </div>
+
+      <section className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+        <EstimatorBreakdown
+          agreement={agreementFrom(p)}
+          homeLabel={home}
+          awayLabel={away}
+        />
+      </section>
+
+      {/* The tables that follow are the working; the headline call above is
+          the conclusion. */}
       {p.calls && p.calls.by_market.length > 0 && (
-        <div className="mb-4">
+        <div className="mt-4">
           <MarketCallTable calls={p.calls.by_market} />
         </div>
       )}
@@ -62,12 +100,12 @@ function FootballBody({
           from the prediction, and one that needs room to be honest about
           what a large expected value usually means. */}
       {p.value && (
-        <div className="mb-4">
+        <div className="mt-4">
           <ValuePanel value={p.value} />
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Expected goals (home)" value={p.expected_goals_home} />
         <Stat label="Expected goals (away)" value={p.expected_goals_away} />
         <Stat label="Both teams score" value={`${p.btts_yes}%`} />
@@ -151,9 +189,25 @@ function BasketballBody({
 }: {
   p: Extract<Prediction, { sport: "basketball" }>;
 }) {
+  const { home, away } = competitors(p);
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
+          <ProbabilitySplit
+            home={p.home_win}
+            away={p.away_win}
+            homeLabel={home}
+            awayLabel={away}
+          />
+        </section>
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <ConfidenceMeter value={p.confidence} label={p.confidence_label} />
+        </section>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3">
         <Stat label="Expected points (home)" value={p.expected_points_home} />
         <Stat label="Expected points (away)" value={p.expected_points_away} />
         <Stat label="Expected total" value={p.expected_total_points} />
@@ -178,9 +232,25 @@ function BasketballBody({
 }
 
 function TennisBody({ p }: { p: Extract<Prediction, { sport: "tennis" }> }) {
+  const { home, away } = competitors(p);
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-[1.6fr_1fr]">
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
+          <ProbabilitySplit
+            home={p.home_win}
+            away={p.away_win}
+            homeLabel={home}
+            awayLabel={away}
+          />
+        </section>
+        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
+          <ConfidenceMeter value={p.confidence} label={p.confidence_label} />
+        </section>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Surface" value={p.surface ?? "—"} />
         <Stat label="Format" value={p.best_of ? `Best of ${p.best_of}` : "—"} />
         <Stat label="Expected total games" value={p.expected_total_games} />
@@ -237,16 +307,26 @@ function TennisBody({ p }: { p: Extract<Prediction, { sport: "tennis" }> }) {
   );
 }
 
+const VALID_TABS: MatchTab[] = ["tips", "stats", "form", "h2h", "recent"];
+
 export default async function MatchPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
   // Accepts both /match/144414 and the readable form the board links to,
   // /match/spain-vs-croatia-prediction-144414.
   const matchId = matchIdFromSlug(id);
   if (matchId === null) notFound();
+
+  const rawTab = (await searchParams).tab;
+  const requestedTab = Array.isArray(rawTab) ? rawTab[0] : rawTab;
+  const tab: MatchTab = VALID_TABS.includes(requestedTab as MatchTab)
+    ? (requestedTab as MatchTab)
+    : "tips";
 
   let prediction: Prediction;
   try {
@@ -263,78 +343,107 @@ export default async function MatchPage({
   const homeBadge = isFootball(prediction) ? prediction.home_badge : null;
   const awayBadge = isFootball(prediction) ? prediction.away_badge : null;
 
+  // Every other tab is its own further engine call, made only when a reader
+  // has actually asked for that tab rather than on every visit to the page.
+  const [homeTeam, awayTeam] = ["form", "recent"].includes(tab)
+    ? await Promise.all([getTeam(home), getTeam(away)])
+    : [null, null];
+  const h2h =
+    tab === "h2h"
+      ? await getMatches({
+          team: home,
+          opponent: away,
+          status: "completed",
+          limit: 10,
+        })
+      : null;
+
+  const tabs: MatchTab[] = isFootball(prediction)
+    ? ["tips", "stats", "form", "h2h", "recent"]
+    : ["tips", "form", "h2h", "recent"];
+
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
       <Link
-        href="/predictions"
+        href="/matches"
         className="text-[14px] text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
       >
-        Back to today
+        Back to matches
       </Link>
 
-      <header className="mt-5 mb-7">
-        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-bold tracking-[-0.02em]">
-          <span className="inline-flex items-center gap-2.5">
-            <TeamCrest badge={homeBadge} name={home} size={28} />
-            {home}
-          </span>
-          <span className="text-[var(--color-text-faint)]">v</span>
-          <span className="inline-flex items-center gap-2.5">
-            <TeamCrest badge={awayBadge} name={away} size={28} />
-            {away}
-          </span>
-        </h1>
-        <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
-          {new Date(prediction.match_date).toLocaleString(undefined, {
+      <div className="mt-5">
+        <MatchHeader
+          home={home}
+          away={away}
+          homeBadge={homeBadge}
+          awayBadge={awayBadge}
+          competition={prediction.competition}
+          kickoff={new Date(prediction.match_date).toLocaleString(undefined, {
             dateStyle: "full",
             timeStyle: "short",
           })}
-          {prediction.model_version
-            ? ` · model ${prediction.model_version}`
-            : ""}
-        </p>
-      </header>
-
-      {/* The prediction, stated once, identical to the one on the board row.
-          These two pages disagreeing is the bug that started all of this. */}
-      {isFootball(prediction) && prediction.calls?.headline && (
-        <HeadlineCall call={prediction.calls.headline} />
-      )}
-
-      <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_1fr]">
-        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-          <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
-          <ProbabilitySplit
-            home={prediction.home_win}
-            away={prediction.away_win}
-            draw={isFootball(prediction) ? prediction.draw : undefined}
-            homeLabel={home}
-            awayLabel={away}
-          />
-        </section>
-
-        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-          <ConfidenceMeter
-            value={prediction.confidence}
-            label={prediction.confidence_label}
-          />
-        </section>
+          status={prediction.match_status}
+          score={prediction.match_score}
+          htScore={isFootball(prediction) ? prediction.ht_score : null}
+          odds={prediction.odds_1x2}
+        />
       </div>
 
-      {isFootball(prediction) && (
-        <section className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-          <EstimatorBreakdown
-            agreement={agreementFrom(prediction)}
+      {isFootball(prediction) && prediction.events.length > 0 && (
+        <div className="mt-4">
+          <GoalTimeline
+            events={prediction.events}
+            home={home}
+            away={away}
+            homeBadge={homeBadge}
+            awayBadge={awayBadge}
+          />
+        </div>
+      )}
+
+      <div className="mt-6">
+        <MatchTabs matchId={matchId} active={tab} tabs={tabs} />
+      </div>
+
+      <div className="mt-6">
+        {tab === "tips" && (
+          <>
+            {isFootball(prediction) && <FootballBody p={prediction} />}
+            {isBasketball(prediction) && <BasketballBody p={prediction} />}
+            {isTennis(prediction) && <TennisBody p={prediction} />}
+          </>
+        )}
+
+        {tab === "stats" && isFootball(prediction) && (
+          <StatsComparison
+            expectedGoalsHome={prediction.expected_goals_home}
+            expectedGoalsAway={prediction.expected_goals_away}
+            score={prediction.match_score}
+            actual={prediction.actual_stats}
+          />
+        )}
+
+        {tab === "form" && (
+          <FormPanel
+            home={homeTeam}
+            away={awayTeam}
             homeLabel={home}
             awayLabel={away}
           />
-        </section>
-      )}
+        )}
 
-      <div className="mt-4">
-        {isFootball(prediction) && <FootballBody p={prediction} />}
-        {isBasketball(prediction) && <BasketballBody p={prediction} />}
-        {isTennis(prediction) && <TennisBody p={prediction} />}
+        {tab === "h2h" && h2h && (
+          <H2HPanel meetings={h2h.matches} home={home} away={away} />
+        )}
+
+        {tab === "recent" && (
+          <RecentMatchesPanel
+            home={home}
+            away={away}
+            homeMatches={homeTeam?.recent_matches ?? []}
+            awayMatches={awayTeam?.recent_matches ?? []}
+          />
+        )}
       </div>
     </div>
   );

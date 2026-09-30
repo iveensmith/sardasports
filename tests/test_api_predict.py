@@ -340,3 +340,120 @@ def test_an_unpriced_fixture_reports_no_value_rather_than_an_empty_one(client, d
     assert body["value"] is None
     # The prediction itself does not depend on anyone pricing the fixture.
     assert body["calls"]["headline"] is not None
+
+
+def test_a_scheduled_fixture_carries_status_score_and_odds(client, db_session):
+    """The fixture page previously carried none of "what's actually true right
+    now" at all — no score, no status, no 1X2 price — even though the board
+    row linking to it shows all three."""
+    from app.models import Match, Team
+
+    home = Team(name="State Home", league="Test League", sport="football")
+    away = Team(name="State Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    fixture = Match(
+        match_date=datetime(2024, 2, 1),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="scheduled",
+        sport="football",
+        odds_home_win=2.1,
+        odds_draw=3.3,
+        odds_away_win=3.4,
+    )
+    db_session.add(fixture)
+    db_session.commit()
+
+    body = client.get(f"/predict/{fixture.id}").json()
+    assert body["match_status"] == "scheduled"
+    assert body["match_score"] is None
+    assert body["ht_score"] is None
+    assert body["odds_1x2"] == {"home": 2.1, "draw": 3.3, "away": 3.4}
+    assert body["actual_stats"] is None
+    assert body["events"] == []
+
+
+def test_a_completed_fixture_carries_the_score_and_actual_stats(client, db_session):
+    from datetime import UTC
+
+    from app.models import Match, MatchEvent, Team
+
+    home = Team(name="Result Home", league="Test League", sport="football")
+    away = Team(name="Result Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    fixture = Match(
+        match_date=datetime(2024, 2, 1),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="completed",
+        sport="football",
+        home_score=2,
+        away_score=1,
+        home_ht_goals=1,
+        away_ht_goals=0,
+        home_shots=14,
+        away_shots=9,
+        home_possession=60,
+        away_possession=40,
+        stats_fetched_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+    db_session.add(fixture)
+    db_session.flush()
+    db_session.add(
+        MatchEvent(
+            match_id=fixture.id,
+            minute=23,
+            side="home",
+            player="A. Striker",
+            detail="Normal Goal",
+            home_score_after=1,
+            away_score_after=0,
+        )
+    )
+    db_session.commit()
+
+    body = client.get(f"/predict/{fixture.id}").json()
+    assert body["match_status"] == "completed"
+    assert body["match_score"] == {"home": 2, "away": 1}
+    assert body["ht_score"] == {"home": 1, "away": 0}
+    assert body["actual_stats"]["shots"] == {"home": 14, "away": 9}
+    assert body["actual_stats"]["possession"] == {"home": 60, "away": 40}
+    # A stat this competition never reported stays None, not a fabricated 0.
+    assert body["actual_stats"]["offsides"] == {"home": None, "away": None}
+    assert len(body["events"]) == 1
+    assert body["events"][0]["player"] == "A. Striker"
+
+
+def test_a_completed_fixture_with_stats_never_fetched_reports_no_actual_stats(
+    client, db_session
+):
+    """A match can be `completed` (fetch_results.py ran) before
+    fetch_match_stats.py has had a turn — `actual_stats` must not appear as
+    an all-None block, which would look like "checked, nothing there"
+    rather than "not checked yet"."""
+    home = Team(name="Pending Stats Home", league="Test League", sport="football")
+    away = Team(name="Pending Stats Away", league="Test League", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    fixture = Match(
+        match_date=datetime(2024, 2, 1),
+        competition="Test League",
+        season="2024",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="completed",
+        sport="football",
+        home_score=1,
+        away_score=1,
+    )
+    db_session.add(fixture)
+    db_session.commit()
+
+    body = client.get(f"/predict/{fixture.id}").json()
+    assert body["actual_stats"] is None

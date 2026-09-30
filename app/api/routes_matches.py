@@ -24,6 +24,7 @@ def list_matches(
     competition: str | None = None,
     season: str | None = None,
     team: str | None = None,
+    opponent: str | None = None,
     sport: str | None = None,
     status: str | None = Query(default=None, pattern="^(scheduled|completed)$"),
     limit: int = Query(default=50, ge=1, le=200),
@@ -50,9 +51,27 @@ def list_matches(
         team_ids = [t.id for t in team_query.all()]
         if not team_ids:
             return MatchesOut(count=0, limit=limit, offset=offset, matches=[])
-        query = query.filter(
-            or_(Match.home_team_id.in_(team_ids), Match.away_team_id.in_(team_ids))
-        )
+
+        if opponent:
+            # Head-to-head: both `team` and `opponent` named, either side.
+            # `opponent` alone (no `team`) is not a meaningful filter on its
+            # own, so it is silently ignored rather than guessed at.
+            opponent_query = db.query(Team).filter(Team.name == normalize_team_name(opponent))
+            if sport:
+                opponent_query = opponent_query.filter(Team.sport == sport)
+            opponent_ids = [t.id for t in opponent_query.all()]
+            if not opponent_ids:
+                return MatchesOut(count=0, limit=limit, offset=offset, matches=[])
+            query = query.filter(
+                or_(
+                    Match.home_team_id.in_(team_ids) & Match.away_team_id.in_(opponent_ids),
+                    Match.home_team_id.in_(opponent_ids) & Match.away_team_id.in_(team_ids),
+                )
+            )
+        else:
+            query = query.filter(
+                or_(Match.home_team_id.in_(team_ids), Match.away_team_id.in_(team_ids))
+            )
 
     total = query.count()
     rows = query.order_by(Match.match_date.desc()).offset(offset).limit(limit).all()
