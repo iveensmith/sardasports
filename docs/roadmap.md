@@ -550,6 +550,42 @@ league-coverage problem on a week like this one, and these four will show up
 the moment their own domestic calendars resume, same as every league added
 before them.
 
+## Austria, China, Denmark, Finland, Ireland, Romania, Sweden, Switzerland — done, live-verified
+
+Asked to add the rest of the "extra" Football-Data.co.uk countries this
+document had left open. Same pipeline as every batch before it — Austrian
+Bundesliga, Chinese Super League, Danish Superliga, Finnish Veikkausliiga,
+Irish Premier Division, Romanian Liga I, Swedish Allsvenskan, Swiss Super
+League (API-Football ids 218/169/119/244/357/283/113/207) — with one naming
+correction found along the way: Football-Data.co.uk calls Romania's top
+flight "Superliga" (a sponsor name); API-Football calls it "Liga I", so the
+competition is registered under the latter, the name actually used to look
+it up for live fixtures. 11,989 new matches loaded (dataset now **91,119
+matches, 33 leagues**), Elo rebuilt across 171,236 matches.
+
+**Real bug, caught by the site itself rather than by testing it:** asked
+directly why tomorrow's board had zero predictions. `Batch prediction failed
+... operands could not be broadcast together with shapes (1,60) (68,)` —
+adding 8 leagues' one-hot columns changes the competition-feature vector's
+width, and the *running server process* had the old, 60-column
+`KNOWN_COMPETITIONS` loaded in memory from before this batch's edits, while
+the freshly retrained match-result model (correctly built against the new
+68-column shape) expected the new width. Restarting the backend after
+editing the source and retraining — not just after retraining — is the
+actual rule; skipping the first restart is what caused today's board to go
+to zero predictions too, not just tomorrow's, for exactly as long as the
+stale process kept serving requests. This is the same dimension-mismatch
+class of bug as the very first multi-league expansion earlier in this
+document, from the same missed step, and is worth a standing note: **any
+change to `KNOWN_COMPETITIONS` needs a backend restart before the next
+retrain's output can be trusted, independent of whether the retrain itself
+succeeded.**
+
+Live-verified after the restart: today's and tomorrow's boards both went
+from 0 to fully predicted, and real `/predict` calls against a Swiss Super
+League, Danish Superliga, and Chinese Super League fixture each returned a
+sensible, correctly-favoured prediction. 385 tests pass.
+
 ## Corners feature + Corners/Cards markets — done, live-verified
 
 *(The single-line design below was superseded by multi-line markets

@@ -61,6 +61,14 @@ LEAGUE_NAMES = {
     "RUS1": "Russian Premier League",
     "POL1": "Polish Ekstraklasa",
     "NOR1": "Norwegian Eliteserien",
+    "AUT1": "Austrian Bundesliga",
+    "CHN1": "Chinese Super League",
+    "DNK1": "Danish Superliga",
+    "FIN1": "Finnish Veikkausliiga",
+    "IRL1": "Irish Premier Division",
+    "ROU1": "Romanian Liga I",
+    "SWE1": "Swedish Allsvenskan",
+    "SWZ1": "Swiss Super League",
     # International (national-team) competitions, from
     # scripts/fetch_international.py. Filed under a plain four-digit
     # tournament year rather than a split-season code — see _season_label.

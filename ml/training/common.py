@@ -61,6 +61,14 @@ KNOWN_COMPETITIONS = [
     "Russian Premier League",
     "Polish Ekstraklasa",
     "Norwegian Eliteserien",
+    "Austrian Bundesliga",
+    "Chinese Super League",
+    "Danish Superliga",
+    "Finnish Veikkausliiga",
+    "Irish Premier Division",
+    "Romanian Liga I",
+    "Swedish Allsvenskan",
+    "Swiss Super League",
     # International (national-team) competitions. These are football, so they
     # share the whole domestic pipeline — but they are their own competitions
     # for the one-hot feature and for the per-competition Poisson fit, which
