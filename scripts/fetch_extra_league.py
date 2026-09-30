@@ -15,12 +15,18 @@ requested seasons (and league, for a country with more than one), remaps
 columns, and writes one CSV per season under `data/raw/` using the same
 `{code}_{season}.csv` naming `clean_data.py` expects.
 
-Season handling: most of these leagues (MLS included) run within a single
-calendar year rather than spanning two (August-May) like the European
-leagues we otherwise use, so `--seasons` here takes bare years (e.g. `2024`)
-and each is written out with a same-year season code (`2424`, not `2425`) —
-`_season_label` in clean_data.py then displays it as e.g. "2024-2024",
-which is correct for these leagues, not a bug.
+Season handling: `--seasons` always takes the bare *starting* year (e.g.
+`2024`), but what that maps to depends on the country. Some of these leagues
+(Argentina since 2024, Brazil, Japan, MLS) run within a single calendar year
+and store it as a bare year ("2024"); others (Mexico, Russia, Poland) run
+August-May like the European leagues we otherwise use and store it as
+"2024/2025". Both are handled: `_parse_season_value` reads either shape back
+to its starting year for matching against `--seasons`, and `_season_code`
+writes a same-year pair ("2424") for the former or a real split pair
+("2425") for the latter, detected from whichever shape the source actually
+used for that season — `_season_label` in clean_data.py then displays each
+correctly ("2024-2024" or "2024-2025") without needing to know which is
+which.
 
 Usage:
     uv run python scripts/fetch_extra_league.py --country USA --league MLS \\
@@ -63,9 +69,32 @@ COLUMN_MAP = {
 }
 
 
-def _season_code(year: int) -> str:
-    """`2024` -> "2424" (same-year pair — see module docstring)."""
-    yy = str(year)[2:]
+def _parse_season_value(value: object) -> str | None:
+    """A source Season value, however it's shaped, to its starting year.
+
+    "2019" -> "2019" (same-year leagues); "2019/2020" -> "2019" (split-year
+    leagues, matched against `--seasons` by their starting year). None for
+    anything that isn't recognisably a year — this source has carried a
+    handful of stray non-numeric season labels historically.
+    """
+    text = str(value).strip()
+    start = text.split("/")[0].strip() if "/" in text else text
+    return start if start.isdigit() and len(start) == 4 else None
+
+
+def _season_code(value: object, start_year: int) -> str:
+    """The season file's suffix, matching whichever shape the source used.
+
+    Same-year source ("2024") -> "2424"; split-year source ("2024/2025") ->
+    "2425" — a real pair, not the same-year fallback, since these leagues
+    genuinely span two calendar years like the European ones
+    `download_data.py` already covers.
+    """
+    text = str(value).strip()
+    if "/" in text:
+        end_year = int(text.split("/")[1].strip())
+        return f"{str(start_year)[2:]}{str(end_year)[2:]}"
+    yy = str(start_year)[2:]
     return f"{yy}{yy}"
 
 
@@ -107,13 +136,17 @@ def main() -> None:
         df = df[df["League"].str.strip() == args.league.strip()]
         logger.info("Filtered League=%s: %d -> %d rows", args.league, before, len(df))
 
+    # Parsed once per row rather than per requested year: this source's
+    # Season column is int64 for some countries (Brazil), a bare-year string
+    # for others (Argentina), and a split-year string for others still
+    # (Mexico, Russia, Poland) — `_parse_season_value` reads all three back
+    # to a comparable starting year.
+    start_years = df["Season"].apply(_parse_season_value)
+
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     saved = []
     for year in years:
-        # Compared as strings: this source's Season column is int64 for some
-        # countries (Brazil) and a string dtype for others (Argentina), and
-        # an int/str comparison silently matches nothing on the latter.
-        season_rows = df[df["Season"].astype(str) == str(year)]
+        season_rows = df[start_years == str(year)]
         if season_rows.empty:
             logger.warning("No rows for %s season %s — skipping", args.country, year)
             continue
@@ -121,7 +154,10 @@ def main() -> None:
         available = {src: dst for src, dst in COLUMN_MAP.items() if src in season_rows.columns}
         out = season_rows[list(available.keys())].rename(columns=available)
 
-        dest = RAW_DIR / f"{args.code}_{_season_code(year)}.csv"
+        # Every matching row shares one season shape, so the first row's raw
+        # Season value is enough to pick same-year vs split-year encoding.
+        code = _season_code(season_rows["Season"].iloc[0], year)
+        dest = RAW_DIR / f"{args.code}_{code}.csv"
         out.to_csv(dest, index=False)
         saved.append(dest)
         logger.info("Saved %s (%d matches)", dest, len(out))

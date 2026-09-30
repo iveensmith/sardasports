@@ -513,6 +513,43 @@ speculatively, since each one needs the same registration, retrain, and
 live-verification, and picking countries whose season is genuinely live
 right now is time-sensitive information rather than a one-off decision.
 
+## Mexico, Russia, Poland, Norway; a real ceiling on "predictions today" — done, live-verified
+
+Asked for coverage closer to the reference site's ~77 predictions on a given
+day. Investigated before building: pulled the raw API-Football fixture list
+for that exact day directly — 209 fixtures across 65 leagues, dominated by
+women's competitions, youth academies (Brazil U17, Pernambucano U20),
+reserve sides (Argentina Reserve League), and amateur divisions (Belgian
+First/Second Amateur Division). None of that is a coverage gap this engine
+can close without abandoning the rule the rest of this document is built
+around: no fabricated prediction for a competition with no real historical
+signal to train on. Matching 77 on a day like that would mean modelling
+categories this project has deliberately never modelled, not adding leagues.
+
+What's real: **four more legitimate senior leagues**, added the same way as
+the Argentina/Brazil/Japan batch — Mexican Liga MX, Russian Premier League,
+Polish Ekstraklasa, Norwegian Eliteserien (API-Football ids 262/235/106/103).
+Found a genuine format gap in `fetch_extra_league.py` while pulling real data
+through it: Mexico/Russia/Poland store their Season column as a split-year
+string ("2019/2020"), not the bare year ("2019") Argentina/Brazil/Japan/MLS
+use — the script only handled the latter, so it would have silently written
+every one of these three countries' files under the wrong (same-year) season
+code. Fixed by detecting the shape per row from the value itself rather than
+assuming one convention per script, with 6 new tests pinning both shapes —
+this script has now produced three distinct silent-data-loss bugs across two
+sessions, which is what justified giving it a test file at all.
+
+Loaded 7,764 new matches (dataset now **79,130 matches, 25 leagues**), Elo
+rebuilt across 159,247 matches, every model retrained. Live-verified with a
+real `/predict` call on a completed Liga MX match (UNAM Pumas vs Cruz Azul).
+
+**Confirmed, not fixed:** none of the four had a fixture in the currently
+visible window either — checked directly against the API. This is the same
+international-break ceiling as everything else in this section: it isn't a
+league-coverage problem on a week like this one, and these four will show up
+the moment their own domestic calendars resume, same as every league added
+before them.
+
 ## Corners feature + Corners/Cards markets — done, live-verified
 
 *(The single-line design below was superseded by multi-line markets

@@ -57,6 +57,10 @@ LEAGUE_NAMES = {
     "ARG1": "Argentine Primera Division",
     "BRA1": "Brazilian Serie A",
     "JPN1": "Japanese J1 League",
+    "MEX1": "Mexican Liga MX",
+    "RUS1": "Russian Premier League",
+    "POL1": "Polish Ekstraklasa",
+    "NOR1": "Norwegian Eliteserien",
     # International (national-team) competitions, from
     # scripts/fetch_international.py. Filed under a plain four-digit
     # tournament year rather than a split-season code — see _season_label.
