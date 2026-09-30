@@ -82,8 +82,7 @@ export function Hero({
 
       <div className="mx-auto w-full max-w-[1200px] px-4 py-16 text-center sm:px-6 lg:px-10">
         <h1 className="mx-auto max-w-[16ch] text-[clamp(2.4rem,6.4vw,4.25rem)] leading-[1.02] font-bold tracking-[-0.03em]">
-          Every prediction,{" "}
-          <span style={{ color: "var(--color-gold-bright)" }}>graded</span>.
+          Every prediction, <span className="nt-gold-shine">graded</span>.
         </h1>
 
         <p className="mx-auto mt-5 max-w-[56ch] text-[clamp(0.95rem,1.6vw,1.075rem)] leading-relaxed text-[var(--color-text-dim)] text-balance">

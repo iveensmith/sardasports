@@ -247,18 +247,22 @@
      text loses contrast fast against a mid-tone shape the way light text
      never does against one, so the wash has to already be most of the way
      to solid by the headline's own band (roughly the 20–45% mark) rather
-     than easing into it the way the dark veil can afford to. */
+     than easing into it the way the dark veil can afford to. Not as heavy
+     as a first pass, though — pushed all the way to near-solid, the wash
+     flattened the whole scene and dulled the gold instead of just taming
+     the figure, so this backs off enough to let the backlight's warmth
+     read through while the headline's own band stays legible. */
   --hero-glow: radial-gradient(
     58% 62% at 50% 24%,
-    rgba(150, 117, 26, 0.16),
-    rgba(150, 117, 26, 0.06) 45%,
+    rgba(150, 117, 26, 0.22),
+    rgba(150, 117, 26, 0.09) 45%,
     transparent 72%
   );
   --hero-veil: linear-gradient(
     180deg,
-    rgba(243, 245, 248, 0.62) 0%,
-    rgba(243, 245, 248, 0.86) 45%,
-    rgba(243, 245, 248, 0.98) 100%
+    rgba(243, 245, 248, 0.4) 0%,
+    rgba(243, 245, 248, 0.7) 45%,
+    rgba(243, 245, 248, 0.95) 100%
   );
 }
 
@@ -421,6 +425,28 @@ table {
   .nt-marquee__track + .nt-marquee__track {
     display: none;
   }
+}
+
+/*
+  A metallic shine for the one word of display gold on the page. A flat
+  fill read as dull rather than "brass" — this is the same trick as a foil
+  stamp, a lighter band of the same hue crossing the letterforms rather
+  than lighting them from outside. Built from the theme's own two gold
+  steps, so it flips correctly with no extra work: dark mode brightens
+  toward `--color-gold-bright`, light mode's own bright step is already
+  the darker of the two, and the gradient direction wants no change for
+  either.
+*/
+.nt-gold-shine {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-gold-bright) 12%,
+    var(--color-gold) 40%,
+    var(--color-gold-bright) 68%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
 }
 
 /*
