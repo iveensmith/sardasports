@@ -54,12 +54,23 @@ function TeamRecentList({
         {matches.map((m) => {
           const opponent = m.home_team === team ? m.away_team : m.home_team;
           const venue = m.home_team === team ? "H" : "A";
+          const result = resultFor(m, team);
           return (
             <li key={m.match_id}>
               <Link
                 href={`/match/${m.match_id}`}
-                className="flex items-center justify-between gap-2 rounded-[var(--radius-md)] px-2 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--color-surface-raised)]"
+                className="flex items-center gap-2 rounded-[var(--radius-md)] px-2 py-1.5 text-[12.5px] transition-colors hover:bg-[var(--color-surface-raised)]"
               >
+                <span
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] text-[9px] font-bold text-[var(--color-ink-on-accent)]"
+                  style={{
+                    background: result
+                      ? RESULT_COLOR[result]
+                      : "var(--color-unknown)",
+                  }}
+                >
+                  {result ?? "–"}
+                </span>
                 <span className="text-[var(--color-text-faint)]">{venue}</span>
                 <span className="min-w-0 flex-1 truncate">{opponent}</span>
                 <span className="font-semibold tabular-nums">

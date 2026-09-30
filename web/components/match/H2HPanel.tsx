@@ -77,32 +77,49 @@ export function H2HPanel({
       </div>
 
       <ul className="space-y-2">
-        {meetings.map((m) => (
-          <li key={m.match_id}>
-            <Link
-              href={`/match/${m.match_id}`}
-              className="flex items-center justify-between gap-3 rounded-[var(--radius-md)] px-2 py-1.5 text-[13px] transition-colors hover:bg-[var(--color-surface-raised)]"
-            >
-              <span className="text-[var(--color-text-faint)]">
-                {new Date(m.match_date).toLocaleDateString(undefined, {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </span>
-              <span className="truncate">
-                {m.home_team}{" "}
-                <span className="text-[var(--color-text-faint)]">v</span>{" "}
-                {m.away_team}
-              </span>
-              <span className="font-semibold tabular-nums">
-                {m.home_score !== null
-                  ? `${m.home_score}-${m.away_score}`
-                  : "—"}
-              </span>
-            </Link>
-          </li>
-        ))}
+        {meetings.map((m) => {
+          let accent = "var(--color-line-strong)";
+          if (m.home_score !== null && m.away_score !== null) {
+            const homeIsHomeSide = m.home_team === home;
+            const homeGoals = homeIsHomeSide ? m.home_score : m.away_score;
+            const awayGoals = homeIsHomeSide ? m.away_score : m.home_score;
+            accent =
+              homeGoals > awayGoals
+                ? "var(--color-won)"
+                : homeGoals === awayGoals
+                  ? "var(--color-unknown)"
+                  : "var(--color-lost)";
+          }
+          return (
+            <li key={m.match_id}>
+              <Link
+                href={`/match/${m.match_id}`}
+                className="flex items-center gap-3 rounded-[var(--radius-md)] border-l-[3px] py-1.5 pr-2 pl-2.5 text-[13px] transition-colors hover:bg-[var(--color-surface-raised)]"
+                style={{ borderLeftColor: accent }}
+              >
+                <span className="text-[var(--color-text-faint)]">
+                  {new Date(m.match_date).toLocaleDateString(undefined, {
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  })}
+                </span>
+                <span className="min-w-0 flex-1 truncate font-medium">
+                  {m.home_team}{" "}
+                  <span className="font-normal text-[var(--color-text-faint)]">
+                    v
+                  </span>{" "}
+                  {m.away_team}
+                </span>
+                <span className="font-semibold tabular-nums">
+                  {m.home_score !== null
+                    ? `${m.home_score}-${m.away_score}`
+                    : "—"}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

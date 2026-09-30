@@ -23,6 +23,7 @@
  */
 
 import type { ActualStats, MatchScore } from "@/lib/types";
+import { CenterBar } from "@/components/match/CenterBar";
 
 interface Row {
   label: string;
@@ -37,57 +38,6 @@ interface Row {
   predictedDecimals?: number;
 }
 
-/** One side's fill: solid to `min(actual, predicted)`, a hatched extension
- *  out to the larger of the two when they differ, empty beyond that. Grows
- *  away from the centre line, so the segment order reverses by side. */
-function Bar({
-  actual,
-  predicted,
-  scale,
-  color,
-  side,
-}: {
-  actual: number;
-  predicted: number | undefined;
-  scale: number;
-  color: string;
-  side: "home" | "away";
-}) {
-  const hi = predicted === undefined ? actual : Math.max(actual, predicted);
-  const lo = predicted === undefined ? actual : Math.min(actual, predicted);
-  const solidFraction = scale > 0 ? lo / scale : 0;
-  const hatchFraction = scale > 0 ? (hi - lo) / scale : 0;
-  const emptyFraction = Math.max(1 - solidFraction - hatchFraction, 0);
-
-  const solid = (
-    <div
-      key="solid"
-      className="transition-[flex-grow] duration-500"
-      style={{ flexGrow: Math.max(solidFraction, 0.001), background: color }}
-    />
-  );
-  const hatch = hatchFraction > 0.001 && (
-    <div
-      key="hatch"
-      className="transition-[flex-grow] duration-500"
-      style={{
-        flexGrow: hatchFraction,
-        backgroundImage: `repeating-linear-gradient(135deg, ${color} 0 3px, transparent 3px 7px)`,
-        opacity: 0.65,
-      }}
-    />
-  );
-  const empty = (
-    <div key="empty" aria-hidden style={{ flexGrow: emptyFraction }} />
-  );
-
-  return (
-    <div className="flex h-2 flex-1 overflow-hidden">
-      {side === "home" ? [empty, hatch, solid] : [solid, hatch, empty]}
-    </div>
-  );
-}
-
 function StatRow({ row }: { row: Row }) {
   if (row.home === null && row.away === null) return null;
   const home = row.home ?? 0;
@@ -96,6 +46,15 @@ function StatRow({ row }: { row: Row }) {
     Math.max(home, away, row.predictedHome ?? 0, row.predictedAway ?? 0) *
       1.05 || 1;
   const decimals = row.predictedDecimals ?? 0;
+
+  const homeHi =
+    row.predictedHome === undefined ? home : Math.max(home, row.predictedHome);
+  const homeLo =
+    row.predictedHome === undefined ? home : Math.min(home, row.predictedHome);
+  const awayHi =
+    row.predictedAway === undefined ? away : Math.max(away, row.predictedAway);
+  const awayLo =
+    row.predictedAway === undefined ? away : Math.min(away, row.predictedAway);
 
   return (
     <div>
@@ -128,21 +87,12 @@ function StatRow({ row }: { row: Row }) {
           )}
         </div>
       </div>
-      <div className="mt-1.5 flex w-full overflow-hidden rounded-full bg-[var(--color-line)]">
-        <Bar
-          actual={home}
-          predicted={row.predictedHome}
-          scale={scale}
-          color="var(--color-home)"
-          side="home"
-        />
-        <div className="w-px shrink-0 bg-[var(--color-line-strong)]" />
-        <Bar
-          actual={away}
-          predicted={row.predictedAway}
-          scale={scale}
-          color="var(--color-away)"
-          side="away"
+      <div className="mt-1.5">
+        <CenterBar
+          homeFraction={homeLo / scale}
+          homeHatchFraction={(homeHi - homeLo) / scale}
+          awayFraction={awayLo / scale}
+          awayHatchFraction={(awayHi - awayLo) / scale}
         />
       </div>
     </div>

@@ -7,9 +7,17 @@
  * a model. A team with fewer than 10 completed matches on record shows
  * whatever it actually has; the "10" in each fraction is the window asked
  * for, not a promise every team has played that many.
+ *
+ * Same bar as `StatsComparison` — a bidirectional track split at a shared
+ * centre, each side filling outward from it — with no hatch, since there is
+ * only one number per side here, not a predicted-vs-actual pair. Each side
+ * is its own rate (value / that side's own matches-played), not a shared
+ * scale, so an 8/10 and a 6/8 both read as what they are rather than being
+ * skewed by whichever team has played more.
  */
 
 import type { TeamDetail } from "@/lib/types";
+import { CenterBar } from "@/components/match/CenterBar";
 
 function FormRow({
   label,
@@ -25,16 +33,24 @@ function FormRow({
   awayOutOf: number;
 }) {
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-[14px]">
-      <span className="text-right font-semibold tabular-nums">
-        {home}/{homeOutOf}
-      </span>
-      <span className="text-[11px] tracking-wider text-[var(--color-text-faint)] uppercase">
-        {label}
-      </span>
-      <span className="font-semibold tabular-nums">
-        {away}/{awayOutOf}
-      </span>
+    <div>
+      <div className="flex items-baseline justify-between gap-3 text-[14px]">
+        <span className="font-semibold tabular-nums">
+          {home}/{homeOutOf}
+        </span>
+        <span className="text-[11px] tracking-wider text-[var(--color-text-faint)] uppercase">
+          {label}
+        </span>
+        <span className="font-semibold tabular-nums">
+          {away}/{awayOutOf}
+        </span>
+      </div>
+      <div className="mt-1.5">
+        <CenterBar
+          homeFraction={homeOutOf > 0 ? home / homeOutOf : 0}
+          awayFraction={awayOutOf > 0 ? away / awayOutOf : 0}
+        />
+      </div>
     </div>
   );
 }
@@ -65,11 +81,11 @@ export function FormPanel({
         Each side&rsquo;s own last 10 completed matches &mdash; the denominator
         differs when one side has played fewer.
       </p>
-      <div className="mb-3 flex justify-between text-[12.5px] font-medium text-[var(--color-text-dim)]">
+      <div className="mb-4 flex justify-between text-[12.5px] font-medium text-[var(--color-text-dim)]">
         <span>{homeLabel}</span>
         <span>{awayLabel}</span>
       </div>
-      <div className="space-y-3.5">
+      <div className="space-y-5">
         <FormRow
           label="Wins"
           home={h?.wins ?? 0}
