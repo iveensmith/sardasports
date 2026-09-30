@@ -29,8 +29,13 @@ export interface Tip {
   /** Points above that base rate. Null where there is no measured yardstick. */
   lift: number | null;
   notable: boolean;
-  /** Best offered price, or null where no bookmaker line was ingested. */
+  /** Best offered price, or a fair price derived from `probability` where no
+   * bookmaker line covers this pick at all — see `odds_is_estimated`. */
   odds: number | null;
+  /** True when `odds` is that fallback rather than a real market price.
+   * Only the best-tip column ever sets this; the per-market columns show a
+   * real gap in coverage rather than paper over it. */
+  odds_is_estimated: boolean;
   outcome: Outcome;
 }
 

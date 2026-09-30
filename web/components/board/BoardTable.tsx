@@ -118,8 +118,22 @@ function TipCell({ tip }: { tip: Tip | undefined }) {
       {tip.odds !== null ? (
         <span
           className="mt-1 inline-block min-w-[46px] rounded-[5px] border px-1.5 py-[3px] text-[11px] leading-none font-semibold tabular-nums"
-          style={pillStyle(tip.outcome)}
+          style={
+            tip.odds_is_estimated
+              ? {
+                  borderColor: "var(--color-line-strong)",
+                  borderStyle: "dashed",
+                  color: "var(--color-text-dim)",
+                }
+              : pillStyle(tip.outcome)
+          }
+          title={
+            tip.odds_is_estimated
+              ? "Fair price implied by the engine's own probability — no bookmaker quoted this pick"
+              : undefined
+          }
         >
+          {tip.odds_is_estimated ? "≈" : ""}
           {tip.odds.toFixed(2)}
         </span>
       ) : (

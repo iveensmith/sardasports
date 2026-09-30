@@ -133,11 +133,26 @@ def test_odds_are_looked_up_per_selection():
 
 
 def test_an_unpriced_market_returns_no_price_rather_than_a_default():
-    """Double chance is not quoted in what we ingest. A fabricated price
-    would make every expected value computed from it nonsense."""
-    assert odds_for("double_chance", "home_draw", ODDS) is None
+    """Corners odds are never ingested at all, so there is nothing to derive
+    them from — a fabricated price would make every expected value computed
+    from it nonsense."""
     assert odds_for("corners", "over_9.5", ODDS) is None
     assert odds_for("match_result", "home", None) is None
+
+
+def test_double_chance_price_is_derived_from_the_1x2_prices():
+    """No bookmaker double-chance line is ingested, but "1X" is exactly "not
+    2" — its fair price is computable from the same 1X2 prices already on
+    the row: implied probabilities of the two legs, summed, inverted."""
+    assert odds_for("double_chance", "home_draw", ODDS) == pytest.approx(1.12)
+    assert odds_for("double_chance", "away_draw", ODDS) == pytest.approx(2.48)
+    assert odds_for("double_chance", "home_away", ODDS) == pytest.approx(1.25)
+
+
+def test_double_chance_price_needs_both_legs_quoted():
+    assert odds_for("double_chance", "home_draw", {"match_winner": {"home": 1.55}}) is None
+    assert odds_for("double_chance", "home_draw", None) is None
+    assert odds_for("double_chance", "unknown_selection", ODDS) is None
 
 
 def test_an_impossible_price_is_rejected():
@@ -163,6 +178,33 @@ def test_a_row_carries_a_pick_in_every_board_column():
     assert set(row["tips"]) == set(BOARD_COLUMNS)
     assert row["best_tip"] is not None
     assert row["confidence"] == 8.4
+
+
+def test_the_best_tip_gets_a_real_derived_price_when_one_is_available():
+    """This fixture's headline is the double-chance call (84% beats 62% for
+    a plain home win) — a market with no bookmaker line of its own, but a
+    real price derivable from the 1X2 prices already ingested. It should
+    use that, not the fair-price fallback."""
+    row = _row()
+    assert row["best_tip"]["market"] == "double_chance"
+    assert row["best_tip"]["odds"] is not None
+    assert row["best_tip"]["odds_is_estimated"] is False
+
+
+def test_the_best_tip_always_has_a_price_even_when_nothing_was_quoted():
+    """A fixture no bookmaker priced at all still has to lead with
+    something — the pick's own fair price, computed from its probability
+    and clearly flagged as an estimate rather than a market price."""
+    row = _row(odds_markets=None)
+    best = row["best_tip"]
+    assert best["odds"] is not None
+    assert best["odds_is_estimated"] is True
+    assert best["odds"] == pytest.approx(round(100.0 / best["probability"], 2))
+
+    # The regular board columns make no such promise — they show the real
+    # gap in market coverage rather than papering over it.
+    assert all(tip["odds"] is None for tip in row["tips"].values())
+    assert all(tip["odds_is_estimated"] is False for tip in row["tips"].values())
 
 
 def test_competition_metadata_is_resolved_for_the_country_sidebar():

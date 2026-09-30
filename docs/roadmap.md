@@ -71,6 +71,24 @@ Ordered by what blocks the most.
   rate limit (a 429 stops the run cleanly rather than crashing it, leaving
   the rest for the next scheduled run).
 
+- **The best-tip column showed no price on most rows — fixed.** Sampled 150
+  completed fixtures: 75% of headline picks were a double-chance call (1X,
+  X2), a market no bookmaker line is fetched for at all, so `odds_for`
+  returned `None` regardless of how well-priced the rest of the row was.
+  Fixed properly rather than papered over — a double-chance price is exactly
+  computable from the 1X2 prices already ingested (convert each leg to an
+  implied probability, sum, invert), the same reasoning `candidate_calls`
+  already uses to derive the double-chance *probability* from match-result
+  probabilities. For the residual with no bookmaker coverage in any market
+  (half-time goals, corners, cards headlines, or a fixture no bookmaker
+  priced at all), the best-tip column falls back to the pick's own fair
+  price (100 / probability) — computed from a number already on the row, not
+  invented — and is flagged `odds_is_estimated` so the board can (and does)
+  show it differently from a real market price rather than blur the two.
+  The per-market columns make no such promise: they still show a bare gap
+  where there is genuinely no data, which is the honest answer for a column
+  that isn't the one thing a reader is told to trust most.
+
 - **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
   accounts, the Hit&Win prediction game, and subscription gating.
 - **Bookmaker links.** Asked several times, never answered. A "Bet now

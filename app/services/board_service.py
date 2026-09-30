@@ -26,6 +26,7 @@ from app.services.settlement import MatchResult, Outcome, settle_key
 from ml.competition_catalogue import meta_for
 from ml.markets import (
     BTTS,
+    DOUBLE_CHANCE,
     GOALS,
     MATCH_RESULT,
     RankedCall,
@@ -45,12 +46,47 @@ BOARD_COLUMNS = (MATCH_RESULT, GOALS, BTTS)
 # How a market's selection maps into the `odds_markets` blob the odds fetcher
 # stores. Markets absent here are ones no bookmaker line was ingested for, so
 # their calls are shown without a price rather than with a fabricated one.
+# Double chance is handled separately in `odds_for` — see `_double_chance_price`.
 _ODDS_GROUP = {MATCH_RESULT: "match_winner", GOALS: "goals", BTTS: "btts"}
 _ODDS_SELECTION = {
     f"{MATCH_RESULT}:home": "home",
     f"{MATCH_RESULT}:draw": "draw",
     f"{MATCH_RESULT}:away": "away",
 }
+
+# Double chance -> the pair of 1X2 legs it covers.
+_DOUBLE_CHANCE_LEGS = {
+    "home_draw": ("home", "draw"),
+    "away_draw": ("away", "draw"),
+    "home_away": ("home", "away"),
+}
+
+
+def _double_chance_price(selection: str, odds_markets: dict) -> float | None:
+    """A double-chance price, derived from the 1X2 prices already ingested.
+
+    No bookmaker double-chance line is fetched — only 1X2, goals and BTTS
+    are (see `fetch_odds.py`). But "1X" is exactly "not 2", so its fair price
+    is computable from the same two prices behind the 1X2 columns: convert
+    each leg to an implied probability, sum them, invert. This is the same
+    reasoning `candidate_calls` already applies to the *probability* side
+    ("introduces no new estimate and cannot disagree with the match-result
+    call") — applied to price instead, using real quoted prices, not an
+    invented number.
+    """
+    legs = _DOUBLE_CHANCE_LEGS.get(selection)
+    if legs is None:
+        return None
+    winner = (odds_markets or {}).get("match_winner") or {}
+    try:
+        a = float(winner[legs[0]])
+        b = float(winner[legs[1]])
+    except (TypeError, ValueError, KeyError):
+        return None
+    if a <= 1.0 or b <= 1.0:
+        return None
+    implied = 1.0 / a + 1.0 / b
+    return round(1.0 / implied, 2) if implied > 0 else None
 
 
 def slugify(value: str) -> str:
@@ -84,6 +120,8 @@ def odds_for(market: str, selection: str, odds_markets: dict | None) -> float | 
     """The best offered price for a selection, or None if it was not quoted."""
     if not odds_markets:
         return None
+    if market == DOUBLE_CHANCE:
+        return _double_chance_price(selection, odds_markets)
     group = _ODDS_GROUP.get(market)
     if group is None:
         return None
@@ -97,10 +135,32 @@ def odds_for(market: str, selection: str, odds_markets: dict | None) -> float | 
     return price if price > 1.0 else None
 
 
-def _tip(entry: RankedCall, odds_markets: dict | None, result: MatchResult | None) -> dict:
-    """One market's cell: what the engine picked, at what price, and how it went."""
+def _tip(
+    entry: RankedCall,
+    odds_markets: dict | None,
+    result: MatchResult | None,
+    *,
+    fair_price_fallback: bool = False,
+) -> dict:
+    """One market's cell: what the engine picked, at what price, and how it went.
+
+    `fair_price_fallback` is for the best-tip column only (see `build_row`):
+    when no bookmaker price exists at all for the headline pick — a market
+    this engine doesn't fetch odds for (half-time goals, corners, cards), or
+    simply a fixture no bookmaker priced — showing a bare dash there reads as
+    "no pick", when the engine has in fact made one and quantified it. The
+    fallback is the pick's own fair price (100 / probability): computed, not
+    invented, from a number already on the row, and flagged as an estimate
+    rather than a market price with `odds_is_estimated` so the two are never
+    read as the same thing.
+    """
     call = entry.call
     outcome = settle_key(call.key, result) if result is not None else None
+    odds = odds_for(call.market, call.selection, odds_markets)
+    odds_is_estimated = False
+    if odds is None and fair_price_fallback and call.probability > 0:
+        odds = round(100.0 / call.probability, 2)
+        odds_is_estimated = True
     return {
         "market": call.market,
         "selection": call.selection,
@@ -110,7 +170,8 @@ def _tip(entry: RankedCall, odds_markets: dict | None, result: MatchResult | Non
         "base_rate": entry.base_rate,
         "lift": None if entry.lift is None else round(entry.lift, 1),
         "notable": entry.notable,
-        "odds": odds_for(call.market, call.selection, odds_markets),
+        "odds": odds,
+        "odds_is_estimated": odds_is_estimated,
         # None before kick-off, "won"/"lost"/"void" afterwards. Absent rather
         # than a default, so an ungraded row can never render as a loss.
         "outcome": outcome.value if outcome is not None else None,
@@ -193,7 +254,9 @@ def build_row(
             for market in BOARD_COLUMNS
             if market in by_market
         },
-        "best_tip": _tip(best, match.odds_markets, result) if best else None,
+        "best_tip": (
+            _tip(best, match.odds_markets, result, fair_price_fallback=True) if best else None
+        ),
         "confidence": confidence_out_of_ten(prediction.get("confidence") if prediction else None),
         "confidence_label": (prediction or {}).get("confidence_label"),
     }
