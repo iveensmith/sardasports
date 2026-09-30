@@ -120,6 +120,59 @@ Ordered by what blocks the most.
   in the same range as the existing 1.5/2.5 models. Live-verified on a real
   fixture's `/predict` response and the match page's Goals table.
 
+- **12 more leagues added, in two batches — Mexico, Russia, Poland, Norway,
+  then Austria, China, Denmark, Finland, Ireland, Romania, Sweden,
+  Switzerland.** Asked directly, twice, for wider coverage. Registered in
+  `clean_data.py`, `competition_catalogue.py`,
+  `ml/training/common.py` and `fetch_upcoming_fixtures.py`, then retrained.
+  Surfaced two bugs along the way rather than papering over either:
+  `fetch_extra_league.py` assumed every source's `Season` column used the
+  same bare-year format, which Mexico/Russia/Poland's split-year style
+  ("2019/2020") would have silently mis-written — fixed with per-row format
+  detection (`_parse_season_value`/`_season_code`) instead of a per-country
+  hardcode. And editing `KNOWN_COMPETITIONS` changes the one-hot feature
+  vector's width, which the running FastAPI process keeps stale in memory
+  regardless of whether the retrain succeeded — the board went to zero
+  predictions after the first batch until this was understood. Now a
+  standing rule: **any change to `KNOWN_COMPETITIONS` needs a backend
+  restart before the next retrain's output can be trusted, independent of
+  whether the retrain itself succeeded.**
+
+- **A genuine light theme — not an inverted dark one.** Asked directly to
+  use the frontend-design and dataviz skills properly rather than flip
+  values. Built as its own token set under `:root[data-theme="light"]` in
+  `globals.css`, with the dark tokens kept as explicit defaults (and a
+  `[data-theme="dark"]` variant for the hero, which stays dark regardless of
+  site theme — a `backdrop-filter`/gradient composition that only works
+  against a dark ground). Every color pair was measured, not eyeballed:
+  WCAG contrast computed directly, and the categorical palette (home / draw
+  / away / won / lost) run through the dataviz skill's
+  `validate_palette.js` for both modes. Two pre-existing dark-theme
+  contrast bugs were found and fixed in passing — a hardcoded `#131313` and
+  a hardcoded `#06090d` that should have been the new
+  `--color-ink-on-accent` token — because they only became visible once the
+  surface they sat on could also be light. Persisted via `localStorage`
+  with a pre-hydration inline script in `layout.tsx` so there is no flash
+  of the wrong theme on load. Live-verified in the browser on both themes.
+
+- **The header broke completely below ~1024px — fixed.** Reported directly,
+  with a screenshot: six nav links plus the theme toggle just wrapped at
+  phone width, pushing items off the visible edge with no responsive
+  handling at all. Added `MobileNav.tsx`, a hamburger overlay hidden above
+  `lg:` (the desktop row is unchanged at that breakpoint). Its first version
+  rendered the open panel inline in the header's own tree, which collapsed
+  to zero height — `position: fixed; top-16 bottom-0` was resolving against
+  the header's own 64px box, not the viewport, because the header's
+  `backdrop-blur-md` (a `backdrop-filter`) makes it the containing block for
+  any `fixed` descendant, same as `transform`/`filter` would. Fixed by
+  portaling the panel to `document.body` with `createPortal`. Live-verified
+  at a real ~500px window width: open/close, the icon swap, and tap-a-link-
+  to-navigate-and-close all work. Audited every other page
+  (`/`, `/matches`, `/bankers`, `/leagues`, `/progress`, `/slip`,
+  `/leaderboard`) at the same width — each collapses cleanly, and every
+  wide table (board rows, the model leaderboard) already scrolls
+  horizontally rather than overflowing the page.
+
 - **Supabase URL + anon key.** Blocks everything auth-shaped: sign-in, user
   accounts, the Hit&Win prediction game, and subscription gating.
 - **Bookmaker links.** Asked several times, never answered. A "Bet now

@@ -3,6 +3,7 @@ import { Archivo } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileNav } from "@/components/MobileNav";
 
 /*
   One family, doing both jobs. Archivo is a grotesque with real tabular
@@ -77,7 +78,7 @@ export default function RootLayout({
             >
               Unique<span className="text-[var(--color-gold)]">Predict</span>
             </Link>
-            <div className="flex flex-1 items-center gap-6 text-[14px]">
+            <div className="hidden flex-1 items-center gap-6 text-[14px] lg:flex">
               {NAV.map((item) => (
                 <Link
                   key={item.href}
@@ -88,7 +89,10 @@ export default function RootLayout({
                 </Link>
               ))}
             </div>
-            <ThemeToggle />
+            <div className="ml-auto flex items-center gap-3 lg:ml-0">
+              <ThemeToggle />
+              <MobileNav items={NAV} />
+            </div>
           </nav>
         </header>
 
