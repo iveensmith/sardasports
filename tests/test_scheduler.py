@@ -25,6 +25,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
         assert job_ids == {
             "daily_refresh_data",
             "daily_sync_injuries",
+            "fetch_results",
             "evaluate_predictions",
             "weekly_retrain",
             "monthly_archive",

@@ -69,6 +69,27 @@ def sync_injuries_job() -> None:
         session.close()
 
 
+def fetch_results_job() -> None:
+    """Every few hours: fill in results for fixtures that have finished.
+
+    `evaluate_predictions_job` (below) can only backfill actual results onto
+    `prediction_history` once a match's row says `status="completed"` — this
+    is what flips it. Skipped entirely, not a scheduler failure, if
+    `API_FOOTBALL_KEY` isn't set, matching `sync_injuries_job`'s convention:
+    this pipeline only exists for a deployment that opted into API-Football
+    fixtures in the first place.
+    """
+    settings = get_settings()
+    if not settings.api_football_key:
+        logger.info("fetch_results_job skipped: API_FOOTBALL_KEY not set")
+        return
+
+    from scripts.fetch_results import fetch_and_apply_results
+
+    updated = fetch_and_apply_results()
+    logger.info("fetch_results_job marked %d fixture(s) completed", updated)
+
+
 def evaluate_predictions_job() -> None:
     """After matches: backfill actual results onto prediction_history."""
     from ml.monitoring.evaluation import backfill_actual_results
@@ -184,6 +205,10 @@ def start_scheduler() -> BackgroundScheduler | None:
     scheduler = BackgroundScheduler()
     scheduler.add_job(refresh_data_job, CronTrigger(hour=3, minute=0), id="daily_refresh_data")
     scheduler.add_job(sync_injuries_job, CronTrigger(hour=3, minute=30), id="daily_sync_injuries")
+    # Runs ahead of evaluate_predictions_job's */6 cadence so a completed
+    # match's result is already in the database by the time that job looks
+    # for one to backfill.
+    scheduler.add_job(fetch_results_job, CronTrigger(hour="*/3"), id="fetch_results")
     scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
     scheduler.add_job(
         retrain_models_job, CronTrigger(day_of_week="mon", hour=4, minute=0), id="weekly_retrain"

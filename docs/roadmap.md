@@ -12,22 +12,38 @@ were both resolved; their sections below record how.
 **What's genuinely still open**, each called out in context further down.
 Ordered by what blocks the most.
 
-### Blocking the product's central claim
+### Resolved
 
-- **Nothing fetches results for fixtures we predict forward.**
-  `scripts/fetch_upcoming_fixtures.py` ingests fixtures and
-  `scripts/fetch_odds.py` prices them, but no script fetches the score
-  afterwards. So the board grades 2023–2026 history and *not* the fixtures
-  it just predicted — yesterday's card renders ungraded, and the live track
-  record cannot start. This is the highest-value single fix in the repo:
-  everything about settlement, grading and the Progress page already works
-  and is tested, and is waiting on this one input.
-- **The track record is entirely backtested.** All 807 stored predictions
-  were generated *after* the match from history truncated at kick-off
-  (leakage-safe, but never exposed to being wrong in public). Zero were
-  stored before kick-off. `/progress` reports live and backtested records
-  separately and the UI labels the figure honestly, so this needs no code —
-  it needs the item above, and then time.
+- **Nothing fetched results for fixtures predicted forward — fixed.**
+  `scripts/fetch_results.py` closes the loop `fetch_upcoming_fixtures.py`
+  opened: one request per date at API-Football's `/fixtures` endpoint,
+  matched back to our row by fixture id (`external_id="apif-{id}"`, so no
+  fuzzy team-name matching), filling in the final score and flipping
+  `status` to `"completed"`. Rebuilds Elo history when anything changed.
+  Wired into the scheduler every 3 hours, ahead of the existing 6-hourly
+  `evaluate_predictions_job`.
+
+  Run once against the real database: 29 fixtures went from scheduled to
+  completed, and the effect was immediate — the live record (see below)
+  started reading 24/29 (82.8%) the moment it ran, the backtest-only
+  caveat disappeared from the home and progress pages, and the board's
+  "Yesterday" section graded for the first time. This was the highest-value
+  single fix in the repo, and it now runs on its own.
+
+  One real constraint it surfaced: a free API-Football plan only serves a
+  ~3-day rolling window, so `--days` defaults to 3 rather than wasting
+  requests on dates a free key can never answer. A paid plan can pass a
+  wider `--days` for a deeper backfill. Corners/cards are not fetched —
+  that needs a second request per fixture and several competitions record
+  neither stat anyway (a corners call on those already resolves VOID) —
+  which is a deliberate scope decision, not an oversight.
+
+- **The track record was entirely backtested — now has a live component.**
+  All 807 predictions stored *before* this fix were generated after the
+  match from history truncated at kick-off. `/progress` has always reported
+  live and backtested records separately; `fetch_results.py` is what lets
+  the live side actually receive completed matches, and it now does. It
+  will keep growing day over day rather than needing anything further.
 
 ### Needs a decision from the project owner
 
