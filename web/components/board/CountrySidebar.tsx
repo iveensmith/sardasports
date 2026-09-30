@@ -7,11 +7,69 @@
  *
  * International competitions group under their confederation — Europe,
  * Africa, South America, World — because that is where a reader scanning for
- * the Nations League looks, even though it is not a country.
+ * the Nations League looks, even though it is not a country. They get a
+ * globe mark instead of a flag: there is no flag for "World", and reaching
+ * for a nearby one would be a factual claim about geography this row isn't
+ * making.
  */
 
 import Link from "next/link";
 import type { CountryCount } from "@/lib/board";
+
+function flagSrc(code: string) {
+  return `https://flagcdn.com/w20/${code.toLowerCase()}.png`;
+}
+
+/** Plain shapes, not a licensed icon set — this is the one mark on the page
+ * that isn't a flag, so it only has to read as "not a single nation". */
+function GlobeMark() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={13}
+      height={13}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      className="shrink-0"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3.2 12h17.6" />
+      <path d="M12 3c2.6 2.7 2.6 15.3 0 18" />
+      <path d="M12 3c-2.6 2.7-2.6 15.3 0 18" />
+    </svg>
+  );
+}
+
+function CountryMark({ code }: { code: string | null }) {
+  if (!code) {
+    return (
+      <span className="inline-flex h-[14px] w-5 shrink-0 items-center justify-center text-[var(--color-text-faint)]">
+        <GlobeMark />
+      </span>
+    );
+  }
+  return (
+    <img
+      src={flagSrc(code)}
+      alt=""
+      width={20}
+      height={14}
+      loading="lazy"
+      decoding="async"
+      className="h-[14px] w-5 shrink-0 rounded-[2px] object-cover"
+    />
+  );
+}
+
+function activeStyle(isActive: boolean) {
+  if (!isActive) return undefined;
+  return {
+    background: "color-mix(in srgb, var(--color-gold) 16%, transparent)",
+    color: "var(--color-gold-bright)",
+  };
+}
 
 export function CountrySidebar({
   countries,
@@ -26,44 +84,88 @@ export function CountrySidebar({
 }) {
   const total = countries.reduce((sum, c) => sum + c.count, 0);
 
-  const row = (
-    label: string,
-    count: number,
-    href: string,
-    isActive: boolean,
-  ) => (
-    <Link
-      key={label}
-      href={href}
-      aria-current={isActive ? "true" : undefined}
-      className="flex items-center justify-between rounded-[var(--radius-md)] px-2.5 py-1.5 text-[13px] transition-colors hover:bg-[var(--color-surface-raised)]"
-      style={{
-        background: isActive ? "var(--color-surface-raised)" : undefined,
-        color: isActive ? "var(--color-text)" : "var(--color-text-dim)",
-        fontWeight: isActive ? 600 : undefined,
-      }}
-    >
-      <span className="truncate">{label}</span>
-      <span className="ml-2 shrink-0 text-[11.5px] text-[var(--color-text-faint)] tabular-nums">
-        {count}
-      </span>
-    </Link>
-  );
-
   return (
-    <nav aria-label="Filter by country" className="flex flex-col gap-0.5">
-      <p className="px-2.5 pb-1.5 text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
+    <nav
+      aria-label="Filter by country"
+      className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-3"
+    >
+      <p className="px-1.5 pb-2 text-[10.5px] font-semibold tracking-wider text-[var(--color-text-faint)] uppercase">
         Countries
       </p>
-      {row("All countries", total, `${basePath}?date=${date}`, active === null)}
-      {countries.map((c) =>
-        row(
-          c.country,
-          c.count,
-          `${basePath}?date=${date}&country=${encodeURIComponent(c.country)}`,
-          active === c.country,
-        ),
-      )}
+
+      <Link
+        href={`${basePath}?date=${date}`}
+        aria-current={active === null ? "true" : undefined}
+        className="flex items-center justify-between rounded-[var(--radius-md)] px-2.5 py-2 text-[13.5px] font-semibold transition-colors"
+        style={{
+          ...activeStyle(active === null),
+          color:
+            active === null ? "var(--color-gold-bright)" : "var(--color-text)",
+        }}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
+            style={{
+              background:
+                active === null
+                  ? "color-mix(in srgb, var(--color-gold) 28%, transparent)"
+                  : "var(--color-surface-raised)",
+            }}
+          >
+            <GlobeMark />
+          </span>
+          <span className="truncate">All countries</span>
+        </span>
+        <span
+          className="ml-2 shrink-0 text-[11.5px] tabular-nums"
+          style={{
+            color:
+              active === null
+                ? "var(--color-gold-bright)"
+                : "var(--color-text-faint)",
+          }}
+        >
+          {total}
+        </span>
+      </Link>
+
+      <ul className="mt-0.5 flex flex-col gap-0.5">
+        {countries.map((c) => {
+          const isActive = active === c.country;
+          return (
+            <li key={c.country}>
+              <Link
+                href={`${basePath}?date=${date}&country=${encodeURIComponent(c.country)}`}
+                aria-current={isActive ? "true" : undefined}
+                className="flex items-center justify-between rounded-[var(--radius-md)] px-2.5 py-1.5 text-[13px] transition-colors hover:bg-[var(--color-surface-raised)]"
+                style={{
+                  ...activeStyle(isActive),
+                  color: isActive
+                    ? "var(--color-gold-bright)"
+                    : "var(--color-text-dim)",
+                  fontWeight: isActive ? 600 : undefined,
+                }}
+              >
+                <span className="flex min-w-0 items-center gap-2">
+                  <CountryMark code={c.country_code} />
+                  <span className="truncate">{c.country}</span>
+                </span>
+                <span
+                  className="ml-2 shrink-0 text-[11.5px] tabular-nums"
+                  style={{
+                    color: isActive
+                      ? "var(--color-gold-bright)"
+                      : "var(--color-text-faint)",
+                  }}
+                >
+                  {c.count}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
     </nav>
   );
 }
