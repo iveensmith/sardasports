@@ -48,6 +48,7 @@ function BoardSection({
   settledTitle,
   blurb,
   unsettledBlurb,
+  emptyBlurb,
   board,
   href,
 }: {
@@ -57,17 +58,49 @@ function BoardSection({
   settledTitle?: string;
   blurb: string;
   unsettledBlurb?: string;
+  /** Shown when the day genuinely has no fixtures at all. */
+  emptyBlurb?: string;
   board: DayBoard | null;
   href: string;
 }) {
   const rows = board ? allRows(board) : [];
-  if (rows.length === 0) return null;
 
   // A past day whose results have not been ingested is not a settled board,
   // and labelling it as one would claim an accountability this page is not
   // currently delivering.
-  const settled = board!.counts.finished > 0;
+  const settled = (board?.counts.finished ?? 0) > 0;
   const heading = settled && settledTitle ? settledTitle : title;
+
+  // An empty day is a real, expected state right now — fixtures are ingested
+  // a few days ahead of odds and results, so "today" can legitimately have
+  // nothing yet. /matches says so outright when you land on such a day; the
+  // home page used to just drop the section with no heading and no
+  // explanation, which read as the site being broken rather than a gap in
+  // what has been ingested so far.
+  if (rows.length === 0) {
+    return (
+      <section id={id} className="mt-14 scroll-mt-20">
+        <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h2 className="text-[22px] font-bold tracking-[-0.022em]">
+            {title}
+          </h2>
+          <Link
+            href={href}
+            className="text-[13px] text-[var(--color-gold-bright)] underline-offset-4 hover:underline"
+          >
+            All fixtures
+          </Link>
+        </div>
+        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
+          <p className="text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
+            {emptyBlurb ??
+              "Either nothing is scheduled, or this day has not been ingested yet."}
+          </p>
+        </div>
+      </section>
+    );
+  }
+
   const copy = !settled && unsettledBlurb ? unsettledBlurb : blurb;
 
   return (
@@ -185,6 +218,7 @@ export default async function HomePage() {
           settledTitle="Yesterday, settled"
           blurb="Every pick graded against the final result. This is the board that decides whether the two below are worth reading."
           unsettledBlurb="Results for these fixtures have not been ingested yet, so nothing here is graded. Once they are, every pick on this board settles automatically."
+          emptyBlurb="No fixtures were ingested for yesterday's date."
           board={yesterday}
           href={`/matches?date=${isoDay(-1)}`}
         />
@@ -193,6 +227,7 @@ export default async function HomePage() {
           id="today"
           title="Today"
           blurb="A pick in each market for every fixture the engine has a trained model for."
+          emptyBlurb="Nothing has been ingested for today yet. Fixtures, odds and results are pulled in on a schedule rather than continuously, so an empty board here means the next ingest run hasn't happened — not that there is nothing to predict."
           board={today}
           href="/matches"
         />
@@ -200,6 +235,7 @@ export default async function HomePage() {
         <BoardSection
           title="Tomorrow"
           blurb="Priced as soon as the fixtures and odds are ingested."
+          emptyBlurb="Tomorrow's fixtures have not been ingested yet."
           board={tomorrow}
           href={`/matches?date=${isoDay(1)}`}
         />
