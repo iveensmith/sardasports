@@ -11,6 +11,8 @@
  * See docs/api_reference.md in the engine repo.
  */
 
+import type { Badge } from "./board";
+
 /**
  * One market's call.
  *
@@ -103,6 +105,9 @@ export interface FootballPrediction {
   match_id: number;
   home_team: string;
   away_team: string;
+  /** A flag for a national side, initials for a club we have no crest for. */
+  home_badge: Badge | null;
+  away_badge: Badge | null;
   match_date: string;
   home_win: number;
   draw: number;

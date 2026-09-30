@@ -18,6 +18,7 @@ from app.services.base_rates import market_base_rates
 from app.services.pick_service import best_pick
 from app.services.prediction_service import MatchNotFoundError, predict_for_match
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
+from ml.team_badges import badge_dict
 
 router = APIRouter(tags=["predictions"])
 
@@ -65,6 +66,12 @@ def predict(
         return BasketballPredictionOut(**payload)
     if sport == "tennis":
         return TennisPredictionOut(**payload)
+
+    # A flag for a national side, initials for a club — same rule the board
+    # uses, so a fixture's crest never differs between the row that links to
+    # this page and the page itself.
+    payload["home_badge"] = badge_dict(payload.get("home_team"))
+    payload["away_badge"] = badge_dict(payload.get("away_team"))
 
     # Football is the fall-through, and the football payload does not carry a
     # `sport` key at all — `PredictionOut.sport` defaults it. So this must be

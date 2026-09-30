@@ -7,6 +7,19 @@ from datetime import datetime
 from pydantic import BaseModel
 
 
+class BadgeOut(BaseModel):
+    """What to render beside a team name: a flag, or initials for a club.
+
+    Mirrors `ml.team_badges.Badge`. Kept as its own schema rather than a
+    free-form dict so a client gets a typed contract for it, the same as
+    every other field here.
+    """
+
+    kind: str  # "flag" | "monogram"
+    code: str | None = None
+    initials: str | None = None
+
+
 class ScorelineOut(BaseModel):
     score: str
     probability: float
@@ -179,6 +192,11 @@ class PredictionOut(BaseModel):
     sport: str = "football"
     home_team: str
     away_team: str
+    # What to show beside each name: a flag for a national side, initials for
+    # a club we have no licensed crest for. None only for a sport this is not
+    # populated on yet.
+    home_badge: BadgeOut | None = None
+    away_badge: BadgeOut | None = None
     match_date: datetime
 
     home_win: float

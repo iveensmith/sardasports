@@ -18,6 +18,7 @@ import {
   MarketCallTable,
   ValuePanel,
 } from "@/components/MarketCalls";
+import { TeamCrest } from "@/components/board/TeamCrest";
 import {
   competitors,
   isBasketball,
@@ -256,6 +257,11 @@ export default async function MatchPage({
   }
 
   const { home, away } = competitors(prediction);
+  // Badges are football-only for now — basketball and tennis carry no
+  // `home_badge`/`away_badge` fields, so this degrades to no crest rather
+  // than a type error or a fabricated flag.
+  const homeBadge = isFootball(prediction) ? prediction.home_badge : null;
+  const awayBadge = isFootball(prediction) ? prediction.away_badge : null;
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
@@ -267,9 +273,16 @@ export default async function MatchPage({
       </Link>
 
       <header className="mt-5 mb-7">
-        <h1 className="text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-bold tracking-[-0.02em]">
-          {home} <span className="text-[var(--color-text-faint)]">v</span>{" "}
-          {away}
+        <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[clamp(1.75rem,4vw,2.5rem)] leading-tight font-bold tracking-[-0.02em]">
+          <span className="inline-flex items-center gap-2.5">
+            <TeamCrest badge={homeBadge} name={home} size={28} />
+            {home}
+          </span>
+          <span className="text-[var(--color-text-faint)]">v</span>
+          <span className="inline-flex items-center gap-2.5">
+            <TeamCrest badge={awayBadge} name={away} size={28} />
+            {away}
+          </span>
         </h1>
         <p className="mt-2 text-[14px] text-[var(--color-text-dim)]">
           {new Date(prediction.match_date).toLocaleString(undefined, {
