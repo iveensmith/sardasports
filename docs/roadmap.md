@@ -1383,3 +1383,38 @@ No backend changes — every number already existed on `/progress` and
 `/leagues`; this is the first page to read some of them in prose rather
 than a table. Live-verified in both themes: 29 settled calls, 89.7% win
 rate, 40 competitions, 32 countries, since August 2015.
+
+### The footer — done, live-verified
+
+Pointed out directly that the reference's footer hadn't been matched.
+Checked it in full: a brand column with social icons and three app-store
+badges, a "Top Leagues" column (dedicated SEO landing pages), a "Matches"
+column, a "Company" column (Tutorial/About Us/Contact Us/Recommended
+Sites/Privacy Policy/Terms and Conditions), a two-column "Popular Teams"
+link farm, a support email, a named legal entity, and a responsible-
+gambling disclaimer bar.
+
+This product has no real version of most of that — no social accounts, no
+mobile app, no About/Contact/Privacy/Terms pages, no support inbox, no
+per-team or per-league landing pages, no legal entity. Wiring up links to
+pages that don't exist, or inventing generic Privacy/Terms text with no
+real company or data-handling practice behind it, would be worse than not
+having the section at all. `components/SiteFooter.tsx` keeps only what's
+real: the site's own nav links (already on the header), a "Top leagues"
+column built from the six competitions with the most completed matches on
+record (`getLeagues()`, sorted by `completed`, linking to the same
+`/matches?competition=` filter the leagues page itself already uses — not
+a dedicated page), and a plain disclaimer bar restating facts the rest of
+the site already asserts (informational only, no bookmaker links,
+probability not certainty) rather than nerdytips' gambling-helpline links
+or an invented legal entity name.
+
+An async Server Component, not a client one — its one live dependency
+(`getLeagues()`) only needs to run once per render, and if the engine is
+briefly unreachable the "Top leagues" column disappears rather than
+showing stale or guessed data, the same `EngineError`-only catch pattern
+used elsewhere on this page. Live-verified on both the home page and a
+second page (`/matches`) to confirm it renders identically everywhere via
+the root layout, in both themes, and that a real league link
+(`/matches?competition=English+Premier+League`) correctly filters the
+board rather than 404ing.

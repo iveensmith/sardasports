@@ -4,6 +4,7 @@ import Link from "next/link";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { MobileNav } from "@/components/MobileNav";
+import { SiteFooter } from "@/components/SiteFooter";
 
 /*
   One family, doing both jobs. Archivo is a grotesque with real tabular
@@ -98,16 +99,7 @@ export default function RootLayout({
 
         <main>{children}</main>
 
-        <footer className="mt-24 border-t border-[var(--color-line)]">
-          <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10 text-[13px] leading-relaxed text-[var(--color-text-faint)]">
-            <p className="max-w-[68ch]">
-              Every number on this site is computed by the prediction engine
-              from ingested match data. Where a market cannot be priced, it is
-              shown as unavailable rather than estimated. Predictions describe
-              probability, not certainty.
-            </p>
-          </div>
-        </footer>
+        <SiteFooter />
       </body>
     </html>
   );
