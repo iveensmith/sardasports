@@ -112,8 +112,9 @@
   );
   --hero-figure-opacity: 1;
 
-  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
-  --font-body: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-red-hat-display), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-red-hat-text), ui-sans-serif, system-ui, sans-serif;
 
   --radius-sm: 4px;
   --radius-md: 8px;
@@ -301,8 +302,9 @@ body {
   -webkit-font-smoothing: auto;
   text-rendering: optimizeLegibility;
   /*
-    Archivo at 400 is light for body copy on a dark surface. 420 is a real
-    weight on a variable font and holds the stroke without reading bold.
+    Red Hat Text at 400 is light for body copy on a dark surface. 420 is a
+    real weight on a variable font and holds the stroke without reading
+    bold.
   */
   font-weight: 420;
   letter-spacing: -0.003em;
@@ -320,6 +322,7 @@ body {
 h1,
 h2,
 h3 {
+  font-family: var(--font-display);
   letter-spacing: -0.021em;
 }
 

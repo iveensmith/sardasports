@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Archivo } from "next/font/google";
+import { Red_Hat_Display, Red_Hat_Text } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -7,20 +7,34 @@ import { MobileNav } from "@/components/MobileNav";
 import { SiteFooter } from "@/components/SiteFooter";
 
 /*
-  One family, doing both jobs. Archivo is a grotesque with real tabular
-  figures and a wide weight range, which is what this product needs: nearly
-  every piece of content here is a number set beside another number.
-  Deliberately not Inter — it is the default any generated page reaches for,
-  and it would make this read as templated regardless of the palette.
+  Replaces Schibsted Grotesk, which turned out to have a broken comma/period
+  glyph in its Google Fonts build — visible extra space before every comma
+  and full stop, site-wide, confirmed in isolation outside this codebase too
+  (a plain test page, several weights, the static and variable instances all
+  showed it). Not fixable from here, so a different face, not a config
+  change.
+
+  Red Hat Display/Text is an actual display+text pair, not one family
+  stretched over both jobs — Red Hat built it for exactly this kind of
+  product: dense technical interfaces where numbers are compared against
+  each other constantly. Display carries the hero numbers and headlines at
+  real weight (its variable axis runs to 900); Text is the workhorse for
+  body copy, labels and table cells, with the same tabular figures this
+  product already depends on. Deliberately not Inter (the default any
+  generated page reaches for) and not Geist (now the default
+  `create-next-app` ships, which makes it the new Inter).
 */
-const archivo = Archivo({
+const redHatDisplay = Red_Hat_Display({
   subsets: ["latin"],
-  variable: "--font-archivo",
+  variable: "--font-red-hat-display",
   display: "swap",
-  // No `weight` array on purpose: listing weights loads *static* instances,
-  // and the body then snaps 420 down to 400. Omitting it loads Archivo's
-  // variable axis, so intermediate weights are real rather than rounded.
-  axes: [],
+  // No `weight` array — loads the full variable axis instead of rounding
+  // off to static instances.
+});
+const redHatText = Red_Hat_Text({
+  subsets: ["latin"],
+  variable: "--font-red-hat-text",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -66,7 +80,11 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={archivo.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${redHatDisplay.variable} ${redHatText.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
