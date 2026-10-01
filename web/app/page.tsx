@@ -19,6 +19,7 @@ import {
   EngineError,
   getBoardDates,
   getDayBoard,
+  getLeagues,
   getProgress,
 } from "@/lib/api";
 import { allRows, type DayBoard } from "@/lib/board";
@@ -27,6 +28,9 @@ import { rate } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
 import { Hero } from "@/components/home/Hero";
 import { ResultsTicker } from "@/components/home/ResultsTicker";
+import { AboutTheEngine } from "@/components/home/AboutTheEngine";
+import { HowItWorks } from "@/components/home/HowItWorks";
+import { Faq } from "@/components/home/Faq";
 
 export const revalidate = 180;
 
@@ -81,9 +85,7 @@ function BoardSection({
     return (
       <section id={id} className="mt-14 scroll-mt-20">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h2 className="text-[22px] font-bold tracking-[-0.022em]">
-            {title}
-          </h2>
+          <h2 className="text-[22px] font-bold tracking-[-0.022em]">{title}</h2>
           <Link
             href={href}
             className="text-[13px] text-[var(--color-gold-bright)] underline-offset-4 hover:underline"
@@ -157,9 +159,11 @@ export default async function HomePage() {
   let progress: Progress | null = null;
   let settledDay: DayBoard | null = null;
   let error: string | null = null;
+  let competitionCount: number | null = null;
+  let countryCount: number | null = null;
 
   try {
-    const [boards, dates] = await Promise.all([
+    const [boards, dates, leagues] = await Promise.all([
       Promise.all([
         getDayBoard({ date: isoDay(-1) }).catch(() => null),
         getDayBoard({}),
@@ -167,8 +171,11 @@ export default async function HomePage() {
         getProgress().catch(() => null),
       ]),
       getBoardDates(3).catch(() => null),
+      getLeagues().catch(() => null),
     ]);
     [yesterday, today, tomorrow, progress] = boards;
+    competitionCount = leagues?.competition_count ?? null;
+    countryCount = leagues?.country_count ?? null;
 
     // The strip wants graded picks. Yesterday usually has none yet, so fall
     // back to the last day that actually settled rather than showing nothing.
@@ -188,6 +195,8 @@ export default async function HomePage() {
 
   const hasLive = (progress?.live.record.settled ?? 0) > 0;
   const headline = hasLive ? progress!.live.record : progress?.overall;
+  const winRate = headline && headline.settled > 0 ? rate(headline) : null;
+  const isBacktest = !hasLive;
 
   const tickerRows = settledDay ? allRows(settledDay) : [];
   const tickerDate = settledDay?.date ?? null;
@@ -195,9 +204,9 @@ export default async function HomePage() {
   return (
     <>
       <Hero
-        winRate={headline && headline.settled > 0 ? rate(headline) : null}
+        winRate={winRate}
         settled={headline?.settled ?? 0}
-        isBacktest={!hasLive}
+        isBacktest={isBacktest}
         fixturesToday={today?.counts.fixtures ?? 0}
       />
 
@@ -238,6 +247,24 @@ export default async function HomePage() {
           emptyBlurb="Tomorrow's fixtures have not been ingested yet."
           board={tomorrow}
           href={`/matches?date=${isoDay(1)}`}
+        />
+
+        <AboutTheEngine
+          settled={headline?.settled ?? 0}
+          winRate={winRate}
+          isBacktest={isBacktest}
+          competitionCount={competitionCount}
+          countryCount={countryCount}
+          firstSettledDate={progress?.span?.first ?? null}
+        />
+
+        <HowItWorks />
+
+        <Faq
+          winRate={winRate}
+          settled={headline?.settled ?? 0}
+          competitionCount={competitionCount}
+          countryCount={countryCount}
         />
       </div>
     </>

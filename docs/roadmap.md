@@ -1338,3 +1338,48 @@ every score until the dev cache was cleared and both servers restarted
 clean. Not a code bug in the new feature — a reminder to always clear
 `.next` after a backend schema change lands mid-session, which this
 project has hit before.
+
+## Below the fold on the home page — done, live-verified
+
+Asked directly to do what the reference does below its own picks boards:
+a track-record narrative, a "how it works" explainer, and an FAQ. The
+reference also has a YouTube explainer, a "trusted by" strip of media
+logos, Trustpilot reviews, and paid subscription tiers in that same
+stretch of the page — none of which this product has a real one of, and
+all four would have to be invented to fill the same slots. They're left
+out entirely rather than faked: no video, no partner logos, no reviews
+(fabricated testimonials are exactly the kind of "presented as genuine"
+content this assistant refuses to produce), and no pricing tiers for a
+subscription this product doesn't sell and has no payment infrastructure
+for (subscriptions/Hit&Win are still blocked on the Supabase decision
+noted earlier in this file).
+
+What *is* real gets built from it instead:
+
+- **`components/home/AboutTheEngine.tsx`** replaces the reference's
+  reviews-and-logos slot with the engine's own numbers, as props rather
+  than a guess — settled calls, win rate, competition count, and country
+  count, each pulled from `/progress` and `/leagues`, both already fetched
+  elsewhere on this page. A stat with nothing behind it (a fresh deploy,
+  the engine unreachable) shows "—", the same rule the board itself
+  follows, and the backtest/live distinction already established on the
+  hero carries through into the copy here too.
+- **`components/home/HowItWorks.tsx`** is the reference's three-step
+  explainer, rewritten in this engine's actual terms (real data ingestion,
+  leakage-safe feature engineering, the three-estimator ensemble) rather
+  than its wording. Static — it describes a process, not a measurement, so
+  it has no live number to go stale.
+- **`components/home/Faq.tsx`** answers the reference's own question set
+  honestly for this product: free with no login, the full record including
+  losses is public, what the confidence score actually measures (estimator
+  agreement, not a win probability), no bookmaker links, no fixed matches.
+  Two answers are dynamic (real win rate, real league coverage) and fall
+  back to a qualitative line rather than a fabricated number if the engine
+  is unreachable. Built on `<details>`/`<summary>` rather than a client
+  component with its own state — an accordion is what that element already
+  does, for free, with working keyboard and screen-reader behaviour.
+
+No backend changes — every number already existed on `/progress` and
+`/leagues`; this is the first page to read some of them in prose rather
+than a table. Live-verified in both themes: 29 settled calls, 89.7% win
+rate, 40 competitions, 32 countries, since August 2015.
