@@ -255,7 +255,10 @@ export default async function HomePage() {
           isBacktest={isBacktest}
           competitionCount={competitionCount}
           countryCount={countryCount}
-          firstSettledDate={progress?.span?.first ?? null}
+          firstSettledDate={
+            (hasLive ? progress?.live.span?.first : progress?.span?.first) ??
+            null
+          }
         />
 
         <HowItWorks />

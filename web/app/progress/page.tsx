@@ -11,10 +11,12 @@
  * prediction site that shows a backtest where a reader expects a published
  * record has told them something untrue by layout alone.
  *
- * So the live record — currently empty — is given equal billing, and the
- * headline number carries the word "backtested" in the same breath. When the
- * board has run forward for a few weeks this page will have something
- * stronger to say, and it will be able to say it honestly.
+ * So the live record is given equal billing, and the two are never blended
+ * into one headline figure: a handful of live calls beside thousands of
+ * backtested ones would let the blend read as a published record. The caveat
+ * stays up for as long as backtested calls make up any of what is counted —
+ * it is not a banner for the empty-live case, it is a statement about what
+ * the number is made of, and that stays true once live calls begin to arrive.
  */
 
 import { EngineError, getProgress } from "@/lib/api";
@@ -140,6 +142,11 @@ export default async function ProgressPage() {
 
   const { overall, live, backtest, span } = progress;
   const hasLive = live.record.settled > 0;
+  const hasBacktest = backtest.record.settled > 0;
+  const backtestShare =
+    overall.settled > 0
+      ? Math.round((backtest.record.settled / overall.settled) * 100)
+      : 0;
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
@@ -160,7 +167,7 @@ export default async function ProgressPage() {
       </header>
 
       {/* The caveat, before the number it qualifies. */}
-      {!hasLive && (
+      {hasBacktest && (
         <div
           className="mb-8 rounded-[var(--radius-lg)] border p-5"
           style={{ borderColor: "var(--color-gold-dim)" }}
@@ -169,26 +176,52 @@ export default async function ProgressPage() {
             className="text-[14px] font-semibold"
             style={{ color: "var(--color-gold-bright)" }}
           >
-            This is a backtest, not a published record.
+            {hasLive
+              ? "Most of this record is a backtest."
+              : "This is a backtest, not a published record."}
           </p>
           <p className="mt-2 max-w-[72ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-            All {backtest.record.settled} settled predictions below were
-            generated <em>after</em> the match was played, from match history
-            truncated at kick-off. The model saw nothing it should not have —
-            the feature pipeline is leakage-safe and tested as such — but none
-            of these was published in advance and exposed to the risk of being
-            wrong in public. That is weaker evidence than a live record and it
-            is labelled as such. The live record begins filling on its own as
-            the board runs forward; nothing is backfilled into it.
+            {hasLive ? (
+              <>
+                {backtest.record.settled.toLocaleString()} of the{" "}
+                {overall.settled.toLocaleString()} settled predictions (
+                {backtestShare}%) were generated <em>after</em> the match was
+                played, from match history truncated at kick-off. The model saw
+                nothing it should not have — the feature pipeline is
+                leakage-safe and tested as such — but none of these was
+                published in advance and exposed to the risk of being wrong in
+                public. Only the {live.record.settled} in the live record were:
+                stored before kick-off, and graded afterwards without being
+                touched. The two are reported separately above, and never
+                blended into one headline figure. The breakdowns below count
+                both.
+              </>
+            ) : (
+              <>
+                All {backtest.record.settled} settled predictions below were
+                generated <em>after</em> the match was played, from match
+                history truncated at kick-off. The model saw nothing it should
+                not have — the feature pipeline is leakage-safe and tested as
+                such — but none of these was published in advance and exposed
+                to the risk of being wrong in public. That is weaker evidence
+                than a live record and it is labelled as such. The live record
+                begins filling on its own as the board runs forward; nothing is
+                backfilled into it.
+              </>
+            )}
           </p>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label={hasLive ? "Overall" : "Backtested"}
-          value={rate(overall)}
-          note={`${overall.won} of ${overall.settled} settled`}
+          label="Backtested"
+          value={hasBacktest ? rate(backtest.record) : "—"}
+          note={
+            hasBacktest
+              ? `${backtest.record.won} of ${backtest.record.settled} settled, graded after the match`
+              : "No backtested prediction on record"
+          }
           accent="var(--color-gold-bright)"
         />
         <StatCard
@@ -196,7 +229,9 @@ export default async function ProgressPage() {
           value={hasLive ? rate(live.record) : "—"}
           note={
             hasLive
-              ? `${live.record.won} of ${live.record.settled} settled`
+              ? `${live.record.won} of ${live.record.settled} settled, stored before kick-off${
+                  live.span ? ` since ${live.span.first}` : ""
+                }`
               : "No prediction has yet been stored before kick-off"
           }
           accent={hasLive ? "var(--color-won)" : undefined}
@@ -204,9 +239,9 @@ export default async function ProgressPage() {
         <StatCard
           label="Settled calls"
           value={overall.settled.toLocaleString()}
-          note={
-            overall.void > 0 ? `${overall.void} void, excluded` : "none void"
-          }
+          note={`${live.record.settled.toLocaleString()} live · ${backtest.record.settled.toLocaleString()} backtested${
+            overall.void > 0 ? ` · ${overall.void} void, excluded` : ""
+          }`}
         />
         <StatCard
           label="Span"
@@ -259,7 +294,8 @@ export default async function ProgressPage() {
 
       <p className="mt-8 max-w-[72ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
         Competitions and confidence buckets with fewer than ten settled calls
-        are left out of the tables above. A win rate over three fixtures is
+        are left out of the tables above, which count live and backtested calls
+        together. A win rate over three fixtures is
         noise, and printing it beside a rate over six hundred would invite the
         two to be read as comparable.
       </p>
