@@ -26,3 +26,23 @@ def test_non_string_input_returns_empty_string_not_raise():
     empty string instead."""
     assert normalize_team_name(math.nan) == ""
     assert normalize_team_name(None) == ""  # type: ignore[arg-type]
+
+
+def test_a_cp1252_apostrophe_read_as_latin1_becomes_an_apostrophe():
+    """Football-Data files are cp1252; read as latin-1, the curly apostrophe in
+    "King's Lynn" arrives as U+0092 and would otherwise become a team row
+    named with a control character."""
+    assert normalize_team_name("King\x92s Lynn") == "King's Lynn"
+
+
+def test_the_other_cp1252_punctuation_is_mapped_too():
+    assert normalize_team_name("A\x91B\x92") == "A'B'"
+    assert normalize_team_name("A\x93B\x94") == 'A"B"'
+    assert normalize_team_name("A\x96B\x97C") == "A-B-C"
+
+
+def test_other_control_characters_are_left_alone_not_guessed_at():
+    """Only unambiguous punctuation is repaired. "\x9f" is a letter's byte in
+    some encodings, and rewriting it would change names — and the ids built
+    from them — that are already stored."""
+    assert normalize_team_name("Preu\x9fen") == "Preu\x9fen"

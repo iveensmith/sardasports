@@ -10,6 +10,17 @@
 import type { BoardRow } from "./board";
 import type { SettledRecord } from "./progress";
 
+/**
+ * "2nd tier", "3rd tier" … for a competition below its country's top flight;
+ * null for the top flight itself and for cups and internationals, where a
+ * tier number means nothing.
+ */
+export function tierLabel(tier: number | null): string | null {
+  if (tier === null || tier < 2) return null;
+  const suffix = { 2: "nd", 3: "rd" }[tier] ?? "th";
+  return `${tier}${suffix} tier`;
+}
+
 export interface LeagueEntry {
   competition: string;
   /** URL segment for the competition's own page. */

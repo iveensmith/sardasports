@@ -72,6 +72,9 @@ EXCLUDED_TEAM_PATTERN = re.compile(r"\b(U-?\d{2}|II|B|Reserves|Youth|Academy)\b"
 LEAGUE_ID_TO_COMPETITION = {
     39: "English Premier League",
     40: "English Championship",
+    41: "English League One",
+    42: "English League Two",
+    43: "English National League",
     140: "Spanish La Liga",
     141: "Spanish Segunda Division",
     78: "German Bundesliga",

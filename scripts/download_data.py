@@ -34,6 +34,9 @@ RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 KNOWN_LEAGUES = {
     "E0": "English Premier League",
     "E1": "English Championship",
+    "E2": "English League One",
+    "E3": "English League Two",
+    "EC": "English National League",
     "SP1": "Spanish La Liga",
     "SP2": "Spanish Segunda Division",
     "D1": "German Bundesliga",

@@ -1642,3 +1642,57 @@ the Curaçao U+FFFD defect above.
 
 A pre-load backup of the database (130 MB, integrity-checked) was taken to the
 session scratchpad, not the repo; it is not a durable backup.
+
+## English League One, League Two and National League — done, live-verified
+
+Added as full competitions, the same way every earlier batch was: Football-Data.co.uk
+codes `E2`, `E3` and `EC`, registered in `download_data.py`, `clean_data.py`,
+`ml.competition_catalogue` (tiers 3, 4 and 5), `ml.training.common.KNOWN_COMPETITIONS`
+and `fetch_upcoming_fixtures.LEAGUE_ID_TO_COMPETITION`. The API-Football ids
+(41, 42, 43) were confirmed against `/leagues?country=England` rather than
+recalled, because a wrong id would have filed another league's fixtures under
+these names; that cost one request of the day's 100.
+
+18,065 matches loaded, 2015-16 through 2026-27 (6,010 League One, 6,062 League
+Two, 5,993 National League). The dataset is now 198,124 completed matches
+across 3,579 teams; competitions went from 40 to 43. Clubs that move between
+tiers (Birmingham, Wigan, Barnsley and 27 others shared with the Championship)
+resolve to a single team row, so their Elo carries across promotion and
+relegation. Verified: no football club is stored under more than one row, and
+the same-day duplicate count did not move from 72.
+
+**Per-stat availability, not per-league.** League One and League Two carry
+corners, cards, half-time scores and odds throughout; the National League has
+cards, half-time scores and odds but corners for only about 12% of matches, so
+its corners market degrades to unavailable rather than being priced from
+almost nothing.
+
+Adding three competitions widens the one-hot feature vector, so all 12
+football models were retrained and the backend restarted — the standing
+`KNOWN_COMPETITIONS` rule applied this time. Accuracy is unchanged within
+noise: match result 49.2%, goals 1.5/2.5/3.5 at 75.7/55.6/70.7%, half-time
+70.7%, BTTS 55.1%, corners 73.3/61.8/54.0%, cards 77.3/59.5/61.1%. A real
+`/predict` on a League One fixture returns all goals lines and corners.
+
+**A mojibake name caught on the way in.** The National League source carries
+`King\x92s Lynn` — a cp1252 apostrophe read as latin-1 — and loading it as-is
+would have created a team named with a control character. `normalize_team_name`
+now repairs exactly the cp1252 smart quotes and dashes (U+0091–U+0094, U+0096,
+U+0097) and nothing else. It is deliberately narrow: the 34 existing ids that
+contain mojibake use a different byte (`\x9f`), and a broader "repair cp1252"
+pass would have rewritten those names and so re-inserted their matches as
+duplicates. Whether any stored name or id contained the repaired characters was
+checked first (none did). The general decoding defect is a separate task.
+
+The web gained `tierLabel`, so a third-tier league reads "3rd tier" instead of
+only the second tier being labelled.
+
+**Side effect worth knowing about: viewing a board creates backtests.** The
+refresh made 5–6 October results available, and rendering a board that includes
+them stored six predictions (ids 2018–2023) on already-completed Argentine and
+Spanish fixtures — correctly counted as backtested, since they were made after
+the match. That is the existing mechanism, but it means the backtested record
+grows when pages are browsed. One further prediction created by a manual
+`/predict` verification call was deleted again. If the backtest figure should
+only reflect deliberately generated predictions, board rendering should stop
+storing them for completed matches; that is a decision, not a fix.

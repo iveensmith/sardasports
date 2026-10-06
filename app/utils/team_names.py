@@ -49,6 +49,26 @@ def fold_team_key(name: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", stripped.lower()).strip()
 
 
+# Windows-1252 punctuation that reaches us as control characters. Football-Data
+# files are cp1252, and where one is read as latin-1 a curly apostrophe in
+# "King's Lynn" arrives as U+0092. These six are unambiguous — no real club
+# name contains a C1 control character — so mapping them is safe.
+#
+# Deliberately narrow: this is not a general "repair cp1252" pass. Other bytes
+# in the same range are letters, not punctuation, and guessing at them would
+# rewrite names (and so the ids built from them) that are already stored.
+_CP1252_PUNCTUATION = str.maketrans(
+    {
+        "\x91": "'",
+        "\x92": "'",
+        "\x93": '"',
+        "\x94": '"',
+        "\x96": "-",
+        "\x97": "-",
+    }
+)
+
+
 def normalize_team_name(raw_name: str) -> str:
     """Return the canonical form of a team name.
 
@@ -60,7 +80,7 @@ def normalize_team_name(raw_name: str) -> str:
     """
     if not isinstance(raw_name, str):
         return ""
-    cleaned = re.sub(r"\s+", " ", raw_name.strip())
+    cleaned = re.sub(r"\s+", " ", raw_name.translate(_CP1252_PUNCTUATION).strip())
     alias = ALIASES.get(cleaned.lower())
     if alias:
         return alias

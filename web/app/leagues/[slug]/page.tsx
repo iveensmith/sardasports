@@ -26,7 +26,7 @@ import { ResultsList } from "@/components/league/ResultsList";
 import { StandingsTable } from "@/components/league/StandingsTable";
 import { ProbabilitySplit } from "@/components/ProbabilitySplit";
 import { EngineError, getLeague } from "@/lib/api";
-import type { LeagueDetail } from "@/lib/discover";
+import { tierLabel, type LeagueDetail } from "@/lib/discover";
 import { rate } from "@/lib/progress";
 
 export const revalidate = 600;
@@ -167,7 +167,7 @@ export default async function LeaguePage({
           <CountryMark code={league.country_code} />
           <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
             {league.country}
-            {league.tier === 2 ? " · 2nd tier" : ""}
+            {tierLabel(league.tier) ? ` · ${tierLabel(league.tier)}` : ""}
           </p>
         </div>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">

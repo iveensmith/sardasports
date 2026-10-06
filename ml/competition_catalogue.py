@@ -42,8 +42,9 @@ class CompetitionMeta:
     # Short name for a narrow column; the full name is often too long for the
     # board's competition cell at phone width.
     short_name: str
-    # 1 for a country's top flight, 2 for its second tier, None for cups and
-    # international competitions where a tier number means nothing.
+    # 1 for a country's top flight, 2 for its second tier, and so on down the
+    # pyramid; None for cups and international competitions, where a tier
+    # number means nothing.
     tier: int | None = None
     # ISO 3166-1 alpha-2, for the flag beside the country. None for the
     # international groups, which get a globe or confederation mark instead.
@@ -58,6 +59,9 @@ _CATALOGUE: tuple[CompetitionMeta, ...] = (
     # --- England ---------------------------------------------------------
     CompetitionMeta("English Premier League", "England", "Premier League", 1, "GB"),
     CompetitionMeta("English Championship", "England", "Championship", 2, "GB"),
+    CompetitionMeta("English League One", "England", "League One", 3, "GB"),
+    CompetitionMeta("English League Two", "England", "League Two", 4, "GB"),
+    CompetitionMeta("English National League", "England", "National League", 5, "GB"),
     # --- Spain -----------------------------------------------------------
     CompetitionMeta("Spanish La Liga", "Spain", "La Liga", 1, "ES"),
     CompetitionMeta("Spanish Segunda Division", "Spain", "Segunda División", 2, "ES"),

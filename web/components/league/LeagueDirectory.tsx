@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { CountryMark } from "@/components/board/CountryMark";
-import type { LeagueCountry } from "@/lib/discover";
+import { tierLabel, type LeagueCountry } from "@/lib/discover";
 
 export function LeagueDirectory({ countries }: { countries: LeagueCountry[] }) {
   const [query, setQuery] = useState("");
@@ -79,9 +79,9 @@ export function LeagueDirectory({ countries }: { countries: LeagueCountry[] }) {
                     >
                       <span className="truncate text-[var(--color-text-dim)]">
                         {entry.short_name}
-                        {entry.tier === 2 && (
+                        {tierLabel(entry.tier) && (
                           <span className="ml-1.5 text-[11px] text-[var(--color-text-faint)]">
-                            2nd tier
+                            {tierLabel(entry.tier)}
                           </span>
                         )}
                       </span>

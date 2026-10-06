@@ -38,6 +38,9 @@ PROCESSED_PATH = (
 KNOWN_COMPETITIONS = [
     "English Premier League",
     "English Championship",
+    "English League One",
+    "English League Two",
+    "English National League",
     "Spanish La Liga",
     "Spanish Segunda Division",
     "German Bundesliga",
