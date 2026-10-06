@@ -19,10 +19,13 @@
  * the number is made of, and that stays true once live calls begin to arrive.
  */
 
-import { EngineError, getProgress } from "@/lib/api";
+import { EngineError, getLeagues, getProgress } from "@/lib/api";
+import type { Leagues } from "@/lib/discover";
 import type { Progress } from "@/lib/progress";
-import { marketName, rate } from "@/lib/progress";
+import { lastTwelveMonths, marketName, rate } from "@/lib/progress";
 import type { SettledRecord } from "@/lib/progress";
+import { MonthlyTable } from "@/components/progress/MonthlyTable";
+import { ProgressFaq } from "@/components/progress/ProgressFaq";
 import { WinRateChart } from "@/components/progress/WinRateChart";
 
 export const revalidate = 3600;
@@ -115,11 +118,67 @@ function RecordTable({
   );
 }
 
+/** "29 September 2026", and how long ago that was. */
+function describeNewest(date: string): { label: string; daysAgo: number } {
+  const day = new Date(`${date}T00:00:00Z`);
+  const today = new Date();
+  const daysAgo = Math.max(
+    0,
+    Math.floor(
+      (Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) -
+        day.getTime()) /
+        86_400_000,
+    ),
+  );
+  return {
+    label: day.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }),
+    daysAgo,
+  };
+}
+
+function DownloadLink({
+  href,
+  title,
+  note,
+}: {
+  href: string;
+  title: string;
+  note: string;
+}) {
+  return (
+    <a
+      href={href}
+      download
+      className="flex-1 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-line-strong)] hover:bg-[var(--color-surface-raised)]"
+    >
+      <p className="text-[14px] font-semibold">
+        {title}{" "}
+        <span aria-hidden className="ml-1 text-[var(--color-gold-bright)]">
+          &darr;
+        </span>
+      </p>
+      <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+        {note}
+      </p>
+    </a>
+  );
+}
+
 export default async function ProgressPage() {
   let progress: Progress | null = null;
+  let leagues: Leagues | null = null;
   let error: string | null = null;
   try {
-    progress = await getProgress();
+    [progress, leagues] = await Promise.all([
+      getProgress(),
+      // Only for a count in the FAQ; the page does not depend on it.
+      getLeagues().catch(() => null),
+    ]);
   } catch (e) {
     error =
       e instanceof EngineError || e instanceof Error
@@ -143,6 +202,8 @@ export default async function ProgressPage() {
   const { overall, live, backtest, span } = progress;
   const hasLive = live.record.settled > 0;
   const hasBacktest = backtest.record.settled > 0;
+  const newest = span ? describeNewest(span.last) : null;
+  const recentMonths = lastTwelveMonths(progress.by_month);
   const backtestShare =
     overall.settled > 0
       ? Math.round((backtest.record.settled / overall.settled) * 100)
@@ -202,10 +263,10 @@ export default async function ProgressPage() {
                 generated <em>after</em> the match was played, from match
                 history truncated at kick-off. The model saw nothing it should
                 not have — the feature pipeline is leakage-safe and tested as
-                such — but none of these was published in advance and exposed
-                to the risk of being wrong in public. That is weaker evidence
-                than a live record and it is labelled as such. The live record
-                begins filling on its own as the board runs forward; nothing is
+                such — but none of these was published in advance and exposed to
+                the risk of being wrong in public. That is weaker evidence than
+                a live record and it is labelled as such. The live record begins
+                filling on its own as the board runs forward; nothing is
                 backfilled into it.
               </>
             )}
@@ -252,11 +313,36 @@ export default async function ProgressPage() {
         />
       </div>
 
-      {progress.by_month.length > 1 && (
-        <div className="mt-8">
-          <WinRateChart months={progress.by_month} />
-        </div>
+      {newest && (
+        <p className="mt-4 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+          Newest settled match in the record:{" "}
+          <span className="text-[var(--color-text-dim)]">{newest.label}</span>
+          {newest.daysAgo > 0
+            ? ` (${newest.daysAgo} ${newest.daysAgo === 1 ? "day" : "days"} ago)`
+            : ""}
+          .
+          {newest.daysAgo >= 2
+            ? " Anything played since is not in these figures."
+            : ""}
+        </p>
       )}
+
+      {/*
+        The reference also plots a 14-day "recent form" line. It is left out
+        on purpose: the live record is one day's calls, so a daily line over
+        it would be a single point, and drawing it from the backtested days
+        would present a reconstruction as recent form. It becomes honest once
+        the live record spans a few weeks.
+      */}
+      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+        {recentMonths.length > 1 && (
+          <WinRateChart
+            months={recentMonths}
+            title="Win rate by month — last 12 months"
+          />
+        )}
+        <MonthlyTable months={progress.by_month} />
+      </div>
 
       <div className="mt-8 grid gap-6 lg:grid-cols-2">
         <RecordTable
@@ -292,13 +378,39 @@ export default async function ProgressPage() {
         />
       </div>
 
+      <section className="mt-8">
+        <h2 className="text-[15px] font-semibold">Download the record</h2>
+        <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
+          Everything above is counted from these rows, so any figure on this
+          page can be checked against them. No account needed.
+        </p>
+        <div className="mt-4 flex flex-col gap-4 sm:flex-row">
+          <DownloadLink
+            href="/progress/daily.csv"
+            title="Daily record (CSV)"
+            note="One row per day: won, lost, void, settled, win rate, and how many of those were live."
+          />
+          <DownloadLink
+            href="/progress/matches.csv"
+            title="Graded matches (CSV)"
+            note="One row per prediction: date, competition, both teams, the call made, the outcome, and whether it was live or backtested."
+          />
+        </div>
+      </section>
+
       <p className="mt-8 max-w-[72ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
         Competitions and confidence buckets with fewer than ten settled calls
         are left out of the tables above, which count live and backtested calls
-        together. A win rate over three fixtures is
-        noise, and printing it beside a rate over six hundred would invite the
-        two to be read as comparable.
+        together. A win rate over three fixtures is noise, and printing it
+        beside a rate over six hundred would invite the two to be read as
+        comparable.
       </p>
+
+      <ProgressFaq
+        backtestSpan={backtest.span}
+        liveSpan={live.span}
+        competitionCount={leagues?.competition_count ?? null}
+      />
     </div>
   );
 }

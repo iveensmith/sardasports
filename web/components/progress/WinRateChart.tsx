@@ -9,8 +9,11 @@
  * underneath carry the count, so a spike over a handful of fixtures is
  * visibly a spike over a handful of fixtures.
  *
- * Months with nothing settled are dropped rather than plotted at zero — "no
- * gradeable calls" and "lost every one" are opposite facts.
+ * Every month in the window is on the axis. One with nothing settled has no
+ * point and breaks the line, rather than being plotted at zero ("no
+ * gradeable calls" and "lost every one" are opposite facts) or being
+ * bridged over (a line that skipped it would draw a slope across months that
+ * were never measured).
  */
 
 import {
@@ -25,20 +28,27 @@ import {
 } from "recharts";
 import type { MonthRecord } from "@/lib/progress";
 
-export function WinRateChart({ months }: { months: MonthRecord[] }) {
-  const data = months
-    .filter((m) => m.win_rate !== null && m.settled > 0)
-    .map((m) => ({
-      month: m.month,
-      rate: m.win_rate as number,
-      settled: m.settled,
-    }));
+export function WinRateChart({
+  months,
+  title = "Win rate by month",
+}: {
+  months: Array<{ month: string; record: MonthRecord | null }>;
+  title?: string;
+}) {
+  const data = months.map(({ month, record }) => {
+    const measured = record !== null && record.win_rate !== null;
+    return {
+      month,
+      rate: measured ? (record.win_rate as number) : null,
+      settled: record?.settled ?? 0,
+    };
+  });
 
-  if (data.length < 2) return null;
+  if (data.filter((d) => d.rate !== null).length < 2) return null;
 
   return (
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
-      <h2 className="text-[15px] font-semibold">Win rate by month</h2>
+      <h2 className="text-[15px] font-semibold">{title}</h2>
       <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
         The line is the rate; the bars are how many calls it is over. Read them
         together — a month standing on a dozen settled calls is not evidence of
@@ -94,6 +104,7 @@ export function WinRateChart({ months }: { months: MonthRecord[] }) {
               yAxisId="rate"
               type="monotone"
               dataKey="rate"
+              connectNulls={false}
               stroke="var(--color-gold-bright)"
               strokeWidth={2}
               dot={{ r: 3, fill: "var(--color-gold-bright)", strokeWidth: 0 }}

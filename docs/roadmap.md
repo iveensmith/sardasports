@@ -1449,3 +1449,64 @@ checked in the same isolated test and showed no punctuation defect.
 - `tests/test_scheduler.py` still expected the pre-rebuild job list and was
   failing on `fetch_match_stats`, the job registered with the match-page
   rebuild. Expected set updated; the suite is otherwise green (421 tests).
+
+## Track record page, step 2: the reference's missing pieces — done, live-verified
+
+A side-by-side of `/leagues` and `/progress` against the reference found
+`/progress` ahead on breakdowns (by market, confidence, competition — the
+reference has none) and behind on five things. Built the ones that can be
+backed by real data:
+
+- **The backtest caveat no longer disappears when one live call arrives.** It
+  was gated on `!hasLive`, so a single live prediction hid it and relabelled
+  the blended figure "Overall" — a 77.8% headline that was 99% backtested
+  read as a published record. The headline is now two cards, Backtested and
+  Live record, never blended, and the caveat stays for as long as backtested
+  calls are counted. The home page's About section had the same root cause:
+  it dated a live-only record from the backtest's first match.
+- **Monthly table and a last-12-months chart.** Every one of the twelve
+  calendar months gets a row, including empty ones ("no settled calls"), and
+  each carries how many of its calls were live (`live_settled`, new on
+  `by_month`). The chart plots all twelve months and breaks the line at gaps
+  instead of bridging them. The record is sparse — predictions exist only
+  where the engine was asked to price a fixture — and a chart that closed
+  the gaps drew a slope across months that were never measured.
+- **"Newest settled match" line.** States the date of the newest settled
+  match and how long ago it was, and says anything played since is not in the
+  figures. It needs no new data, and it makes staleness visible instead of
+  implicit.
+- **Two CSV downloads**, `GET /progress/daily.csv` and `/progress/matches.csv`
+  (proxied by the web app, so the engine's address stays server-side). Both
+  are produced from the same `_grade_all` rows the page uses, and
+  `tests/test_progress.py` pins that they reconcile — daily settled/won/lost
+  sum to the page totals, match rows count the same outcomes. Checked against
+  the real database: 490 daily rows summing to 1,981 settled, and 1,983 match
+  rows (1,542 won, 439 lost, 2 void).
+- **A FAQ**, with `FaqItem` extracted so the home page and this page share
+  one accordion item. Two answers state limits the reference doesn't: that
+  backtested calls are the fixtures the engine was *asked* to price (stored
+  on demand), not every match played and not a random sample; and that the
+  record is as current as the last ingest, not on a fixed clock.
+
+**Left out on purpose:** the reference's 14-day "recent form" line. The live
+record is one day's calls, so a daily line over it is a single point, and
+drawing it from backtested days would present a reconstruction as recent
+form. It becomes honest once the live record spans a few weeks. A **Bankers**
+rate beside Overall also waits on a decision: `/bankers` selects on
+probability, not confidence, so a historical Bankers record needs a
+deterministic rule written down first.
+
+**Found while verifying — ingestion is not running.** `.env` has
+`ENABLE_SCHEDULER=false`, so none of the scheduled jobs (fixtures, odds,
+results, match stats) run when the backend starts; nothing has been ingested
+since 2026-10-01, and fixtures from 2026-09-28 to 2026-10-01 are still marked
+`scheduled`. A free API-Football plan serves only about three days back, so
+those results are probably not recoverable. Turning the scheduler on is a
+deliberate call, not a fix to make silently: it spends API quota on a free
+plan, and the roadmap records an earlier concurrent-write problem between
+scheduled jobs and manual runs.
+
+Also re-confirmed: after a backend schema change, Next's fetch cache
+(`revalidate: 3600` on `/progress`) serves the old JSON shape for up to an
+hour and crashes any component reading a new field. Clearing `.next` and
+restarting the dev server fixes it; it is a dev-time trap, not a code bug.

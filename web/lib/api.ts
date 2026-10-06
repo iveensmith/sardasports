@@ -90,6 +90,37 @@ async function engineFetch<T>(
 }
 
 /**
+ * A file the engine serves for download, passed through as-is.
+ *
+ * Streamed rather than parsed: the browser asks this site for the file, so
+ * the engine's address stays server-side like every other call here. Never
+ * cached, because a download should be the record as it stands now.
+ */
+export async function engineDownload(path: string): Promise<Response> {
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${ENGINE_URL}${path}`, { cache: "no-store" });
+  } catch {
+    return new Response("The prediction engine could not be reached.", {
+      status: 503,
+    });
+  }
+  if (!upstream.ok) {
+    return new Response("The engine could not produce that file.", {
+      status: upstream.status,
+    });
+  }
+  return new Response(upstream.body, {
+    headers: {
+      "content-type":
+        upstream.headers.get("content-type") ?? "text/csv; charset=utf-8",
+      "content-disposition":
+        upstream.headers.get("content-disposition") ?? "attachment",
+    },
+  });
+}
+
+/**
  * Fixtures for a date (default: today, engine-side).
  *
  * Honest note for callers: this returns only competitions the engine has

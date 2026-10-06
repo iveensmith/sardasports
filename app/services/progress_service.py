@@ -32,11 +32,13 @@ backfilled for that to start counting.
 
 from __future__ import annotations
 
+import csv
+import io
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.models.match import Match
 from app.models.prediction import Prediction
@@ -54,6 +56,10 @@ class _Graded:
 
     match_date: datetime
     competition: str
+    home_team: str
+    away_team: str
+    # The headline call as a reader saw it, e.g. "Over 2.5 goals".
+    call_label: str
     confidence: float | None
     headline: Outcome
     per_market: dict[str, Outcome]
@@ -82,6 +88,7 @@ def _grade_all(session: Session) -> list[_Graded]:
     rows = (
         session.query(Prediction, Match)
         .join(Match, Match.id == Prediction.match_id)
+        .options(joinedload(Match.home_team), joinedload(Match.away_team))
         .filter(Match.status == "completed", Match.home_score.is_not(None))
         .all()
     )
@@ -99,6 +106,9 @@ def _grade_all(session: Session) -> list[_Graded]:
             _Graded(
                 match_date=match.match_date,
                 competition=match.competition,
+                home_team=match.home_team.name,
+                away_team=match.away_team.name,
+                call_label=best.call.label,
                 confidence=prediction.confidence,
                 headline=settle_key(best.call.key, result),
                 # The *best call in each market*, not every candidate. Grading
@@ -136,11 +146,16 @@ def build_progress(session: Session) -> dict:
     backtest = [entry for entry in graded if not entry.live]
 
     by_month: dict[str, list[Outcome]] = defaultdict(list)
+    # How many of each month's calls were stored before kick-off, so a month
+    # table can show how much of any rate is a published record at all.
+    live_by_month: dict[str, list[Outcome]] = defaultdict(list)
     by_market: dict[str, list[Outcome]] = defaultdict(list)
     by_competition: dict[str, list[Outcome]] = defaultdict(list)
     by_confidence: dict[int, list[Outcome]] = defaultdict(list)
     for entry in graded:
         by_month[entry.match_date.strftime("%Y-%m")].append(entry.headline)
+        if entry.live:
+            live_by_month[entry.match_date.strftime("%Y-%m")].append(entry.headline)
         by_competition[entry.competition].append(entry.headline)
         for market, outcome in entry.per_market.items():
             by_market[market].append(outcome)
@@ -164,7 +179,14 @@ def build_progress(session: Session) -> dict:
             "record": _record(e.headline for e in backtest),
             "span": _span(backtest),
         },
-        "by_month": [{"month": month, **_record(by_month[month])} for month in sorted(by_month)],
+        "by_month": [
+            {
+                "month": month,
+                **_record(by_month[month]),
+                "live_settled": _record(live_by_month[month])["settled"],
+            }
+            for month in sorted(by_month)
+        ],
         "recent_days": [{"date": day, **_record(recent[day])} for day in sorted(recent)],
         "by_market": [
             {"market": market, **_record(by_market[market])}
@@ -183,3 +205,63 @@ def build_progress(session: Session) -> dict:
             for bucket in sorted(by_confidence)
         ],
     }
+
+
+# --- Downloads -------------------------------------------------------------
+#
+# The same graded rows the page is built from, as plain CSV, so that every
+# figure on the track-record page can be recounted by a reader. Both files are
+# regraded from `_grade_all` rather than kept separately, which is what makes
+# "the page, the daily file and the match file are three views of one set of
+# rows" a fact about the code and not only a sentence.
+
+
+def _csv(header: list[str], rows) -> str:
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    writer.writerow(header)
+    writer.writerows(rows)
+    return buffer.getvalue()
+
+
+def daily_record_csv(session: Session) -> str:
+    """One row per day: how many calls settled, and how they went."""
+    by_day: dict[str, list[_Graded]] = defaultdict(list)
+    for entry in _grade_all(session):
+        by_day[entry.match_date.date().isoformat()].append(entry)
+
+    rows = []
+    for day in sorted(by_day):
+        record = _record(e.headline for e in by_day[day])
+        live_settled = _record(e.headline for e in by_day[day] if e.live)["settled"]
+        rows.append(
+            [
+                day,
+                record["won"],
+                record["lost"],
+                record["void"],
+                record["settled"],
+                "" if record["win_rate"] is None else record["win_rate"],
+                live_settled,
+            ]
+        )
+    return _csv(["date", "won", "lost", "void", "settled", "win_rate", "live_settled"], rows)
+
+
+def matches_csv(session: Session) -> str:
+    """One row per graded prediction: the call made, and how the match ended."""
+    entries = sorted(_grade_all(session), key=lambda e: e.match_date)
+    rows = [
+        [
+            entry.match_date.date().isoformat(),
+            entry.competition,
+            entry.home_team,
+            entry.away_team,
+            entry.call_label,
+            entry.headline.value,
+            "live" if entry.live else "backtest",
+        ]
+        for entry in entries
+    ]
+    header = ["date", "competition", "home_team", "away_team", "call", "outcome", "record"]
+    return _csv(header, rows)

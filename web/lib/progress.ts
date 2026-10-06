@@ -34,6 +34,8 @@ export interface Span {
 
 export interface MonthRecord extends SettledRecord {
   month: string;
+  /** How many of this month's settled calls were stored before kick-off. */
+  live_settled: number;
 }
 export interface DayRecord extends SettledRecord {
   date: string;
@@ -79,4 +81,35 @@ export function marketName(market: string): string {
 /** "77.7%", or an em dash where nothing was settleable. */
 export function rate(record: SettledRecord): string {
   return record.win_rate === null ? "—" : `${record.win_rate.toFixed(1)}%`;
+}
+
+/** "2026-09" -> "September 2026", built from the parts so no timezone can shift it. */
+export function monthLabel(month: string): string {
+  const [year, number] = month.split("-").map(Number);
+  return new Date(Date.UTC(year, number - 1, 1)).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+/**
+ * The twelve calendar months ending at the newest month on record, oldest
+ * first. A month with nothing settled comes back as `null` rather than being
+ * left out: a gap in the record and a bad month are different facts, and a
+ * table that skipped the gap would read as a continuous run.
+ */
+export function lastTwelveMonths(
+  months: MonthRecord[],
+): Array<{ month: string; record: MonthRecord | null }> {
+  if (months.length === 0) return [];
+  const [year, number] = months[months.length - 1].month.split("-").map(Number);
+  const byMonth = new Map(months.map((m) => [m.month, m]));
+  const window: Array<{ month: string; record: MonthRecord | null }> = [];
+  for (let back = 11; back >= 0; back--) {
+    const index = year * 12 + (number - 1) - back;
+    const key = `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+    window.push({ month: key, record: byMonth.get(key) ?? null });
+  }
+  return window;
 }
