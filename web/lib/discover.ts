@@ -12,6 +12,8 @@ import type { SettledRecord } from "./progress";
 
 export interface LeagueEntry {
   competition: string;
+  /** URL segment for the competition's own page. */
+  slug: string;
   short_name: string;
   tier: number | null;
   /** Completed matches on record — what the model for it was built from. */
@@ -71,4 +73,80 @@ export interface Slip {
   /** The day's card could not supply enough eligible legs. */
   short_of_minimum: boolean;
   candidates_considered: number;
+}
+
+/** One row of a competition's table, computed from results on record. */
+export interface StandingRow {
+  team: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_difference: number;
+  points: number;
+}
+
+/** A team's last five results, ranked by points. See `form_window`. */
+export interface FormEntry {
+  team: string;
+  points: number;
+  goal_difference: number;
+  /** "WWDLW", oldest first. */
+  results: string;
+}
+
+export interface LeagueResult {
+  match_id: number;
+  match_date: string;
+  home_team: string;
+  away_team: string;
+  home_score: number;
+  away_score: number;
+}
+
+/** Rates over completed matches on record, as percentages. */
+export interface LeagueHistory {
+  matches: number;
+  home_win: number | null;
+  draw: number | null;
+  away_win: number | null;
+  over_1_5: number | null;
+  over_2_5: number | null;
+  over_3_5: number | null;
+  btts: number | null;
+  first: string | null;
+  last: string | null;
+}
+
+export interface LeagueDetail {
+  competition: string;
+  slug: string;
+  short_name: string;
+  country: string;
+  country_code: string | null;
+  tier: number | null;
+  /** No table or form for these: a table of friendlies is not a table. */
+  is_international: boolean;
+  history: LeagueHistory;
+  /** Days since the newest result on record. Null with no results at all. */
+  last_match_age_days: number | null;
+  /** The season the table and form are for, as a reader would write it. */
+  season: string | null;
+  teams: number | null;
+  standings: StandingRow[];
+  form_window: number;
+  /** Null unless the competition's newest result is recent enough that
+   *  "hot" and "cold" describe now rather than a past season. */
+  hot_team: FormEntry | null;
+  cold_team: FormEntry | null;
+  /** The engine's own settled record here; live and backtest never blended. */
+  record: {
+    overall: SettledRecord;
+    live: SettledRecord;
+    backtest: SettledRecord;
+  };
+  fixtures: BoardRow[];
+  results: LeagueResult[];
 }

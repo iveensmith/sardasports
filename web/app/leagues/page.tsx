@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { LeagueDirectory } from "@/components/league/LeagueDirectory";
 import { EngineError, getLeagues } from "@/lib/api";
 import type { Leagues } from "@/lib/discover";
 
@@ -46,6 +47,16 @@ export default async function LeaguesPage() {
     );
   }
 
+  const deepest = leagues.countries
+    .flatMap((country) =>
+      country.competitions.map((entry) => ({
+        ...entry,
+        country: country.country,
+      })),
+    )
+    .sort((a, b) => b.completed - a.completed)
+    .slice(0, 6);
+
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-8 max-w-[72ch]">
@@ -64,49 +75,32 @@ export default async function LeaguesPage() {
         </p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {leagues.countries.map((country) => (
-          <section
-            key={country.country}
-            className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <h2 className="text-[15px] font-semibold">{country.country}</h2>
-              <span className="text-[12px] text-[var(--color-text-faint)] tabular-nums">
-                {country.completed.toLocaleString()} matches
-              </span>
-            </div>
-            <ul className="mt-3 flex flex-col gap-1.5">
-              {country.competitions.map((entry) => (
-                <li key={entry.competition}>
-                  <Link
-                    href={`/matches?competition=${encodeURIComponent(entry.competition)}`}
-                    className="flex items-baseline justify-between gap-3 rounded-[var(--radius-md)] px-2 py-1.5 text-[13.5px] transition-colors hover:bg-[var(--color-surface-raised)]"
-                  >
-                    <span className="truncate text-[var(--color-text-dim)]">
-                      {entry.short_name}
-                      {entry.tier === 2 && (
-                        <span className="ml-1.5 text-[11px] text-[var(--color-text-faint)]">
-                          2nd tier
-                        </span>
-                      )}
-                    </span>
-                    <span className="shrink-0 text-[12px] text-[var(--color-text-faint)] tabular-nums">
-                      {entry.completed.toLocaleString()}
-                      {entry.upcoming > 0 && (
-                        <span style={{ color: "var(--color-gold-bright)" }}>
-                          {" "}
-                          · {entry.upcoming} up
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </div>
+      {/* Ranked by match history, not "popular": popularity is not something
+          this site measures, and history is the thing that varies here. */}
+      <section className="mb-8">
+        <h2 className="text-[15px] font-semibold">Most match history</h2>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {deepest.map((entry) => (
+            <Link
+              key={entry.competition}
+              href={`/leagues/${entry.slug}`}
+              className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-line-strong)] hover:bg-[var(--color-surface-raised)]"
+            >
+              <p className="truncate text-[13.5px] font-semibold">
+                {entry.short_name}
+              </p>
+              <p className="mt-1 truncate text-[12px] text-[var(--color-text-faint)]">
+                {entry.country}
+              </p>
+              <p className="mt-2 text-[12px] text-[var(--color-text-dim)] tabular-nums">
+                {entry.completed.toLocaleString()} matches
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <LeagueDirectory countries={leagues.countries} />
     </div>
   );
 }

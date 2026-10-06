@@ -15,53 +15,7 @@
 
 import Link from "next/link";
 import type { CountryCount } from "@/lib/board";
-
-function flagSrc(code: string) {
-  return `https://flagcdn.com/w20/${code.toLowerCase()}.png`;
-}
-
-/** Plain shapes, not a licensed icon set — this is the one mark on the page
- * that isn't a flag, so it only has to read as "not a single nation". */
-function GlobeMark() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      width={13}
-      height={13}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      className="shrink-0"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M3.2 12h17.6" />
-      <path d="M12 3c2.6 2.7 2.6 15.3 0 18" />
-      <path d="M12 3c-2.6 2.7-2.6 15.3 0 18" />
-    </svg>
-  );
-}
-
-function CountryMark({ code }: { code: string | null }) {
-  if (!code) {
-    return (
-      <span className="inline-flex h-[14px] w-5 shrink-0 items-center justify-center text-[var(--color-text-faint)]">
-        <GlobeMark />
-      </span>
-    );
-  }
-  return (
-    <img
-      src={flagSrc(code)}
-      alt=""
-      width={20}
-      height={14}
-      loading="lazy"
-      decoding="async"
-      className="h-[14px] w-5 shrink-0 rounded-[2px] object-cover"
-    />
-  );
-}
+import { CountryMark, GlobeMark } from "@/components/board/CountryMark";
 
 function activeStyle(isActive: boolean) {
   if (!isActive) return undefined;

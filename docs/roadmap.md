@@ -1510,3 +1510,67 @@ Also re-confirmed: after a backend schema change, Next's fetch cache
 (`revalidate: 3600` on `/progress`) serves the old JSON shape for up to an
 hour and crashes any component reading a new field. Clearing `.next` and
 restarting the dev server fixes it; it is a dev-time trap, not a code bug.
+
+## Per-league pages — done, live-verified
+
+The reference's biggest structural advantage over `/leagues` was that every
+competition has a page of its own. Built `/leagues/[slug]` for all 40
+competitions, backed by `GET /leagues/{slug}` (`app/services/league_service.py`).
+The index at `/leagues` gained flags, links to those pages, a search box and
+a "Most match history" row — ranked by history rather than called "popular",
+because popularity is not something this site measures.
+
+What a league page carries, all counted from matches the engine holds:
+
+- Matches on record, teams in the latest season, and the result split and
+  Over 1.5/2.5/3.5/BTTS rates across every completed match.
+- **The engine's own record in that competition, with live and backtested
+  kept apart** — the same rule as the track-record page.
+- A Standings tab (the `/standings/{competition}` logic, finally used by a
+  page) and Match Predictions: upcoming fixtures priced the way the board
+  prices them, and the latest results on record.
+- Hottest and coldest team over the last five results, with the rule printed.
+- A summary paragraph built only from those numbers.
+
+**Honesty rules the page enforces:**
+
+- **It says how current it is.** A competition whose newest result is more
+  than 45 days old gets a banner stating the date of that result and how long
+  ago it was, and hot/cold teams are *not named* — the last five matches would
+  be last season's, and "hot" would describe a past year as now. A table is
+  still shown, captioned with its season and the result it runs to.
+- **International competitions get no table and no form.** A table of
+  friendlies, or of qualifiers over two years, is not a table of anything.
+- A rate over nothing is a dash, never 0%.
+
+**Left out on purpose:** the reference's "constant" team (its criteria are
+undisclosed and we would be inventing a definition), "predictability rate"
+(a claim about accuracy we would have to measure to make), team crests (no
+licensed source), and any "700+ competitions" style claim. A recent-results
+list shows plain results with no pick beside them: where the engine never
+priced a match there is no call to grade, and viewing a past fixture's pick
+would *create* a backtested prediction as a side effect of reading a page.
+
+### What building it exposed
+
+**No domestic league has a result newer than 127 days; most are about 500
+days old.** Premier League, La Liga, Bundesliga, Serie A, Ligue 1 and the
+other European leagues end at the close of 2024-25 (25 May 2025); the
+calendar-year leagues end in 2025. Only international football is current
+(the 29 September 2026 internationals). So every domestic league page shows
+last season's table and a stale-data banner, and the board has no domestic
+fixtures to price. This is the same root cause as the stale track record:
+`ENABLE_SCHEDULER=false`, plus the Football-Data.co.uk CSVs never having been
+re-downloaded for 2025-26. It is the highest-value open item in the repo and
+it needs an owner decision, since it spends API quota.
+
+**Calendar-year seasons are stored under unreadable codes** — Argentina's,
+Brazil's, Japan's and others' 2025 is `"2525"`, and MLS's is `"2025-2025"`.
+Normalised for display by `season_label` and left alone in the database, since
+the value is a key and changing it rewrites history. The cause is almost
+certainly the split-year decoder in `clean_data`/`fetch_extra_league` reading
+"25"+"25" as a pair; worth fixing at the source when those scripts are next
+touched.
+
+`tests/test_league.py` pins the recency gate, the dash-not-zero rule, the
+international exemption and the slug round-trip.

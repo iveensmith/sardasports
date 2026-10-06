@@ -207,6 +207,23 @@ def build_progress(session: Session) -> dict:
     }
 
 
+def competition_record(session: Session, competition: str) -> dict:
+    """One competition's settled record, live and backtested kept apart.
+
+    The same grading as the track-record page, filtered. A league page that
+    quoted a win rate without saying how much of it was backtested would be
+    making the claim the track-record page is careful not to.
+    """
+    graded = [entry for entry in _grade_all(session) if entry.competition == competition]
+    live = [entry for entry in graded if entry.live]
+    backtest = [entry for entry in graded if not entry.live]
+    return {
+        "overall": _record(entry.headline for entry in graded),
+        "live": _record(entry.headline for entry in live),
+        "backtest": _record(entry.headline for entry in backtest),
+    }
+
+
 # --- Downloads -------------------------------------------------------------
 #
 # The same graded rows the page is built from, as plain CSV, so that every

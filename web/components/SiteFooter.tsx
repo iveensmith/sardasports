@@ -10,8 +10,7 @@
  * no per-team landing pages — so rather than wire up dead links or invent
  * content for pages that don't exist, they're left out entirely. "Top
  * leagues" is real: the six competitions with the most completed matches
- * on record, linking to the same `/matches?competition=` filter the
- * leagues page itself uses, not a dedicated page that doesn't exist.
+ * on record, each linking to its own page under `/leagues/`.
  */
 
 import Link from "next/link";
@@ -44,7 +43,8 @@ function Column({
 }
 
 export async function SiteFooter() {
-  let topLeagues: { competition: string; short_name: string }[] = [];
+  let topLeagues: { competition: string; slug: string; short_name: string }[] =
+    [];
   try {
     const leagues = await getLeagues();
     topLeagues = leagues.countries
@@ -91,7 +91,7 @@ export async function SiteFooter() {
               {topLeagues.map((entry) => (
                 <li key={entry.competition}>
                   <Link
-                    href={`/matches?competition=${encodeURIComponent(entry.competition)}`}
+                    href={`/leagues/${entry.slug}`}
                     className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
                   >
                     {entry.short_name}

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -18,6 +18,7 @@ from app.models.match import Match
 from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row
+from app.services.league_service import build_league, competition_for_slug, slug_for
 from app.services.prediction_service import predict_for_matches
 from app.services.settlement import Outcome, Record
 from app.services.slip_service import (
@@ -77,6 +78,7 @@ def leagues(db: Session = Depends(get_db)) -> dict:
             entries.append(
                 {
                     "competition": meta.competition,
+                    "slug": slug_for(meta.competition),
                     "short_name": meta.short_name,
                     "tier": meta.tier,
                     "completed": counts.get(meta.competition, 0),
@@ -102,6 +104,15 @@ def leagues(db: Session = Depends(get_db)) -> dict:
         "competition_count": len(BY_COMPETITION),
         "country_count": len(grouped),
     }
+
+
+@router.get("/leagues/{slug}")
+def league(slug: str, db: Session = Depends(get_db)) -> dict:
+    """One competition: its rates, table, record, fixtures and latest results."""
+    meta = competition_for_slug(slug)
+    if meta is None:
+        raise HTTPException(status_code=404, detail=f"No competition matches '{slug}'")
+    return build_league(db, meta)
 
 
 def _day_rows(db: Session, target: date):

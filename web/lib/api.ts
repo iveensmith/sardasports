@@ -12,7 +12,7 @@
  */
 
 import type { BoardDates, DayBoard } from "./board";
-import type { Bankers, Leagues, Slip } from "./discover";
+import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
 import type { Progress } from "./progress";
 import type {
   Call,
@@ -351,6 +351,20 @@ export function getProgress(): Promise<Progress> {
 /** Every competition we model, grouped by country. */
 export function getLeagues(): Promise<Leagues> {
   return engineFetch<Leagues>("/leagues", { revalidate: 3600 });
+}
+
+/** One competition's page: rates, table, record, fixtures and results.
+ *  Null for a slug that names no competition. */
+export async function getLeague(slug: string): Promise<LeagueDetail | null> {
+  try {
+    return await engineFetch<LeagueDetail>(
+      `/leagues/${encodeURIComponent(slug)}`,
+      { revalidate: 600 },
+    );
+  } catch (error) {
+    if (error instanceof EngineError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /** The day's likeliest picks, with the record of the settled ones. */
