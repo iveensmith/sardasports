@@ -28,6 +28,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "fetch_upcoming_fixtures",
             "fetch_odds",
             "fetch_results",
+            "fetch_match_stats",
             "evaluate_predictions",
             "weekly_retrain",
             "monthly_archive",

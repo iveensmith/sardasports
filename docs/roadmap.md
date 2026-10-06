@@ -1418,3 +1418,34 @@ second page (`/matches`) to confirm it renders identically everywhere via
 the root layout, in both themes, and that a real league link
 (`/matches?competition=English+Premier+League`) correctly filters the
 board rather than 404ing.
+
+## Typography: Red Hat Display/Text — done, live-verified
+
+Asked directly to replace Archivo, which read as flat and generic. The
+replacement went through two candidates, and the first one's failure is worth
+keeping on record so it isn't rediscovered:
+
+- **Schibsted Grotesk — rejected.** Chosen for its editorial/data heritage,
+  but its Google Fonts build has a broken comma/period glyph: a visible extra
+  space before every comma and full stop, at every weight tried (400/420/700,
+  static and variable instances). Reproduced in an isolated test `<div>` with
+  plain inline styles, outside anything in this codebase, so it is a defect in
+  the font file as served, not something fixable from this project's config.
+  **Do not retry it.**
+- **Red Hat Display + Red Hat Text — adopted.** An actual display/text pair
+  rather than one family stretched over both jobs, built for dense technical
+  interfaces where numbers are compared constantly. Display
+  (`--font-display`) carries headlines, `h1`–`h3` and hero numbers; Text
+  (`--font-body`) carries body copy, labels and table cells. Both are loaded
+  as true variable fonts via `next/font/google` in `web/app/layout.tsx`, with
+  no `weight` array so intermediate weights are real rather than rounded to
+  static instances.
+
+If the face is ever revisited, Instrument Sans and Public Sans were also
+checked in the same isolated test and showed no punctuation defect.
+
+### Housekeeping in the same pass
+
+- `tests/test_scheduler.py` still expected the pre-rebuild job list and was
+  failing on `fetch_match_stats`, the job registered with the match-page
+  rebuild. Expected set updated; the suite is otherwise green (421 tests).
