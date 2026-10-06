@@ -1574,3 +1574,71 @@ touched.
 
 `tests/test_league.py` pins the recency gate, the dash-not-zero rule, the
 international exemption and the slug round-trip.
+
+## Domestic data refreshed to October 2026 — done, live-verified
+
+Every domestic league had stopped at the end of 2024-25 (calendar-year
+leagues at 2025), because the Football-Data.co.uk CSVs were never re-downloaded
+and the scheduler is off. That source is free and uses no API quota, so it was
+the right first fix. API-Football's free plan is 100 requests/day, 10/minute
+(checked via `/status`, which is free). The scheduler as configured would
+exceed that: by the code, fixtures cost ~42/day (6 runs × 7 dates), results
+~24 (8 × 3), odds 18–54 plus up to 40 fallback requests per run, match stats 2
+per fixture, and the injury sync loops over all 3,467 teams — tennis players
+included, with only one cached API id — so at least 3,467 requests, which alone
+exhausts the quota. It needs rebudgeting (fewer runs, `--days 3` to match the
+free window, injuries off or limited to teams in upcoming fixtures) before
+`ENABLE_SCHEDULER` is turned on. Counts are from reading the code, not a
+measured run.
+
+**What was loaded.** 2025-26 and 2026-27 for the 16 main leagues, and 2025/2026
+for the 16 extra countries (`fetch_extra_league.py`, with the League filter
+confirmed per country first: MLS, Liga Profesional, Serie A, J1 League, Liga MX,
+Premier League [Russia], Ekstraklasa, Eliteserien, Bundesliga [Austria], Super
+League [China and Switzerland], Superliga [Denmark and Romania], Veikkausliiga,
+Premier Division, Allsvenskan). 8,821 new matches inserted; the dataset is now
+100,075 football matches and Elo was rebuilt over 180,059 completed matches.
+Newest results are now 0–18 days old for every domestic league except the
+Saudi Pro League (138 days — it comes from API-Football, not this source) and
+the Russian Premier League (65 days, a genuine summer break).
+
+**A real defect the load would have caused, fixed in the loader.**
+`load_to_db.py` recognised matches by `external_id` alone, so a CSV row for a
+fixture the API had already ingested (different id, bare date instead of a
+kick-off time) would have been inserted as a second match, leaving the
+original — which owns the predictions made before kick-off — scheduled
+forever. A dry run found two such fixtures, both with live predictions
+(Leganés–Castellón, NY Red Bulls–St. Louis City). The loader now matches
+`apif-` fixtures by competition, team pair and a one-day date tolerance, and
+completes them from the CSV row instead of duplicating them: the API's id,
+kick-off time and any stats it already recorded are kept, and only empty fields
+are filled. Both fixtures completed with their predictions intact.
+`tests/test_load_to_db.py` pins this, including idempotence and that a
+same-team fixture weeks apart, or in another competition, is *not* merged.
+
+**Retrained all 12 football models.** Accuracy is essentially unchanged —
+expected, since this adds history rather than changing the problem:
+
+    match result 49.3% (was 49.6)    goals 1.5  75.8% (76.4)
+    goals 2.5    56.2% (56.5)        goals 3.5  70.4%
+    half-time    71.2% (71.1)        BTTS       55.2% (54.5)
+    corners 7.5/8.5/9.5   72.9 / 61.2 / 54.5%
+    cards   2.5/3.5/4.5   78.1 / 63.1 / 60.4%
+
+`KNOWN_COMPETITIONS` did not change, so the restart rule did not bite; the
+backend was restarted anyway to load the new models.
+
+**Not refreshed, and why:** the Saudi Pro League and every international
+competition come from API-Football, not this source, so they are unchanged —
+international football is still current only to 29 September 2026 from the
+earlier API pulls. Both wait on the paid plan.
+
+**Found, not fixed (split into its own task):** 72 fixtures are stored twice —
+34 German 2. Bundesliga, 19 friendlies, 14 Nations League, 5 Euros — because a
+team name such as "Preußen Münster" is decoded two different ways between
+pipeline runs and `external_id` embeds the name. All 72 predate this refresh
+and the load added none. They double-count in tables and rates. Same family as
+the Curaçao U+FFFD defect above.
+
+A pre-load backup of the database (130 MB, integrity-checked) was taken to the
+session scratchpad, not the repo; it is not a durable backup.

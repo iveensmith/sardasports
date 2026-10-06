@@ -63,13 +63,80 @@ def _get_or_create_team(
     return team
 
 
-def load_matches(session, df: pd.DataFrame) -> tuple[list[Match], int]:
+# How far apart two kick-off dates can be and still be the same fixture. The
+# API stores a real kick-off time in UTC and the CSVs a bare local date, so a
+# late-evening match can land on adjacent calendar days across the two.
+API_FIXTURE_DATE_TOLERANCE_DAYS = 1
+
+
+def _api_fixture_index(session) -> dict[tuple[str, int, int], list[Match]]:
+    """Fixtures ingested from the API, keyed by competition and team pair.
+
+    Only API-sourced rows (`apif-`): they are the ones that can already carry
+    predictions and be waiting on a result, and the only ones whose identity
+    the CSV pipeline cannot recognise by `external_id`.
+    """
+    index: dict[tuple[str, int, int], list[Match]] = {}
+    for match in session.query(Match).filter(Match.external_id.like("apif-%")):
+        key = (match.competition, match.home_team_id, match.away_team_id)
+        index.setdefault(key, []).append(match)
+    return index
+
+
+def _find_api_fixture(index, competition, home_id, away_id, played_on: datetime) -> Match | None:
+    for match in index.get((competition, home_id, away_id), []):
+        gap = abs((match.match_date.date() - played_on.date()).days)
+        if gap <= API_FIXTURE_DATE_TOLERANCE_DAYS:
+            return match
+    return None
+
+
+def _complete_from_row(match: Match, row) -> bool:
+    """Give an API-ingested fixture the result a CSV row carries.
+
+    The CSV row is the same fixture seen from a different source, so it must
+    not become a second match: the existing row owns the predictions made
+    before kick-off, and inserting a duplicate would strand them on a fixture
+    that never completes. Only fills what is missing, and keeps the API's own
+    id and kick-off time. Returns True if the fixture changed.
+    """
+    changed = False
+    if match.status != "completed":
+        match.home_score = int(row.home_score)
+        match.away_score = int(row.away_score)
+        match.status = "completed"
+        changed = True
+    for column, value in (
+        ("home_ht_goals", _safe_int(row.home_ht_goals)),
+        ("away_ht_goals", _safe_int(row.away_ht_goals)),
+        ("home_shots", _safe_int(row.home_shots)),
+        ("away_shots", _safe_int(row.away_shots)),
+        ("home_shots_on_target", _safe_int(row.home_shots_on_target)),
+        ("away_shots_on_target", _safe_int(row.away_shots_on_target)),
+        ("home_corners", _safe_int(row.home_corners)),
+        ("away_corners", _safe_int(row.away_corners)),
+        ("home_yellow_cards", _safe_int(row.home_yellow_cards)),
+        ("away_yellow_cards", _safe_int(row.away_yellow_cards)),
+        ("home_red_cards", _safe_int(row.home_red_cards)),
+        ("away_red_cards", _safe_int(row.away_red_cards)),
+    ):
+        if value is not None and getattr(match, column) is None:
+            setattr(match, column, value)
+            changed = True
+    return changed
+
+
+def load_matches(session, df: pd.DataFrame) -> tuple[list[Match], int, int, int]:
+    """Insert new matches; returns (inserted, odds backfilled, half-time
+    scores backfilled, API fixtures completed rather than duplicated)."""
     team_cache: dict[str, Team] = {}
     inserted: list[Match] = []
     odds_backfilled = 0
     ht_goals_backfilled = 0
+    api_completed = 0
 
     existing_by_external_id = {m.external_id: m for m in session.query(Match).all()}
+    api_fixtures = _api_fixture_index(session)
 
     for row in df.itertuples(index=False):
         if row.external_id in existing_by_external_id:
@@ -95,10 +162,19 @@ def load_matches(session, df: pd.DataFrame) -> tuple[list[Match], int]:
 
         home = _get_or_create_team(session, team_cache, row.home_team, row.competition)
         away = _get_or_create_team(session, team_cache, row.away_team, row.competition)
+        played_on = datetime.strptime(row.match_date, "%Y-%m-%d")
+
+        # The same fixture may already be here under an API id. Complete that
+        # row instead of inserting a second one.
+        api_fixture = _find_api_fixture(api_fixtures, row.competition, home.id, away.id, played_on)
+        if api_fixture is not None:
+            if _complete_from_row(api_fixture, row):
+                api_completed += 1
+            continue
 
         match = Match(
             external_id=row.external_id,
-            match_date=datetime.strptime(row.match_date, "%Y-%m-%d"),
+            match_date=played_on,
             competition=row.competition,
             season=row.season,
             # Written by clean_data from NEUTRAL_VENUE_COMPETITIONS; guarded
@@ -131,7 +207,7 @@ def load_matches(session, df: pd.DataFrame) -> tuple[list[Match], int]:
         inserted.append(match)
 
     session.flush()
-    return inserted, odds_backfilled, ht_goals_backfilled
+    return inserted, odds_backfilled, ht_goals_backfilled, api_completed
 
 
 def _safe_int(value) -> int | None:
@@ -244,8 +320,13 @@ def main() -> None:
     df = pd.read_csv(PROCESSED_PATH)
     session = SessionLocal()
     try:
-        inserted, odds_backfilled, ht_goals_backfilled = load_matches(session, df)
+        inserted, odds_backfilled, ht_goals_backfilled, api_completed = load_matches(session, df)
         logger.info("Inserted %d new matches (of %d in file)", len(inserted), len(df))
+        if api_completed:
+            logger.info(
+                "Completed %d API-ingested fixture(s) from the CSV rather than duplicating them",
+                api_completed,
+            )
         if odds_backfilled:
             logger.info("Backfilled odds onto %d previously-loaded matches", odds_backfilled)
         if ht_goals_backfilled:
