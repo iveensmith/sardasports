@@ -17,6 +17,7 @@ import pandas as pd
 from app.database.base import Base
 from app.database.session import SessionLocal, get_engine
 from app.models import ModelVersion, TrainingRun
+from ml.api_competitions import enabled_families, family_of
 from ml.elo.engine import EloEngine, MatchResult
 from ml.elo.football import FOOTBALL_COMPETITION_K
 from ml.feature_engineering.features import build_match_features, build_team_history_index
@@ -35,7 +36,7 @@ PROCESSED_PATH = (
 # crashing — that's how a not-yet-ingested league is handled: `/predict`
 # still works for it (falls back to the unscoped Elo+Poisson ensemble, see
 # ml.prediction.predict), it just doesn't get a league-specific ML signal.
-KNOWN_COMPETITIONS = [
+_BASE_COMPETITIONS = [
     "English Premier League",
     "English Championship",
     "English League One",
@@ -86,6 +87,12 @@ KNOWN_COMPETITIONS = [
     "Africa Cup of Nations Qualifiers",
     "International Friendlies",
 ]
+
+# Competitions from the API-Football registry (ml.api_competitions) join as
+# *families*, not individual groups: Spain's eighteen Tercera RFEF groups are
+# one feature column. Empty until a competition is enabled there, which is done
+# in the same change that carries its data and the retrained models.
+KNOWN_COMPETITIONS = [*_BASE_COMPETITIONS, *enabled_families()]
 
 
 def _competition_column(competition: str) -> str:
@@ -139,7 +146,7 @@ def one_hot_competition(competition: str) -> dict:
     competition outside KNOWN_COMPETITIONS encodes as all-zero rather than
     raising — an unrecognized league shouldn't crash a prediction, it just
     won't get the benefit of a league-specific signal."""
-    target = _competition_column(competition)
+    target = _competition_column(family_of(competition) or competition)
     return {col: (1.0 if col == target else 0.0) for col in COMPETITION_COLUMNS}
 
 

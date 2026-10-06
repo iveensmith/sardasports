@@ -44,6 +44,8 @@ tournament football is lower-scoring than a friendly.
 
 from __future__ import annotations
 
+from ml.api_competitions import family_of
+
 # National-team competitions. Keep in sync with the international block of
 # `ml.training.common.KNOWN_COMPETITIONS`.
 INTERNATIONAL_COMPETITIONS: frozenset[str] = frozenset(
@@ -70,10 +72,16 @@ def is_international(competition: str | None) -> bool:
 def fit_pool(competition: str | None) -> str | None:
     """The key to group `competition` under when fitting a Poisson model.
 
-    Domestic leagues map to themselves. Every international competition maps
-    to one shared pool. `None` — meaning "don't scope at all" — is preserved,
+    Domestic leagues map to their family, which is themselves unless they are
+    one group of a regional tier. Every international competition maps to one
+    shared pool. `None` — meaning "don't scope at all" — is preserved,
     since callers use it to fit on the whole history window.
     """
     if competition is None:
         return None
-    return INTERNATIONAL_POOL if competition in INTERNATIONAL_COMPETITIONS else competition
+    if competition in INTERNATIONAL_COMPETITIONS:
+        return INTERNATIONAL_POOL
+    # A regional group fits with its whole tier: eighteen Tercera RFEF groups
+    # never share a team, play the same kind of football, and are far too small
+    # alone. Every other domestic competition is its own family.
+    return family_of(competition)

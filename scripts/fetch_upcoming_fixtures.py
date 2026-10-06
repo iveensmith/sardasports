@@ -40,9 +40,12 @@ import requests
 
 from app.database.session import SessionLocal
 from app.models.match import Match
-from app.models.team import Team
+from app.services.team_identity import TeamResolver
 from app.utils.config import get_settings
-from app.utils.team_names import fold_team_key, normalize_team_name
+from app.utils.seasons import fallback_label, label_like
+from app.utils.team_names import normalize_team_name
+from ml.api_competitions import BY_ID
+from ml.api_competitions import enabled as api_enabled
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -70,6 +73,7 @@ EXCLUDED_TEAM_PATTERN = re.compile(r"\b(U-?\d{2}|II|B|Reserves|Youth|Academy)\b"
 # id is the join key. Every value here must exist in
 # ml.training.common.KNOWN_COMPETITIONS — enforced by a test.
 LEAGUE_ID_TO_COMPETITION = {
+    **{c.api_id: c.name for c in api_enabled()},
     39: "English Premier League",
     40: "English Championship",
     41: "English League One",
@@ -160,74 +164,104 @@ def rows_from_fixtures(items: list[dict]) -> tuple[list[dict], int]:
         if competition is None:
             skipped += 1
             continue
-        home = (item.get("teams", {}).get("home") or {}).get("name")
-        away = (item.get("teams", {}).get("away") or {}).get("name")
+        home_info = item.get("teams", {}).get("home") or {}
+        away_info = item.get("teams", {}).get("away") or {}
+        home, away = home_info.get("name"), away_info.get("name")
         date_raw = fixture.get("date")
         if not (home and away and date_raw):
             continue
-        if EXCLUDED_TEAM_PATTERN.search(home) or EXCLUDED_TEAM_PATTERN.search(away):
+        # A registry competition's reserve sides are real members: Bayern II
+        # plays in the 3. Liga and Real Madrid Castilla in the Primera
+        # Federación. The youth/reserve filter exists for the Friendlies feed,
+        # which mixes U17 sides in with senior ones, and does not apply there.
+        registered = BY_ID.get(league_id)
+        if registered is None and (
+            EXCLUDED_TEAM_PATTERN.search(home) or EXCLUDED_TEAM_PATTERN.search(away)
+        ):
             skipped += 1
             continue
         kickoff = datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
+        league_info = item.get("league") or {}
+        season_year = int(league_info.get("season") or kickoff.year)
         rows.append(
             {
                 "external_id": f"apif-{fixture.get('id')}",
                 "match_date": kickoff.astimezone(UTC).replace(tzinfo=None),
                 "competition": competition,
-                "season": str((item.get("league") or {}).get("season") or kickoff.year),
-                "neutral_venue": competition in NEUTRAL_VENUE_COMPETITIONS,
+                # Resolved in `load_rows`, where the competition's existing
+                # history is available to match its label format.
+                "season_year": season_year,
+                "season": (
+                    f"{season_year}-{season_year + 1}"
+                    if registered and registered.split_year
+                    else str(season_year) if registered else None
+                ),
+                "neutral_venue": (
+                    registered.is_neutral(league_info.get("round"))
+                    if registered
+                    else competition in NEUTRAL_VENUE_COMPETITIONS
+                ),
                 "home_team": normalize_team_name(home),
                 "away_team": normalize_team_name(away),
+                "home_api_id": home_info.get("id"),
+                "away_api_id": away_info.get("id"),
             }
         )
     return rows, skipped
 
 
-def _get_or_create_team(session, cache: dict, name: str, league: str) -> Team:
-    key = (SPORT, name)
-    if key in cache:
-        return cache[key]
-    team = session.query(Team).filter(Team.sport == SPORT, Team.name == name).one_or_none()
-    if team is None:
-        # Accent/punctuation-folded fallback before creating anything new:
-        # sources disagree on diacritics for the same club ("Castellon" from
-        # Football-Data.co.uk, "Castellón" from API-Football), and a second
-        # row splits that club's history and leaves the new one with no Elo,
-        # so a real fixture gets a default-rated coin-flip prediction.
-        # Folding affects matching only; the stored name is untouched.
-        folded = fold_team_key(name)
-        for candidate in session.query(Team).filter(Team.sport == SPORT).all():
-            if fold_team_key(candidate.name) == folded:
-                cache[key] = candidate
-                return candidate
+def _season_label(session, row: dict, cache: dict) -> str:
+    """The season label for a fixture, in the shape its competition already uses.
 
-        team = Team(name=name, league=league, sport=SPORT)
-        session.add(team)
-        session.flush()
-    cache[key] = team
-    return team
+    A registry competition states its own calendar. For one loaded from
+    Football-Data the answer is read off its newest stored season, so a live
+    fixture lands in the same bucket as the rest of its league rather than in
+    a "2026" beside a "2026-2027".
+    """
+    if row.get("season"):
+        return row["season"]
+    competition, year = row["competition"], row["season_year"]
+    if competition not in cache:
+        newest = (
+            session.query(Match.season)
+            .filter(Match.competition == competition, Match.season.isnot(None))
+            .order_by(Match.match_date.desc())
+            .first()
+        )
+        cache[competition] = newest[0] if newest else None
+    sample = cache[competition]
+    label = label_like(sample, year) if sample else None
+    return label or fallback_label(year, row["match_date"].month)
 
 
 def load_rows(session, rows: list[dict]) -> tuple[int, int]:
-    """Insert new scheduled fixtures. Returns (inserted, already_present)."""
+    """Insert new scheduled fixtures. Returns (inserted, already_present).
+
+    Clubs are resolved by API id first, then name — the same resolver the
+    historical ingest uses — so a club has one identity whichever way it
+    arrives. Matching on name alone created a fresh default-rated club for any
+    API spelling that differed from Football-Data's, which then got a
+    coin-flip prediction.
+    """
     existing = {
         e for (e,) in session.query(Match.external_id).filter(Match.external_id.isnot(None)).all()
     }
-    cache: dict = {}
+    resolver = TeamResolver(session)
+    label_cache: dict = {}
     inserted = skipped = 0
     for row in rows:
         if row["external_id"] in existing:
             skipped += 1
             continue
-        home = _get_or_create_team(session, cache, row["home_team"], row["competition"])
-        away = _get_or_create_team(session, cache, row["away_team"], row["competition"])
+        home = resolver.resolve(row["home_team"], row.get("home_api_id"), row["competition"])
+        away = resolver.resolve(row["away_team"], row.get("away_api_id"), row["competition"])
         session.add(
             Match(
                 external_id=row["external_id"],
                 sport=SPORT,
                 match_date=row["match_date"],
                 competition=row["competition"],
-                season=row["season"],
+                season=_season_label(session, row, label_cache),
                 neutral_venue=row["neutral_venue"],
                 home_team_id=home.id,
                 away_team_id=away.id,
@@ -240,6 +274,7 @@ def load_rows(session, rows: list[dict]) -> tuple[int, int]:
         )
         existing.add(row["external_id"])
         inserted += 1
+    session.flush()
     return inserted, skipped
 
 

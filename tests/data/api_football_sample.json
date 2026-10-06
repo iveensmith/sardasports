@@ -1,0 +1,562 @@
+{
+ "cup": [
+  {
+   "fixture": {
+    "id": 1367758,
+    "referee": "Ricardo De Burgos",
+    "timezone": "UTC",
+    "date": "2025-04-26T20:00:00+00:00",
+    "timestamp": 1745697600,
+    "periods": {
+     "first": 1745697600,
+     "second": 1745701200
+    },
+    "venue": {
+     "id": null,
+     "name": "Estadio Olímpico de Sevilla",
+     "city": "Sevilla"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "AET",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Final",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 529,
+     "name": "Barcelona",
+     "logo": "https://media.api-sports.io/football/teams/529.png",
+     "winner": true
+    },
+    "away": {
+     "id": 541,
+     "name": "Real Madrid",
+     "logo": "https://media.api-sports.io/football/teams/541.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 3,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 1,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 2,
+     "away": 2
+    },
+    "extratime": {
+     "home": 1,
+     "away": 0
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1350688,
+    "referee": "Alejandro Hernández",
+    "timezone": "UTC",
+    "date": "2025-02-25T20:30:00+00:00",
+    "timestamp": 1740515400,
+    "periods": {
+     "first": 1740515400,
+     "second": 1740519000
+    },
+    "venue": {
+     "id": 19939,
+     "name": "Estadi Olímpic Lluís Companys",
+     "city": "Barcelona"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": 7
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Semi-finals",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 529,
+     "name": "Barcelona",
+     "logo": "https://media.api-sports.io/football/teams/529.png",
+     "winner": null
+    },
+    "away": {
+     "id": 530,
+     "name": "Atletico Madrid",
+     "logo": "https://media.api-sports.io/football/teams/530.png",
+     "winner": null
+    }
+   },
+   "goals": {
+    "home": 4,
+    "away": 4
+   },
+   "score": {
+    "halftime": {
+     "home": 3,
+     "away": 2
+    },
+    "fulltime": {
+     "home": 4,
+     "away": 4
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1321224,
+    "referee": "Mario Melero",
+    "timezone": "UTC",
+    "date": "2025-01-04T20:30:00+00:00",
+    "timestamp": 1736022600,
+    "periods": {
+     "first": 1736022600,
+     "second": 1736026200
+    },
+    "venue": {
+     "id": 3994,
+     "name": "Estadio Nuevo Municipal Las Gaunas",
+     "city": "Logroño"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "PEN",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Round of 32",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 5280,
+     "name": "UD Logroñés",
+     "logo": "https://media.api-sports.io/football/teams/5280.png",
+     "winner": false
+    },
+    "away": {
+     "id": 531,
+     "name": "Athletic Club",
+     "logo": "https://media.api-sports.io/football/teams/531.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 0,
+    "away": 0
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 0
+    },
+    "extratime": {
+     "home": 0,
+     "away": 0
+    },
+    "penalty": {
+     "home": 3,
+     "away": 4
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1307026,
+    "referee": null,
+    "timezone": "UTC",
+    "date": "2024-10-09T15:30:00+00:00",
+    "timestamp": 1728487800,
+    "periods": {
+     "first": 1728487800,
+     "second": 1728491400
+    },
+    "venue": {
+     "id": null,
+     "name": "Campo de Fútbol O Monte",
+     "city": "A Coruña"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "AET",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Preliminary Round",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 25038,
+     "name": "San Tirso",
+     "logo": "https://media.api-sports.io/football/teams/25038.png",
+     "winner": null
+    },
+    "away": {
+     "id": 9645,
+     "name": "Selaya",
+     "logo": "https://media.api-sports.io/football/teams/9645.png",
+     "winner": null
+    }
+   },
+   "goals": {
+    "home": 1,
+    "away": 1
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 1,
+     "away": 1
+    },
+    "extratime": {
+     "home": 0,
+     "away": 0
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1334030,
+    "referee": "Miguel Ortiz",
+    "timezone": "UTC",
+    "date": "2025-01-14T20:00:00+00:00",
+    "timestamp": 1736884800,
+    "periods": {
+     "first": 1736884800,
+     "second": 1736888400
+    },
+    "venue": {
+     "id": 6705,
+     "name": "Estadio O Couto",
+     "city": "Ourense"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": 6
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Round of 16",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 9612,
+     "name": "Ourense CF",
+     "logo": "https://media.api-sports.io/football/teams/9612.png",
+     "winner": false
+    },
+    "away": {
+     "id": 532,
+     "name": "Valencia",
+     "logo": "https://media.api-sports.io/football/teams/532.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 0,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 2
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 9000001,
+    "referee": "Miguel Ortiz",
+    "timezone": "UTC",
+    "date": "2025-01-14T20:00:00+00:00",
+    "timestamp": 1736884800,
+    "periods": {
+     "first": 1736884800,
+     "second": 1736888400
+    },
+    "venue": {
+     "id": 6705,
+     "name": "Estadio O Couto",
+     "city": "Ourense"
+    },
+    "status": {
+     "long": "Match Postponed",
+     "short": "PST"
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Round of 16",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 9612,
+     "name": "Ourense CF",
+     "logo": "https://media.api-sports.io/football/teams/9612.png",
+     "winner": false
+    },
+    "away": {
+     "id": 532,
+     "name": "Valencia",
+     "logo": "https://media.api-sports.io/football/teams/532.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": null,
+    "away": null
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": null,
+     "away": null
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 9000002,
+    "referee": "Miguel Ortiz",
+    "timezone": "UTC",
+    "date": "2025-01-14T20:00:00+00:00",
+    "timestamp": 1736884800,
+    "periods": {
+     "first": 1736884800,
+     "second": 1736888400
+    },
+    "venue": {
+     "id": 6705,
+     "name": "Estadio O Couto",
+     "city": "Ourense"
+    },
+    "status": {
+     "long": "Technical Loss",
+     "short": "AWD"
+    }
+   },
+   "league": {
+    "id": 143,
+    "name": "Copa del Rey",
+    "country": "Spain",
+    "logo": "https://media.api-sports.io/football/leagues/143.png",
+    "flag": "https://media.api-sports.io/flags/es.svg",
+    "season": 2024,
+    "round": "Round of 16",
+    "standings": false
+   },
+   "teams": {
+    "home": {
+     "id": 9612,
+     "name": "Ourense CF",
+     "logo": "https://media.api-sports.io/football/teams/9612.png",
+     "winner": false
+    },
+    "away": {
+     "id": 532,
+     "name": "Valencia",
+     "logo": "https://media.api-sports.io/football/teams/532.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 0,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 2
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  }
+ ],
+ "league": [
+  {
+   "fixture": {
+    "id": 1231431,
+    "referee": "Hélder Carvalho",
+    "timezone": "UTC",
+    "date": "2024-08-10T10:00:00+00:00",
+    "timestamp": 1723284000,
+    "periods": {
+     "first": 1723284000,
+     "second": 1723287600
+    },
+    "venue": {
+     "id": 21117,
+     "name": "Estádio do Marítimo",
+     "city": "Ilha da Madeira"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 95,
+    "name": "Segunda Liga",
+    "country": "Portugal",
+    "logo": "https://media.api-sports.io/football/leagues/95.png",
+    "flag": "https://media.api-sports.io/flags/pt.svg",
+    "season": 2024,
+    "round": "Regular Season - 1",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 214,
+     "name": "Maritimo",
+     "logo": "https://media.api-sports.io/football/teams/214.png",
+     "winner": null
+    },
+    "away": {
+     "id": 218,
+     "name": "Tondela",
+     "logo": "https://media.api-sports.io/football/teams/218.png",
+     "winner": null
+    }
+   },
+   "goals": {
+    "home": 2,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 1,
+     "away": 2
+    },
+    "fulltime": {
+     "home": 2,
+     "away": 2
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  }
+ ]
+}

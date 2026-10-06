@@ -1696,3 +1696,123 @@ grows when pages are browsed. One further prediction created by a manual
 `/predict` verification call was deleted again. If the backtest figure should
 only reflect deliberately generated predictions, board rendering should stop
 storing them for completed matches; that is a decision, not a fix.
+
+## Lower divisions and domestic cups, seven countries — built, waiting on the subscription
+
+Asked for every lower division of England, Spain, Germany, Italy, France, the
+Netherlands and Portugal, and their domestic cups, so the engine can predict
+them. Football-Data.co.uk publishes none of it (the free source's `P2` code,
+which looks like Portugal's second tier, serves *Spanish* Segunda División
+files byte-for-byte — never add it), so all of it comes from API-Football. The
+data pull is blocked on the plan; everything else is built, tested against real
+payloads, and switched off.
+
+**What exists.** `ml/api_competitions.py` registers 119 competitions (106
+league divisions, 13 cups) from `/leagues?country=…` discovery — ids and season
+ranges came from that data, never from memory. `scripts/fetch_api_competitions.py`
+ingests them (one request returns a whole competition-season: 126 Copa del Rey
+fixtures, 308 Segunda Liga). `--plan` prints the cost without spending any:
+**901 requests for the full history of every core competition, 503 for
+2022–2026.** The free plan is 100 a day, so that is nine days free or one run
+on a paid plan.
+
+**Families.** A tier split into regional groups — Spain's 18 Tercera RFEF
+groups, Germany's 14 Oberligas, France's 13 National 3 groups — is one league
+statistically but needs a table per group. So `name` is per group while the
+one-hot feature and the Poisson fit use `family`: 119 competitions cost 34
+feature columns, not 119. `fit_pool` and `one_hot_competition` both resolve
+through `family_of`.
+
+**Nothing is enabled.** Adding a competition widens the feature vector, which
+needs a retrain and a restart (the standing `KNOWN_COMPETITIONS` rule), so a
+registered competition does nothing until `ENABLED_IDS` is flipped — in the
+same change that carries its data and the retrained models. With it empty, the
+feature schema is unchanged (pinned by a test).
+
+**Four decisions that are easy to get wrong, each checked on real data:**
+
+- **Cups settle on the 90-minute score.** The API's `goals` includes extra
+  time. The Copa del Rey final was Barcelona 3–2 Real Madrid after extra time;
+  the 90-minute score, which is what 1X2 is about, was 2–2. About one cup tie
+  in six goes beyond 90 minutes (22 of 126 in Copa del Rey 2024) and every one
+  is level at 90, so using `goals` would have mislabelled the 1X2 outcome of
+  all of them. `score.fulltime` is used.
+- **Neutral ground.** Every cup final, and the FA Cup semi-finals (Wembley), are
+  flagged neutral so Elo gives neither side a home edge.
+- **Season labels come from the competition, not the batch.** A first version
+  inferred split-year from the earliest match in hand, so a partial refetch of
+  just April's cup final was labelled "2024" instead of "2024-2025" and slipped
+  past duplicate detection. `split_year` is now a registry fact taken from the
+  season start dates the API publishes.
+- **Club identity is a matching problem, not a similarity search.** Only 36 of
+  125 Copa del Rey clubs matched an existing team by name; the misses included
+  Athletic Club (ours: Ath Bilbao), Celta Vigo (Celta), Atletico Madrid (Ath
+  Madrid) and Espanyol (Espanol). Fuzzy matching against the database is
+  *unsafe* — it paired "Atletico Madrid" with Brazil's "Atletico-MG" and
+  "Chiclana" with "China". Instead `app/services/team_identity.py` pairs a
+  league's API roster with our roster for the same season one-to-one
+  (`--map-teams`), where even a weak resemblance is decisive because every wrong
+  answer is already claimed. On La Liga, Serie A and the Bundesliga that
+  paired 58 of 58 clubs correctly and flagged the one genuinely new club
+  rather than force it. After mapping, the Copa del Rey's top-flight clubs
+  resolve to their existing rows and the 89 clubs it would have created fall to
+  82 — all small clubs from tiers not yet ingested, which resolve by API id
+  once their own league is. Every created club is written to
+  `data/processed/api_new_teams.csv` with the existing club it most resembles,
+  because a created row is either new or a missed alias and only a person can
+  tell which.
+
+**The live feed had the same defects, now fixed.** `fetch_upcoming_fixtures.py`
+matched clubs by folded name only and otherwise created a new team at the
+default 1500 — its own comment called the result "a default-rated coin-flip" —
+so the first Athletic Club fixture would have been a new club, not Ath Bilbao.
+It also discarded reserve sides with a `B`/`II` filter (Bayern II plays in the
+3. Liga, Real Madrid Castilla in the Primera Federación), labelled seasons
+"2026" beside a history that says "2026-2027", and didn't know cup finals are
+neutral. It now uses the shared resolver, keeps reserve sides in registered
+competitions, extends each competition's existing season-label shape
+(`app/utils/seasons.py`: "2026-2027", doubled "2626", bare "2026"), and flags
+neutral rounds from the registry.
+
+**Known limits, stated plainly:**
+
+- **Cup predictions will be weaker than league ones until measured.** Two-legged
+  ties (Copa del Rey and Coppa Italia semi-finals) are modelled as independent
+  matches — second-leg aggregate state is not a feature. Cups cross tiers, and
+  Elo only calibrates across tiers through promotion, relegation and the cup
+  matches themselves. Clubs below the lowest tier registered (Spanish regional
+  leagues, German Verbandsligen) enter at a default rating and should be treated
+  as thin data. Run `scripts/elo_calibration.py` on the cups once data lands,
+  and do not quote their accuracy before that.
+- **Corners, cards and shots are unavailable** for all of these: the fixtures
+  endpoint carries scores and half-time scores only, and statistics cost two
+  more requests per fixture. The markets degrade to "unavailable", as they do
+  for MLS and the Saudi league.
+- **Deliberately not registered:** super cups (a handful of matches a year is a
+  feature column fitted on noise), youth, reserve-only and women's competitions,
+  and play-off rounds. Secondary cups (EFL Trophy, FA Trophy, Coppa Italia Serie
+  C/D) are registered `extended` and fetched only on request.
+- **The Leagues index will list every group.** Enabled, Spain alone adds 29
+  entries to its card. It wants grouping by family with the groups collapsed;
+  that is UI work deferred until there is data to design against.
+- `--map-teams` defaults to the last two seasons. A club that fell out of our
+  top tiers years ago and now plays in an API-only division only gets its id if
+  that older season is mapped too, so run it as `--seasons 2016-2025`.
+
+**Runbook for the day the plan is upgraded:**
+
+1. `scripts/fetch_api_competitions.py --map-teams --seasons 2016-2025 --max-requests 600`,
+   then read `data/processed/team_mapping_review.csv`.
+2. `--plan`, then `--scope core --max-requests 1000` (about 900 requests).
+3. Read `api_new_teams.csv`. Rows with a `resembles_existing` value are
+   candidate aliases; add the real ones to `ALIASES` or fix the mapping, and
+   re-run so they merge before ratings are built.
+4. Set `ENABLED_IDS` to the core ids, retrain all 12 football models, restart
+   the backend, then run the Elo calibration on the cups.
+5. Rebudget the scheduler (see the data-refresh section) before enabling it.
+
+Used about 15 of the day's 100 free API requests on discovery, one real cup and
+one real league sample, and three club rosters for the matching experiment.
+`tests/test_team_identity.py`, `tests/test_fetch_api_competitions.py` and
+`tests/test_live_fixture_identity.py` pin all of the above, using trimmed real
+payloads in `tests/data/api_football_sample.json`.

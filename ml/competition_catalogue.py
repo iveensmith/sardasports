@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ml.api_competitions import enabled as api_enabled
+
 # Grouping keys for competitions that belong to no single nation.
 WORLD = "World"
 EUROPE = "Europe"
@@ -107,6 +109,13 @@ _CATALOGUE: tuple[CompetitionMeta, ...] = (
     CompetitionMeta("Copa America", SOUTH_AMERICA, "Copa América"),
     CompetitionMeta("Africa Cup of Nations", AFRICA, "AFCON"),
     CompetitionMeta("Africa Cup of Nations Qualifiers", AFRICA, "AFCON Qualifiers"),
+)
+
+# Enabled API-Football competitions (ml.api_competitions) join the catalogue
+# here, so the board, the leagues index and the league pages know them the
+# moment they are switched on — and not before, when they have no matches.
+_CATALOGUE = _CATALOGUE + tuple(
+    CompetitionMeta(c.name, c.country, c.short_name, c.tier, c.country_code) for c in api_enabled()
 )
 
 BY_COMPETITION: dict[str, CompetitionMeta] = {meta.competition: meta for meta in _CATALOGUE}

@@ -13,6 +13,7 @@ import pytest
 
 from app.models import Match, Team
 from app.services.prediction_service import _all_completed_history
+from ml.api_competitions import family_of
 from ml.elo.engine import EloEngine, MatchResult
 from ml.feature_engineering.basketball import (
     build_game_features,
@@ -98,7 +99,9 @@ def test_every_ingested_competition_has_a_one_hot_column():
     zeroes, silently losing its league-specific signal — so the ingestion
     mapping and the feature schema must stay in step."""
     for name in LEAGUE_NAMES.values():
-        assert name in KNOWN_COMPETITIONS, f"{name} is ingested but has no one-hot column"
+        assert (
+            family_of(name) in KNOWN_COMPETITIONS
+        ), f"{name} is ingested but has no one-hot column"
 
 
 def test_tournament_season_code_is_not_read_as_a_split_season():

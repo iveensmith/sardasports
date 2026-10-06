@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from app.utils.team_names import fold_team_key
+from ml.api_competitions import family_of
 from ml.training.common import KNOWN_COMPETITIONS
 from scripts.fetch_upcoming_fixtures import (
     EXCLUDED_TEAM_PATTERN,
@@ -39,7 +40,10 @@ def test_every_mapped_league_is_a_competition_the_engine_models():
     all — the failure is silent, which is why it's asserted here.
     """
     for league_id, competition in LEAGUE_ID_TO_COMPETITION.items():
-        assert competition in KNOWN_COMPETITIONS, f"league {league_id} -> {competition!r}"
+        # By family: a regional group shares its tier's one-hot column.
+        assert (
+            family_of(competition) in KNOWN_COMPETITIONS
+        ), f"league {league_id} -> {competition!r}"
 
 
 def test_only_upcoming_fixtures_are_ingested():
