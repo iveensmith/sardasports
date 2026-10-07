@@ -218,15 +218,38 @@ function ConfidenceCell({ value }: { value: number | null }) {
   // Gold only at the top of the range, so the column has a shape a reader can
   // scan rather than nine identical highlighted numbers.
   const strong = value >= 8;
+  const color = strong ? "var(--color-gold-bright)" : "var(--color-text-dim)";
+  // The ring is the score drawn: an arc from twelve o'clock, clockwise, as long
+  // as value/10 of the circle — a 10 closes it, a 9.3 stops just short. It has
+  // the number's own colour and no background track, so what is drawn is only
+  // what was scored. `pathLength` makes the dash arithmetic a plain percentage.
+  const filled = Math.min(Math.max(value, 0), 10) * 10;
   return (
     <td className="px-1.5 py-2 text-center whitespace-nowrap">
       <span
-        className="text-[14px] font-bold tabular-nums"
-        style={{
-          color: strong ? "var(--color-gold-bright)" : "var(--color-text-dim)",
-        }}
+        className="relative inline-flex h-[34px] w-[34px] items-center justify-center"
+        title={`Confidence ${value.toFixed(1)} out of 10`}
       >
-        {value.toFixed(1)}
+        <svg
+          aria-hidden="true"
+          viewBox="0 0 34 34"
+          className="absolute inset-0 -rotate-90"
+        >
+          <circle
+            cx="17"
+            cy="17"
+            r="15"
+            fill="none"
+            stroke={color}
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${filled} 100`}
+          />
+        </svg>
+        <span className="text-[13px] font-bold tabular-nums" style={{ color }}>
+          {value.toFixed(1)}
+        </span>
       </span>
     </td>
   );
