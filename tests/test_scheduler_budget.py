@@ -292,6 +292,8 @@ def test_tennis_players_and_basketball_franchises_are_never_synced(db_session):
 def _hours(started):
     out = {}
     for job in started.get_jobs():
+        if not hasattr(job.trigger, "fields"):
+            continue  # an interval job (the strip canary) has no hour field and no API cost
         hour = next(f for f in job.trigger.fields if f.name == "hour")
         out[job.id] = str(hour)
     return out

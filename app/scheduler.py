@@ -19,6 +19,7 @@ from pathlib import Path
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 from app.database.session import SessionLocal
 from app.services.api_budget import MARGIN, PAID_DAILY_LIMIT, api_status, is_paid_plan
@@ -448,6 +449,35 @@ def archive_and_cleanup_job() -> None:
         session.close()
 
 
+def strip_canary_job() -> None:
+    """Every few minutes: rebuild the home page's results strip and shout if it would vanish.
+
+    The strip of graded picks under the hero has disappeared more than once, each time
+    for a different reason and each time a visitor noticed first. This job is the "did
+    it come back" check that runs without anyone looking. It uses no API quota. It
+    rebuilds the strip's data (so a visitor's request almost always finds it fresh and
+    never waits on a cold read), and it logs an ERROR if there are too few graded picks
+    for the website to show the strip, or if the rebuild fails, so the problem is in the
+    log before it is on the page.
+    """
+    from app.services.recent_results import MIN_STRIP_ITEMS, refresh
+
+    session = SessionLocal()
+    try:
+        result = refresh(session)
+        if result["count"] < MIN_STRIP_ITEMS:
+            logger.error(
+                "strip canary: only %d graded picks for the results strip (it needs %d); "
+                "the home page will hide it until more matches are graded",
+                result["count"],
+                MIN_STRIP_ITEMS,
+            )
+    except Exception:  # noqa: BLE001 - a canary must report, never crash the scheduler
+        logger.exception("strip canary: could not rebuild the results strip")
+    finally:
+        session.close()
+
+
 def start_scheduler() -> BackgroundScheduler | None:
     """Start the background scheduler if enabled. Idempotent — calling twice is a no-op."""
     global _scheduler
@@ -493,6 +523,16 @@ def start_scheduler() -> BackgroundScheduler | None:
     )
     scheduler.add_job(
         archive_and_cleanup_job, CronTrigger(day=1, hour=5, minute=0), id="monthly_archive"
+    )
+    # The strip canary: not a data job, so it has no place in the budget profiles. It
+    # also runs once straight away, so the strip's data is warm before the first visit.
+    scheduler.add_job(
+        strip_canary_job,
+        IntervalTrigger(minutes=5),
+        id="results_strip_canary",
+        next_run_time=datetime.now(),
+        coalesce=True,
+        max_instances=1,
     )
     scheduler.start()
     _scheduler = scheduler

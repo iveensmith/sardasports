@@ -18,9 +18,10 @@ from datetime import datetime, timedelta
 
 import pytest
 
+import app.services.recent_results as recent_module
 import app.services.stored_predictions as stored
 from app.models import Match, Prediction, Team
-from app.services.recent_results import recent_settled
+from app.services.recent_results import clear_cache, recent_settled
 from app.services.stored_predictions import payload_from_stored, predict_with_stored_fallback
 from ml.markets import candidate_calls
 
@@ -43,6 +44,14 @@ def _row(match_id: int, *, home=0.62, draw=0.22, away=0.16) -> Prediction:
         confidence=88.0,
         confidence_label="High",
     )
+
+
+@pytest.fixture(autouse=True)
+def _fresh_strip_cache():
+    """The strip keeps its last good answer in memory; tests must not share it."""
+    clear_cache()
+    yield
+    clear_cache()
 
 
 @pytest.fixture
@@ -232,3 +241,126 @@ def test_the_endpoint_serves_it_and_validates_the_limit(client, db_session, team
     assert ok.json()["count"] == 4
     assert client.get("/board/recent-settled?limit=0").status_code == 422
     assert client.get("/board/recent-settled?limit=9999").status_code == 422
+
+
+# --- the strip survives a failing database -------------------------------------------------------
+
+
+def test_a_second_call_within_the_ttl_does_not_touch_the_database(db_session, teams, monkeypatch):
+    _settled_run(db_session, teams, 5)
+    first = recent_settled(db_session)
+
+    def boom(*args, **kwargs):
+        raise AssertionError("served from memory, so no query should run")
+
+    monkeypatch.setattr(recent_module, "_compute", boom)
+
+    assert recent_settled(db_session) is first
+
+
+def test_when_the_recompute_fails_the_last_good_answer_is_served_not_an_error(
+    db_session, teams, monkeypatch
+):
+    _settled_run(db_session, teams, 5)
+    good = recent_settled(db_session)
+    # Past the freshness window, so the next call tries to recompute.
+    monkeypatch.setattr(recent_module, "CACHE_TTL_SECONDS", -1)
+
+    def locked(*args, **kwargs):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(recent_module, "_compute", locked)
+
+    again = recent_settled(db_session)
+
+    assert again["count"] == good["count"] == 5
+    assert again["stale"] is True
+    assert again["rows"] == good["rows"]
+
+
+def test_a_stale_answer_is_replaced_once_the_database_recovers(db_session, teams, monkeypatch):
+    _settled_run(db_session, teams, 5)
+    recent_settled(db_session)
+    monkeypatch.setattr(recent_module, "CACHE_TTL_SECONDS", -1)
+    real = recent_module._compute
+
+    monkeypatch.setattr(
+        recent_module, "_compute", lambda *a, **k: (_ for _ in ()).throw(RuntimeError())
+    )
+    assert recent_settled(db_session)["stale"] is True
+
+    monkeypatch.setattr(recent_module, "_compute", real)
+    fresh = recent_settled(db_session)
+
+    assert "stale" not in fresh
+
+
+def test_with_no_good_answer_ever_a_failure_is_an_error_not_an_empty_strip(db_session, monkeypatch):
+    """An empty 200 would be cached by the website for minutes and hide the strip;
+    an error is not cached, and the website falls back on its own copy."""
+
+    def locked(*args, **kwargs):
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(recent_module, "_compute", locked)
+
+    with pytest.raises(RuntimeError):
+        recent_settled(db_session)
+
+
+def test_each_limit_has_its_own_cached_answer(db_session, teams):
+    _settled_run(db_session, teams, 6)
+
+    assert recent_settled(db_session, limit=2)["count"] == 2
+    assert recent_settled(db_session, limit=6)["count"] == 6
+
+
+# --- the canary ---------------------------------------------------------------------------------
+
+
+def test_the_canary_rebuilds_the_strip_so_a_visitor_finds_it_fresh(db_session, teams, monkeypatch):
+    import app.scheduler as scheduler
+
+    _settled_run(db_session, teams, 6)
+    monkeypatch.setattr(scheduler, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(db_session, "close", lambda: None)
+
+    scheduler.strip_canary_job()
+
+    # Served from memory now: a query here would blow up.
+    def boom(*args, **kwargs):
+        raise AssertionError("the canary should already have filled the cache")
+
+    monkeypatch.setattr(recent_module, "_compute", boom)
+    assert recent_settled(db_session)["count"] == 6
+
+
+def test_the_canary_logs_an_error_when_too_few_picks_are_graded(
+    db_session, teams, monkeypatch, caplog
+):
+    import app.scheduler as scheduler
+
+    _settled_run(db_session, teams, 2)
+    monkeypatch.setattr(scheduler, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(db_session, "close", lambda: None)
+
+    with caplog.at_level("ERROR"):
+        scheduler.strip_canary_job()
+
+    assert "strip canary" in caplog.text
+    assert "only 2 graded picks" in caplog.text
+
+
+def test_the_canary_reports_a_failure_and_never_raises(db_session, monkeypatch, caplog):
+    import app.scheduler as scheduler
+
+    monkeypatch.setattr(scheduler, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(db_session, "close", lambda: None)
+    monkeypatch.setattr(
+        recent_module, "_compute", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("locked"))
+    )
+
+    with caplog.at_level("ERROR"):
+        scheduler.strip_canary_job()  # must not raise
+
+    assert "could not rebuild" in caplog.text

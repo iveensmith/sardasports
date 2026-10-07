@@ -187,7 +187,7 @@ def test_fresh_data_schedules_nothing_extra(monkeypatch, started):
     running = scheduler.start_scheduler()
 
     assert running.get_job("catch_up_refresh_data") is None
-    assert len(running.get_jobs()) == 9
+    assert len(running.get_jobs()) == 10
 
 
 def test_the_catch_up_is_in_addition_to_the_nightly_run_not_instead_of_it(monkeypatch, started):
@@ -197,4 +197,4 @@ def test_the_catch_up_is_in_addition_to_the_nightly_run_not_instead_of_it(monkey
 
     assert running.get_job("daily_refresh_data") is not None
     assert running.get_job("catch_up_refresh_data") is not None
-    assert len(running.get_jobs()) == 10
+    assert len(running.get_jobs()) == 11

@@ -21,6 +21,7 @@
  */
 
 import Link from "next/link";
+import { MIN_STRIP_ITEMS } from "@/lib/api";
 import type { BoardRow } from "@/lib/board";
 
 function Item({ row }: { row: BoardRow }) {
@@ -79,7 +80,7 @@ export function ResultsTicker({
       row.best_tip?.outcome === "won" || row.best_tip?.outcome === "lost",
   );
   // Below a handful the loop is more gap than content and reads as broken.
-  if (settled.length < 4) return null;
+  if (settled.length < MIN_STRIP_ITEMS) return null;
 
   const won = settled.filter((r) => r.best_tip!.outcome === "won").length;
 

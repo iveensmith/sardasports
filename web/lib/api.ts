@@ -13,6 +13,7 @@
 
 import type { BoardDates, BoardRow, DayBoard } from "./board";
 import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
+import { recallRecent, rememberRecent } from "./recentFallback";
 import type { MarketKind, MarketPageData } from "./markets";
 import type { Progress } from "./progress";
 import type { TeamPageData } from "./teams";
@@ -31,6 +32,9 @@ import type {
 export type { Call, Calls, Value };
 
 const ENGINE_URL = process.env.ENGINE_URL ?? "http://127.0.0.1:8000";
+
+/** Long enough for a cold board (about 15 s), short enough to fail before a visitor leaves. */
+const ENGINE_TIMEOUT_MS = 45_000;
 
 /** Thrown with the engine's own detail message where it provides one. */
 export class EngineError extends Error {
@@ -53,18 +57,24 @@ interface FetchOptions {
    */
   revalidate?: number;
   signal?: AbortSignal;
+  /**
+   * How long to wait for the engine before giving up. Without a limit a saturated
+   * engine left the home page hanging for minutes (3.6 min was seen), which is
+   * worse for a visitor and for a crawler than a fast, clear failure.
+   */
+  timeoutMs?: number;
 }
 
 async function engineFetch<T>(
   path: string,
-  { revalidate = 60, signal }: FetchOptions = {},
+  { revalidate = 60, signal, timeoutMs = ENGINE_TIMEOUT_MS }: FetchOptions = {},
 ): Promise<T> {
   const url = `${ENGINE_URL}${path}`;
   let response: Response;
   try {
     response = await fetch(url, {
       next: { revalidate },
-      signal,
+      signal: signal ?? AbortSignal.timeout(timeoutMs),
       headers: { accept: "application/json" },
     });
   } catch (cause) {
@@ -175,14 +185,64 @@ export interface RecentSettled {
   rows: BoardRow[];
 }
 
+/** Below this the strip reads as more gap than content and is not shown. */
+export const MIN_STRIP_ITEMS = 4;
+
 /**
- * Read from stored predictions engine-side, so it needs no recomputation and
- * does not depend on any one day having enough finished matches.
+ * The newest graded picks, for the home results strip.
+ *
+ * Read from stored predictions engine-side, so it needs no recomputation and does
+ * not depend on any one day having enough finished matches. **It never throws and
+ * never returns an empty-looking answer when it has a good one to hand:** the strip
+ * disappearing is the failure this site has had most often, so every way this call
+ * can go wrong ends at the last good copy instead.
  */
-export function getRecentSettled(limit = 24): Promise<RecentSettled> {
-  return engineFetch<RecentSettled>(`/board/recent-settled?limit=${limit}`, {
-    revalidate: 300,
-  });
+export async function getRecentSettled(
+  limit = 24,
+): Promise<RecentSettled | null> {
+  try {
+    const fresh = await engineFetch<RecentSettled>(
+      `/board/recent-settled?limit=${limit}`,
+      // Short wait on purpose: this is a cheap read, and if it is slow the
+      // engine is struggling and the last good copy is the better answer.
+      { revalidate: 300, timeoutMs: 8_000 },
+    );
+    if (fresh.count >= MIN_STRIP_ITEMS) {
+      await rememberRecent(fresh);
+      return fresh;
+    }
+    // Too thin to fill the strip: keep showing the last full one if there is one.
+    return (await recallRecent()) ?? fresh;
+  } catch (error) {
+    console.error(
+      "[results strip] fetch failed, using the last good copy",
+      error,
+    );
+    return recallRecent();
+  }
+}
+
+/** What a Contact message can be about. Mirrors the engine's own list, which is what validates it. */
+export const CONTACT_TOPICS_FALLBACK = [
+  { value: "general", label: "General question" },
+  { value: "error", label: "A wrong pick, result or number" },
+  { value: "data", label: "Data, copyright or attribution" },
+  { value: "press", label: "Press or partnership" },
+  { value: "privacy", label: "A privacy request" },
+];
+
+/** Never throws: the form must still render when the engine cannot be asked. */
+export async function getContactTopics(): Promise<
+  Array<{ value: string; label: string }>
+> {
+  try {
+    const body = await engineFetch<{
+      topics: Array<{ value: string; label: string }>;
+    }>("/contact/topics", { revalidate: 3600, timeoutMs: 5_000 });
+    return body.topics.length ? body.topics : CONTACT_TOPICS_FALLBACK;
+  } catch {
+    return CONTACT_TOPICS_FALLBACK;
+  }
 }
 
 /** One market's picks for a day, ranked, with that market's own record. */

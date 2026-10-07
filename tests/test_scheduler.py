@@ -34,6 +34,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "evaluate_predictions",
             "weekly_retrain",
             "monthly_archive",
+            "results_strip_canary",
         }
 
         # Calling start again while already running is a no-op, not a second scheduler.

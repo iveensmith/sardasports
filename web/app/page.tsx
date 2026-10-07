@@ -157,6 +157,23 @@ function BoardSection({
   );
 }
 
+/** A value and, if it failed, why: lets one failing request be reported without throwing. */
+async function settle<T>(
+  work: Promise<T>,
+): Promise<{ value: T | null; error: string | null }> {
+  try {
+    return { value: await work, error: null };
+  } catch (e) {
+    return {
+      value: null,
+      error:
+        e instanceof EngineError || e instanceof Error
+          ? e.message
+          : "The engine could not be reached.",
+    };
+  }
+}
+
 export default async function HomePage() {
   let yesterday: DayBoard | null = null;
   let today: DayBoard | null = null;
@@ -168,29 +185,32 @@ export default async function HomePage() {
   let countryCount: number | null = null;
   let leagueCountries: LeagueCountry[] | null = null;
 
-  try {
-    const [boards, recentSettled, leagues] = await Promise.all([
-      Promise.all([
-        getDayBoard({ date: isoDay(-1) }).catch(() => null),
-        getDayBoard({}),
-        getDayBoard({ date: isoDay(1) }).catch(() => null),
-        getProgress().catch(() => null),
-      ]),
-      getRecentSettled(24).catch(() => null),
+  // The results strip is fetched on its own and cannot fail: if today's board,
+  // the leagues or the record is slow or down, none of that may take the strip
+  // with it. (It used to share one Promise.all with today's board, so one failed
+  // request threw the strip away even when its own request had succeeded.)
+  const recentPromise = getRecentSettled(24);
+
+  // Each section stands on its own request, so one failing leaves the others up.
+  // Only today's board is worth an error banner: it is the page's main content.
+  const [yesterdayBoard, todayResult, tomorrowBoard, record, leaguesData] =
+    await Promise.all([
+      getDayBoard({ date: isoDay(-1) }).catch(() => null),
+      settle(getDayBoard({})),
+      getDayBoard({ date: isoDay(1) }).catch(() => null),
+      getProgress().catch(() => null),
       getLeagues().catch(() => null),
     ]);
-    [yesterday, today, tomorrow, progress] = boards;
-    competitionCount = leagues?.competition_count ?? null;
-    countryCount = leagues?.country_count ?? null;
-    leagueCountries = leagues?.countries ?? null;
+  yesterday = yesterdayBoard;
+  today = todayResult.value;
+  error = todayResult.error;
+  tomorrow = tomorrowBoard;
+  progress = record;
+  competitionCount = leaguesData?.competition_count ?? null;
+  countryCount = leaguesData?.country_count ?? null;
+  leagueCountries = leaguesData?.countries ?? null;
 
-    recent = recentSettled;
-  } catch (e) {
-    error =
-      e instanceof EngineError || e instanceof Error
-        ? e.message
-        : "The engine could not be reached.";
-  }
+  recent = await recentPromise;
 
   const hasLive = (progress?.live.record.settled ?? 0) > 0;
   const backtestRecord =
