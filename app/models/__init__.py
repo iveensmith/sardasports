@@ -5,6 +5,7 @@ what `Base.metadata.create_all()` (tests, dev bootstrap) and Alembic
 autogenerate rely on.
 """
 
+from app.models.contact_message import ContactMessage
 from app.models.elo_history import EloHistory
 from app.models.injury import Injury
 from app.models.match import Match
@@ -24,4 +25,5 @@ __all__ = [
     "ModelVersion",
     "TrainingRun",
     "Injury",
+    "ContactMessage",
 ]

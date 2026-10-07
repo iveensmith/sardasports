@@ -55,6 +55,9 @@ const FIXED: Array<{
   { path: "/progress", changeFrequency: "daily", priority: 0.7 },
   { path: "/how-it-works", changeFrequency: "monthly", priority: 0.5 },
   { path: "/leaderboard", changeFrequency: "weekly", priority: 0.4 },
+  { path: "/about", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/contact", changeFrequency: "yearly", priority: 0.3 },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
 ];
 
 function dated(lastmod: string | null): Pick<Entry, "lastModified"> {

@@ -26,3 +26,15 @@ export const IS_LIVE_SITE =
 export function absoluteUrl(path = "/"): string {
   return `${SITE_URL}${path.startsWith("/") ? path : `/${path}`}`;
 }
+
+/**
+ * Who runs the site and how to reach them, read from the environment and shown
+ * only when set. A privacy policy and an About page that name a person or
+ * company have to name the real one, so these are never given a default: while
+ * they are unset the pages say "the site's operator" and point to the Contact
+ * form, which works without either.
+ */
+export const OPERATOR_NAME =
+  process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || null;
+export const CONTACT_EMAIL =
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null;

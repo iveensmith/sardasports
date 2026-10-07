@@ -2327,3 +2327,44 @@ Full plan, keyword map and launch checklist: [`docs/seo.md`](seo.md). Summary of
 **Launch blockers for ranking, not yet done:** About / Contact / Privacy / Terms /
 responsible-gambling pages (need real details), analytics, and making the engine crawl-safe under
 a burst of requests (queued as its own task).
+
+## About, Contact and Privacy pages; the results strip made unable to vanish
+
+**Pages** (`/about`, `/contact`, `/privacy`, linked from the footer and in the sitemap). They name no
+person, company, address or founding story, because none is on record; the operator is shown only if
+`NEXT_PUBLIC_OPERATOR_NAME` is set, and a public address only if `NEXT_PUBLIC_CONTACT_EMAIL` is.
+- **About** states what the site is and is not, with live figures (graded picks, live picks,
+  competitions, countries), the live/reconstructed split, data sources, a responsible-gambling
+  section (18+, BeGambleAware and Gambling Therapy), and a dated **Corrections** list that already
+  records the 7 October track-record fix and the rates it moved.
+- **Contact** is a working form with no email address needed: the message is stored in
+  `contact_messages` (migration `c8d9e0f1a2b3`, also created on first use) and read with
+  `scripts/list_contact_messages.py` (`--done`, `--delete`). Defences: a hidden bot-trap field,
+  3 messages per visitor and 60 site-wide per hour, hard length limits. No IP address or browser
+  string is stored; the rate limit uses a daily-changing hash held in memory for an hour.
+- **Privacy** was written from an audit of what the site really does: no accounts, no cookies (checked
+  on the response headers), no ads, no analytics; the theme choice lives in `localStorage`; the only
+  third-party request a browser makes is for country flags (flagcdn.com); the form stores topic,
+  optional name, email and message only. **If analytics is ever added, update this page first.** It
+  claims no compliance with any particular law; have a qualified person read it before launch.
+
+**Why the carousel kept disappearing, and the guard against each cause.** It has vanished four times,
+each for a different reason:
+1. *It needed one busy day.* Fixed by reading the newest graded picks across days from stored
+   predictions (`/board/recent-settled`).
+2. *It shared a `Promise.all` with today's board*, so one failed board request threw the strip away
+   even when its own request had succeeded. Fixed: the strip is fetched on its own, and every other
+   section stands on its own request.
+3. *A failed fetch was simply gone.* Fixed at three layers: the engine keeps its last good answer
+   (120 s fresh, served stale if a recompute fails); the website keeps its own last good copy in
+   memory and on disk, so it survives a web restart during an engine outage; and the strip's fetch
+   never throws.
+4. *Nothing bounded how long a request could hang* (a 3.6 minute page render was logged). Every
+   engine call now has a timeout (45 s; 8 s for the strip).
+
+Watching it: a backend job, `results_strip_canary`, rebuilds the strip's data every 5 minutes and logs an
+ERROR if fewer than 4 graded picks exist or the rebuild fails. And `python scripts/check_site_health.py`
+checks the engine endpoint and that the rendered home page actually contains the strip and populated
+boards; it exits non-zero on failure so it can gate a deploy. **Run it after any change to the home page,
+the engine's board routes or the database.** It was verified by killing the engine, wiping the website's
+cache and restarting the website: the strip stayed.

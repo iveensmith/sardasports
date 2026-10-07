@@ -4,10 +4,10 @@
  *
  * The reference's footer also carries social links, app-store badges, a
  * "Company" column (About/Contact/Privacy/Terms), a support email, a named
- * legal entity, and a two-column "Popular Teams" link farm. Most of those do
- * not exist for real here — there is no social presence, no mobile app, no
- * About/Contact/Privacy/Terms pages, no support inbox — so rather than wire
- * up dead links or invent content for pages that don't exist, they're left
+ * legal entity, and a two-column "Popular Teams" link farm. About, Contact and
+ * Privacy now exist and are linked below. The rest does not exist for real here
+ * (no social presence, no mobile app, no Terms page, no support inbox), so rather
+ * than wire up dead links or invent content for pages that don't exist, it is left
  * out entirely.
  *
  * Two columns are real. "Top-rated teams" links to team pages under `/teams/`
@@ -28,6 +28,13 @@ const SITE_LINKS = [
   { href: "/progress", label: "Track record" },
   { href: "/leaderboard", label: "Models" },
   { href: "/how-it-works", label: "How it works" },
+];
+
+const COMPANY_LINKS = [
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
+  { href: "/privacy", label: "Privacy policy" },
+  { href: "/about#responsible-gambling", label: "Responsible gambling" },
 ];
 
 const GUIDE_LINKS = [
@@ -150,7 +157,22 @@ export async function SiteFooter() {
           )}
         </div>
 
-        <div className="mt-10 border-t border-[var(--color-line)] pt-6 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+        <nav
+          aria-label="About and legal"
+          className="mt-10 flex flex-wrap gap-x-6 gap-y-2 border-t border-[var(--color-line)] pt-6 text-[13.5px]"
+        >
+          {COMPANY_LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-6 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
           <p className="max-w-[68ch]">
             18+ &middot; For information only, not betting advice. Every number
             on this site is computed by the prediction engine from ingested

@@ -104,11 +104,12 @@ analytics views are `noindex`.
 6. **Core Web Vitals.** Run PageSpeed Insights on the home page, a match page and a
    league page against the live address. Watch LCP on the home hero and the weight of
    the first board.
-7. **Trust pages (blocker for ranking in this category).** The site has no About,
-   Contact, Privacy Policy, Terms or responsible-gambling page. Google's quality
-   guidelines treat anything near money and betting as needing visible evidence of who
-   runs the site and how to reach them. These need your real details and legal text, so
-   they cannot be written for you. Add them, link them in the footer, and add a
+7. **Trust pages.** About, Contact and Privacy now exist (with a responsible-gambling
+   section on About and a dated corrections list), and are linked from the footer and in
+   the sitemap. What is still needed from you before launch: set
+   `NEXT_PUBLIC_OPERATOR_NAME` and, if you want one shown, `NEXT_PUBLIC_CONTACT_EMAIL`, so
+   the pages name who runs the site (they say "the site's operator" until you do); have
+   someone qualified read the Privacy policy; and add Terms of use if you want them. Add a
    `sameAs` list to the `Organization` data once real social profiles exist.
 
 ## 4. Measuring it
