@@ -2121,3 +2121,28 @@ requests, leaving about 50 of the day's 100.
 is on no 2024 roster and is still unmapped until the full mapping at subscription
 (`--seasons 2016-2025`), and the current-season roster is not available on the free
 plan at all.
+
+## Every board price is filled — real where quoted, a flagged fair price elsewhere
+
+**Why.** The board showed "–" in the 1/X/2 columns and under market picks (1X2, O/U,
+BTTS) wherever no bookmaker price was stored. The owner wants a number in every cell.
+This **supersedes the earlier principle** that the per-market columns show a real gap
+where no price exists (only the best-tip column used a fallback).
+
+**What changed** (`app/services/board_service.py`, `BoardTable.tsx`, `web/lib/board.ts`):
+- A quoted bookmaker price always wins. Older rows keep 1X2 only in the legacy
+  `odds_home_win/draw/away_win` columns; `effective_odds_markets` treats those as the
+  real 1X2 line (the stored blob is never modified).
+- Where nothing was quoted, the cell shows the pick's fair price, `100 / probability`,
+  computed from the engine's own number and **flagged**: tips carry `odds_is_estimated`,
+  the 1/X/2 cells carry the new row key `odds_estimated: {home, draw, away}`. The UI
+  renders these as a dashed "≈" pill with a tooltip saying no bookmaker quoted it.
+- Nothing is invented: a selection the engine gave no probability for stays empty, and
+  the slip builder and bankers still read only real stored prices.
+
+**Verified.** Across the 7-day window on the live API: 28 rows, 0 blank cells; in the
+browser, 0 dash cells on Oct 4 with 26 "≈" pills. Real upcoming-fixture prices were also
+fetched for all 13 upcoming fixtures with `scripts/fetch_odds.py --days 2`.
+
+**Caveat.** A fair price is not a price anyone will pay — it has no bookmaker margin —
+so "≈" numbers must never be read as value against the market.

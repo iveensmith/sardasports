@@ -155,9 +155,11 @@ function TipCell({ tip }: { tip: Tip | undefined }) {
 function OddsCell({
   price,
   picked,
+  estimated = false,
 }: {
   price: number | null;
   picked: boolean;
+  estimated?: boolean;
 }) {
   if (price === null) {
     return (
@@ -183,7 +185,13 @@ function OddsCell({
                 color: "var(--color-text-dim)",
               }
         }
+        title={
+          estimated
+            ? "Fair price implied by the engine's own probability — no bookmaker quoted this price"
+            : undefined
+        }
       >
+        {estimated ? "≈" : ""}
         {price.toFixed(2)}
       </span>
     </td>
@@ -295,9 +303,21 @@ function Row({ row }: { row: BoardRow }) {
         </Link>
       </td>
 
-      <OddsCell price={row.odds.home} picked={picked === "home"} />
-      <OddsCell price={row.odds.draw} picked={picked === "draw"} />
-      <OddsCell price={row.odds.away} picked={picked === "away"} />
+      <OddsCell
+        price={row.odds.home}
+        picked={picked === "home"}
+        estimated={row.odds_estimated.home}
+      />
+      <OddsCell
+        price={row.odds.draw}
+        picked={picked === "draw"}
+        estimated={row.odds_estimated.draw}
+      />
+      <OddsCell
+        price={row.odds.away}
+        picked={picked === "away"}
+        estimated={row.odds_estimated.away}
+      />
 
       {COLUMNS.map(({ market }) => (
         <TipCell key={market} tip={row.tips[market]} />

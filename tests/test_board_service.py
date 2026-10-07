@@ -212,10 +212,62 @@ def test_the_best_tip_always_has_a_price_even_when_nothing_was_quoted():
     assert best["odds_is_estimated"] is True
     assert best["odds"] == pytest.approx(round(100.0 / best["probability"], 2))
 
-    # The regular board columns make no such promise — they show the real
-    # gap in market coverage rather than papering over it.
-    assert all(tip["odds"] is None for tip in row["tips"].values())
-    assert all(tip["odds_is_estimated"] is False for tip in row["tips"].values())
+    # Every column carries a price too — no cell is left as a dash.
+    for tip in row["tips"].values():
+        assert tip["odds"] == pytest.approx(round(100.0 / tip["probability"], 2), abs=0.02)
+        assert tip["odds_is_estimated"] is True
+
+
+def test_a_quoted_price_always_beats_the_estimate_in_a_market_column():
+    """Only the pick with no bookmaker line is estimated; quoted ones stay real."""
+    odds = {"match_winner": ODDS["match_winner"]}  # no goals / btts lines
+    row = _row(odds_markets=odds)
+    assert row["tips"]["match_result"]["odds"] == pytest.approx(1.55)
+    assert row["tips"]["match_result"]["odds_is_estimated"] is False
+    assert row["tips"]["goals"]["odds_is_estimated"] is True
+    assert row["tips"]["btts"]["odds_is_estimated"] is True
+
+
+def test_the_1x2_columns_are_filled_from_the_engines_own_probabilities():
+    row = _row(odds_markets=None)
+    assert row["odds"] == {"home": 1.61, "draw": 4.55, "away": 6.25}
+    assert row["odds_estimated"] == {"home": True, "draw": True, "away": True}
+
+
+def test_quoted_1x2_prices_are_not_marked_as_estimates():
+    row = _row()
+    assert row["odds"] == {"home": 1.55, "draw": 4.0, "away": 6.5}
+    assert row["odds_estimated"] == {"home": False, "draw": False, "away": False}
+
+
+def test_a_partly_quoted_1x2_line_only_estimates_the_missing_legs():
+    row = _row(odds_markets={"match_winner": {"home": 1.55}})
+    assert row["odds"]["home"] == pytest.approx(1.55)
+    assert row["odds_estimated"] == {"home": False, "draw": True, "away": True}
+
+
+def test_older_rows_with_only_the_legacy_1x2_columns_show_those_real_prices():
+    """Football-Data CSV rows keep 1X2 in odds_home_win/draw/away_win, with no
+    odds_markets blob. They are real prices and must not be replaced by estimates."""
+    row = _row(odds_markets=None, odds_home_win=2.1, odds_draw=3.3, odds_away_win=3.6)
+    assert row["odds"] == {"home": 2.1, "draw": 3.3, "away": 3.6}
+    assert row["odds_estimated"] == {"home": False, "draw": False, "away": False}
+    # ...and the legacy prices feed the match-result pick's own price too.
+    assert row["tips"]["match_result"]["odds"] == pytest.approx(2.1)
+    assert row["tips"]["match_result"]["odds_is_estimated"] is False
+
+
+def test_the_stored_odds_blob_is_not_modified_by_building_a_row():
+    stored = {"btts": {"yes": 2.1}}
+    _row(odds_markets=stored, odds_home_win=2.1, odds_draw=3.3, odds_away_win=3.6)
+    assert stored == {"btts": {"yes": 2.1}}
+
+
+def test_a_row_with_no_prediction_and_no_prices_stays_empty():
+    """Nothing to compute a fair price from, so nothing is invented."""
+    row = build_row(_match(odds_markets=None), None, BASE_RATES, "A", "B")
+    assert row["odds"] == {"home": None, "draw": None, "away": None}
+    assert row["odds_estimated"] == {"home": False, "draw": False, "away": False}
 
 
 def test_competition_metadata_is_resolved_for_the_country_sidebar():

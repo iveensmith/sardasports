@@ -32,9 +32,7 @@ export interface Tip {
   /** Best offered price, or a fair price derived from `probability` where no
    * bookmaker line covers this pick at all — see `odds_is_estimated`. */
   odds: number | null;
-  /** True when `odds` is that fallback rather than a real market price.
-   * Only the best-tip column ever sets this; the per-market columns show a
-   * real gap in coverage rather than paper over it. */
+  /** True when `odds` is that fallback rather than a real market price. */
   odds_is_estimated: boolean;
   outcome: Outcome;
 }
@@ -71,7 +69,10 @@ export interface BoardRow {
   away_badge: Badge | null;
   /** Null until played. Not 0-0, which is a real scoreline. */
   score: { home: number; away: number } | null;
+  /** Quoted bookmaker price, or the engine's fair price where none was quoted
+   * — `odds_estimated` says which, per selection. */
   odds: { home: number | null; draw: number | null; away: number | null };
+  odds_estimated: { home: boolean; draw: boolean; away: boolean };
   /** Keyed by market: "match_result", "goals", "btts". */
   tips: Record<string, Tip>;
   best_tip: Tip | null;

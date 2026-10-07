@@ -144,15 +144,13 @@ def _tip(
 ) -> dict:
     """One market's cell: what the engine picked, at what price, and how it went.
 
-    `fair_price_fallback` is for the best-tip column only (see `build_row`):
-    when no bookmaker price exists at all for the headline pick — a market
-    this engine doesn't fetch odds for (half-time goals, corners, cards), or
-    simply a fixture no bookmaker priced — showing a bare dash there reads as
-    "no pick", when the engine has in fact made one and quantified it. The
-    fallback is the pick's own fair price (100 / probability): computed, not
-    invented, from a number already on the row, and flagged as an estimate
-    rather than a market price with `odds_is_estimated` so the two are never
-    read as the same thing.
+    `fair_price_fallback` is used for every cell on the board (see `build_row`):
+    when no bookmaker price exists for a pick — a fixture no bookmaker priced,
+    or a line the fetcher didn't store — a bare dash reads as "no pick", when
+    the engine has in fact made one and quantified it. The fallback is the
+    pick's own fair price (100 / probability): computed, not invented, from a
+    number already on the row, and flagged as an estimate rather than a market
+    price with `odds_is_estimated` so the two are never read as the same thing.
     """
     call = entry.call
     outcome = settle_key(call.key, result) if result is not None else None
@@ -192,6 +190,61 @@ def match_odds(odds_markets: dict | None) -> dict:
     return {"home": price("home"), "draw": price("draw"), "away": price("away")}
 
 
+def effective_odds_markets(match) -> dict | None:
+    """The match's stored bookmaker prices, with the legacy 1X2 columns folded in.
+
+    Older rows (the Football-Data CSV load) carry their 1X2 prices only in
+    `odds_home_win / odds_draw / odds_away_win`, not in the `odds_markets`
+    blob the live fetcher writes. They are real quoted prices, so they are
+    used as the 1X2 line when the blob has none. Returns a new dict; the
+    stored blob is never modified.
+    """
+    markets = dict(match.odds_markets or {})
+    if not markets.get("match_winner"):
+        legacy = {
+            "home": getattr(match, "odds_home_win", None),
+            "draw": getattr(match, "odds_draw", None),
+            "away": getattr(match, "odds_away_win", None),
+        }
+        if any(value is not None for value in legacy.values()):
+            markets["match_winner"] = {k: v for k, v in legacy.items() if v is not None}
+    return markets or None
+
+
+# The prediction's own key for each 1X2 selection (see ml.markets.candidate_calls).
+_PREDICTION_KEYS = {"home": "home_win", "draw": "draw", "away": "away_win"}
+
+
+def match_odds_filled(odds_markets: dict | None, prediction: dict | None) -> tuple[dict, dict]:
+    """The 1 / X / 2 prices with no gaps, and which of them are estimates.
+
+    A quoted bookmaker price always wins. Where none was quoted, the
+    selection's fair price (100 / the engine's probability for it) is used and
+    flagged, so the board shows a number in every cell without presenting a
+    model figure as a bookmaker's. Selections the engine gave no probability
+    for stay empty — there is nothing to compute a price from.
+    """
+    quoted = match_odds(odds_markets)
+    filled: dict = {}
+    estimated: dict = {}
+    for selection, price in quoted.items():
+        probability = _as_number((prediction or {}).get(_PREDICTION_KEYS[selection]))
+        if price is None and probability is not None and probability > 0:
+            filled[selection] = round(100.0 / probability, 2)
+            estimated[selection] = True
+        else:
+            filled[selection] = price
+            estimated[selection] = False
+    return filled, estimated
+
+
+def _as_number(value) -> float | None:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def confidence_out_of_ten(confidence: float | None) -> float | None:
     """The engine scores confidence 0-100; the board shows it out of ten.
 
@@ -222,6 +275,8 @@ def build_row(
     ranked = rank_calls(candidate_calls(prediction), base_rates) if prediction else []
     by_market = {entry.call.market: entry for entry in best_per_market(ranked)}
     best = headline_call(ranked)
+    odds_markets = effective_odds_markets(match)
+    odds, odds_estimated = match_odds_filled(odds_markets, prediction)
 
     return {
         "match_id": match.id,
@@ -246,17 +301,18 @@ def build_row(
         "score": (
             {"home": match.home_score, "away": match.away_score} if result is not None else None
         ),
-        "odds": match_odds(match.odds_markets),
+        # Quoted prices where a bookmaker gave one, the engine's fair price
+        # otherwise; `odds_estimated` says which, per selection.
+        "odds": odds,
+        "odds_estimated": odds_estimated,
         # One cell per board column, absent when the engine could not price
         # that market for this competition.
         "tips": {
-            market: _tip(by_market[market], match.odds_markets, result)
+            market: _tip(by_market[market], odds_markets, result, fair_price_fallback=True)
             for market in BOARD_COLUMNS
             if market in by_market
         },
-        "best_tip": (
-            _tip(best, match.odds_markets, result, fair_price_fallback=True) if best else None
-        ),
+        "best_tip": (_tip(best, odds_markets, result, fair_price_fallback=True) if best else None),
         "confidence": confidence_out_of_ten(prediction.get("confidence") if prediction else None),
         "confidence_label": (prediction or {}).get("confidence_label"),
     }
