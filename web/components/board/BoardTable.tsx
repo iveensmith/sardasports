@@ -170,8 +170,17 @@ function OddsCell({
   }
   return (
     <td className="px-1.5 py-2 text-center whitespace-nowrap">
+      {/* Same stack as TipCell — an (empty) pick line above the price, and a
+          price pill of the same size — so these three pills sit on one line
+          with the prices in the market columns instead of floating above them. */}
       <span
-        className="inline-block min-w-[48px] rounded-[5px] border px-2 py-[5px] text-[12px] leading-none font-medium tabular-nums"
+        aria-hidden="true"
+        className="block text-[12.5px] leading-tight select-none"
+      >
+        &nbsp;
+      </span>
+      <span
+        className="mt-1 inline-block min-w-[46px] rounded-[5px] border px-1.5 py-[3px] text-[11px] leading-none font-semibold tabular-nums"
         style={
           picked
             ? {
