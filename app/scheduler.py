@@ -12,8 +12,13 @@ background jobs.
 
 from __future__ import annotations
 
+import threading
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 
 from app.database.session import SessionLocal
 from app.services.api_budget import MARGIN, PAID_DAILY_LIMIT, api_status, is_paid_plan
@@ -24,6 +29,45 @@ from app.utils.seasons import season_codes_to_refresh
 logger = get_logger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
+
+# Written at the very end of a refresh that completed. It is the scheduler's only
+# memory of when the data was last brought up to date: a refresh that fails
+# halfway leaves it alone, so the next start sees stale data and tries again.
+PROCESSED_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
+LAST_REFRESH_MARKER = PROCESSED_DIR / "last_refresh.txt"
+
+# The scheduler lives inside the backend, and a cron job missed while the backend
+# was down is not made up. So on start it looks at how old the data is and, if it
+# is older than this, runs the refresh itself — shortly after startup, not during
+# it, so the app is already serving. A little under a day: the nightly run keeps
+# the data fresher than this, so a backend that has been up overnight never
+# triggers it, and one started the next morning always does.
+CATCH_UP_AFTER_HOURS = 20
+CATCH_UP_DELAY_SECONDS = 90
+
+# One refresh at a time. The catch-up and the 03:00 run are the same job and must
+# never overlap: each downloads, rewrites the processed file and rebuilds Elo.
+_refresh_lock = threading.Lock()
+
+
+def hours_since_refresh(now: datetime | None = None) -> float | None:
+    """Hours since the last refresh that completed, or None if there never was one.
+
+    Falls back to the processed file's age when there is no marker yet, so a
+    database that was refreshed by hand before the marker existed is not
+    refreshed again for nothing.
+    """
+    now = now or datetime.now()
+    for path in (LAST_REFRESH_MARKER, PROCESSED_DIR / "matches.csv"):
+        if path.exists():
+            return (now - datetime.fromtimestamp(path.stat().st_mtime)).total_seconds() / 3600
+    return None
+
+
+def needs_catch_up(now: datetime | None = None) -> bool:
+    """True if the data is old enough, or unknown enough, to refresh at startup."""
+    age = hours_since_refresh(now)
+    return age is None or age > CATCH_UP_AFTER_HOURS
 
 
 # What each API job may spend in one run, and when it runs, per plan.
@@ -114,9 +158,20 @@ def refresh_data_job() -> None:
     and no other league was fetched at all. Safe and idempotent per
     `scripts/load_to_db.py`'s own guarantees; a failed download skips that file
     and carries on.
-    """
-    from datetime import UTC, datetime
 
+    Runs one at a time (the 03:00 run and the startup catch-up are this same job),
+    and records when it completed — only when it did.
+    """
+    if not _refresh_lock.acquire(blocking=False):
+        logger.info("refresh_data_job skipped: a refresh is already running")
+        return
+    try:
+        _refresh_data()
+    finally:
+        _refresh_lock.release()
+
+
+def _refresh_data() -> None:
     from scripts.clean_data import main as clean_main
     from scripts.download_data import KNOWN_LEAGUES, download_season
     from scripts.fetch_extra_league import EXTRA_LEAGUES, write_seasons
@@ -147,6 +202,10 @@ def refresh_data_job() -> None:
     logger.info("refresh_data_job: %d file(s) refreshed, %d failed", fetched, failed)
     clean_main()
     load_main()
+    # Last, so an exception anywhere above leaves the old marker and the data
+    # still reads as stale.
+    PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+    LAST_REFRESH_MARKER.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
     logger.info("refresh_data_job completed")
 
 
@@ -437,6 +496,20 @@ def start_scheduler() -> BackgroundScheduler | None:
     )
     scheduler.start()
     _scheduler = scheduler
+
+    # Catch up on a refresh the backend was not running to do. Not in the cron
+    # list above: it exists only for this process, only if the data is old.
+    if needs_catch_up():
+        scheduler.add_job(
+            refresh_data_job,
+            DateTrigger(run_date=datetime.now() + timedelta(seconds=CATCH_UP_DELAY_SECONDS)),
+            id="catch_up_refresh_data",
+        )
+        logger.info(
+            "Data is older than %d hours (or has never been refreshed): refreshing in %d seconds",
+            CATCH_UP_AFTER_HOURS,
+            CATCH_UP_DELAY_SECONDS,
+        )
     logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
     return scheduler
 

@@ -298,7 +298,8 @@ def _hours(started):
 
 
 @pytest.fixture
-def fresh_scheduler():
+def fresh_scheduler(monkeypatch):
+    monkeypatch.setattr(scheduler, "needs_catch_up", lambda: False)
     scheduler._scheduler = None
     yield
     scheduler.stop_scheduler()
@@ -326,7 +327,10 @@ def test_a_paid_account_gets_the_busier_cadence(monkeypatch, fresh_scheduler):
 
 
 @pytest.fixture
-def refresh_env(monkeypatch):
+def refresh_env(monkeypatch, tmp_path):
+    # The refresh records when it finished; keep that out of the real data folder.
+    monkeypatch.setattr(scheduler, "PROCESSED_DIR", tmp_path)
+    monkeypatch.setattr(scheduler, "LAST_REFRESH_MARKER", tmp_path / "last_refresh.txt")
     import scripts.clean_data as clean
     import scripts.download_data as download
     import scripts.fetch_extra_league as extra

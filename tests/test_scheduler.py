@@ -17,6 +17,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
         api_football_key = None  # no key: the free-plan cadence, and no network
 
     monkeypatch.setattr(scheduler_module, "get_settings", lambda: FakeSettings())
+    monkeypatch.setattr(scheduler_module, "needs_catch_up", lambda: False)
     scheduler_module._scheduler = None  # ensure a clean start regardless of test order
 
     try:

@@ -2069,3 +2069,55 @@ new warning at least makes each duplicate visible, and `merge_team` removes it.
 **Caveat on "on".** The scheduler lives inside the backend process, so it only runs
 while the backend is running, and a missed run is not caught up. If the backend is
 not up at 03:00 the refresh does not happen.
+
+## Catch-up on startup, and the rest of the leagues mapped
+
+Two follow-ups to turning the scheduler on, both at the owner's request.
+
+**Catch-up on startup.** The scheduler lives inside the backend, and a cron run
+missed while the backend is down is not made up, so a backend that is off at 03:00
+means no refresh that night. On start it now checks how old the data is and, if
+older than 20 hours, schedules the same refresh job 90 seconds later — after the
+app is already serving, not during startup. Three decisions worth recording:
+
+- *"Last refreshed" means a refresh that completed.* The job writes
+  `data/processed/last_refresh.txt` as its very last step, after the load, so a
+  refresh that dies halfway leaves the old marker and the data still reads as stale
+  at the next start. With no marker it falls back to the processed file's age, so a
+  database refreshed by hand is not refreshed again for nothing.
+- *One refresh at a time.* The 03:00 run and the catch-up are the same job; each
+  downloads, rewrites the processed file and rebuilds Elo. A non-blocking lock turns
+  a second one away rather than queueing it behind the first, and is released if the
+  job fails.
+- *Twenty hours*, not a day: the nightly run keeps the data fresher than that, so a
+  backend that has been up overnight never triggers it, and one started the next
+  morning always does.
+
+Verified for real: the processed file was backdated 30 hours, the backend restarted,
+and it logged "Data is older than 20 hours … refreshing in 90 seconds", ran the job
+at 17:45:55, refreshed 51 files (0 failed), rebuilt Elo and wrote the marker. It also
+needs no API quota. 15 tests in `tests/test_scheduler_catch_up.py` pin the age
+thresholds, that the marker is written only on completion, that a failed refresh
+leaves the data reading as stale and releases the lock, and that two refreshes never
+overlap (including a real second thread arriving mid-job).
+
+**The rest of the leagues mapped.** The four leagues mapped after the first
+scheduled run were not the only ones the live feed covers; every other league would
+have created duplicates of clubs with abbreviated Football-Data names the moment its
+fixtures arrived. The remaining 32 leagues were mapped from their 2024 rosters: 32
+requests, leaving about 50 of the day's 100.
+
+- 767 of 1,373 football clubs now carry an API id, and no id is shared by two clubs.
+- **Spot-checked against independent evidence:** 15 well-known clubs' ids (Barcelona
+  529, Real Madrid 541, Athletic Club 531, Manchester City 50, Bayern 157, Juventus
+  496, …) all match what the mapping wrote. 15 of 15.
+- The tool left 40 clubs for a person: names that share almost nothing, such as
+  Wolves (our `Wolverhampton Wanderers`), Paris Saint Germain, most Chinese Super
+  League clubs and the Dutch second-division sides. They are listed in
+  `data/processed/team_mapping_review.csv`; the live feed's new warning will name any
+  that still turn up as duplicates.
+
+**Limits.** Only the free plan's 2024 season could be used, so a club promoted since
+is on no 2024 roster and is still unmapped until the full mapping at subscription
+(`--seasons 2016-2025`), and the current-season roster is not available on the free
+plan at all.
