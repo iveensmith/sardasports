@@ -17,7 +17,7 @@ import { FaqItem } from "@/components/FaqItem";
 import { MarketGlossary } from "@/components/MarketGlossary";
 
 export const metadata = {
-  title: "How it works — UniquePredict",
+  title: "How it works | UniquePredict",
   description:
     "How the engine turns results into probabilities, how each pick is graded against the final score, and what its numbers do and do not mean.",
 };
@@ -27,7 +27,7 @@ const STAGES: Array<{ title: string; body: string[] }> = [
     title: "Results in",
     body: [
       "The engine starts from completed matches: final scores, half-time scores where the source records them, and corner and card counts where it does. Historical results come from public football datasets and a licensed sports-data feed; fixtures, prices and final scores are pulled in on a schedule, never typed by hand.",
-      "Different competitions record different things. Where a statistic is not recorded for a competition, the engine does not treat it as zero — the market that depends on it is simply not priced there, and the board shows that rather than a guess.",
+      "Different competitions record different things. Where a statistic is not recorded for a competition, the engine does not treat it as zero. The market that depends on it is simply not priced there, and the board shows that rather than a guess.",
     ],
   },
   {
@@ -71,7 +71,7 @@ const FAQS: Array<{ q: string; a: string }> = [
   },
   {
     q: "What does the confidence score mean?",
-    a: "It is how closely the engine's independent estimators agree about a fixture, scored out of ten. It is not the chance of winning — that is the percentage on each pick. Confidence runs high for most fixtures, so it is shown beside the pick but is not what selects the day's bankers.",
+    a: "It is how closely the engine's independent estimators agree about a fixture, scored out of ten. It is not the chance of winning; that is the percentage on each pick. Confidence runs high for most fixtures, so it is shown beside the pick but is not what selects the day's bankers.",
   },
   {
     q: "Why do some fixtures have no prediction?",

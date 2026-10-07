@@ -50,13 +50,13 @@ export function ProgressFaq({
       : "There is nothing settled yet, so there is no span to report.";
 
   const coverageAnswer = competitionCount
-    ? `Every stored prediction on a played fixture counts, whatever its competition — none is set aside after the fact. The engine models ${competitionCount} competitions; the Leagues page lists them with how much history sits behind each.`
-    : "Every stored prediction on a played fixture counts, whatever its competition — none is set aside after the fact.";
+    ? `Every stored prediction on a played fixture counts, whatever its competition, and none is set aside after the fact. The engine models ${competitionCount} competitions; the Leagues page lists them with how much history sits behind each.`
+    : "Every stored prediction on a played fixture counts, whatever its competition, and none is set aside after the fact.";
 
   const items = [
     {
       q: "What do the numbers on this page count?",
-      a: "Each prediction has one headline call — the likeliest thing the engine expects, chosen across the markets it prices for that fixture. That call is settled won or lost against the final score. The charts, the monthly table and both downloads are built from the same set of graded predictions, so a match cannot be in one and missing from another. The by-market table is the exception: it grades the best call in each market separately, so one match can appear in several of its rows.",
+      a: "Each prediction has one headline call: the likeliest outcome the engine expects, chosen across the markets it prices for that fixture. That call is settled won or lost against the final score. The charts, the monthly table and both downloads are built from the same set of graded predictions, so a match cannot be in one and missing from another. The by-market table is the exception: it grades the best call in each market separately, so one match can appear in several of its rows.",
     },
     {
       q: "What is the difference between backtested and live?",
@@ -92,10 +92,7 @@ export function ProgressFaq({
 
   return (
     <section className="mt-12">
-      <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
-        About this record
-      </p>
-      <h2 className="mt-2.5 text-[clamp(1.4rem,3vw,1.75rem)] font-bold tracking-[-0.02em]">
+      <h2 className="text-[clamp(1.4rem,3vw,1.75rem)] font-bold tracking-[-0.02em]">
         Questions about this page
       </h2>
       <div className="mt-6 space-y-3">

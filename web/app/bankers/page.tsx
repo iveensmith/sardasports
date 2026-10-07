@@ -26,7 +26,7 @@ export const revalidate = 300;
 const SLIP_OF_THE_DAY_TARGET = 4;
 
 export const metadata = {
-  title: "Bankers — UniquePredict",
+  title: "Bankers | UniquePredict",
   description:
     "The day's likeliest picks, with every settled one graded against the result.",
 };
@@ -97,9 +97,9 @@ export default async function BankersPage({
           {bankers.count === 1 ? "The one pick" : `The ${bankers.count} picks`}{" "}
           from this card&rsquo;s {bankers.considered} fixtures that the engine
           makes at least {bankers.min_probability.toFixed(0)}% likely, likeliest
-          first. These are the safest calls on the card, which is not the same
-          as the most valuable &mdash; a short price on a near-certainty is
-          usually priced about right.
+          first. These are the safest picks on the card, which is not the same
+          as the most valuable: a short price on a near-certainty is usually
+          priced about right.
         </p>
       </header>
 

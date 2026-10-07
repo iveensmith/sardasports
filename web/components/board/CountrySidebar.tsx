@@ -48,6 +48,7 @@ export function CountrySidebar({
       </p>
 
       <Link
+        prefetch={false}
         href={`${basePath}?date=${date}`}
         aria-current={active === null ? "true" : undefined}
         className="flex items-center justify-between rounded-[var(--radius-md)] px-2.5 py-2 text-[13.5px] font-semibold transition-colors"
@@ -90,6 +91,7 @@ export function CountrySidebar({
           return (
             <li key={c.country}>
               <Link
+                prefetch={false}
                 href={`${basePath}?date=${date}&country=${encodeURIComponent(c.country)}`}
                 aria-current={isActive ? "true" : undefined}
                 className="flex items-center justify-between rounded-[var(--radius-md)] px-2.5 py-1.5 text-[13px] transition-colors hover:bg-[var(--color-surface-raised)]"

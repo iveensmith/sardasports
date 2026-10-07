@@ -25,7 +25,7 @@ import { MarketGlossary } from "@/components/MarketGlossary";
 export const revalidate = 120;
 
 export const metadata = {
-  title: "Football predictions by day — UniquePredict",
+  title: "Football predictions by day | UniquePredict",
   description:
     "Every fixture the engine prices, with a pick in each market and every past pick graded against the result.",
 };
@@ -112,7 +112,7 @@ export default async function MatchesPage({
         </h1>
         <p className="mt-2 max-w-[70ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
           {settled
-            ? "Every pick on this card has been graded against the final result — won, lost, or void where the match records no such stat."
+            ? "Every pick on this card has been graded against the final result: won, lost, or void where the match records no such stat."
             : "A pick in each market for every fixture the engine has a trained model for. Each one is graded against the result once the match is played."}
         </p>
       </header>

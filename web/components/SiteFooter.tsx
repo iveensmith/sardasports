@@ -84,9 +84,8 @@ export async function SiteFooter() {
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
               A calibrated football prediction engine. Free picks are published
-              every day with no account needed, and every call is settled
-              against the final score &mdash; wins and losses both, on the
-              public record.
+              every day with no account needed, and every pick is graded against
+              the final score, wins and losses both, on the public record.
             </p>
           </div>
 

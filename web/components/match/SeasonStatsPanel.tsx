@@ -95,9 +95,9 @@ export function SeasonStatsPanel({
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
       <h2 className="text-[15px] font-semibold">Season statistics</h2>
       <p className="mt-1 mb-5 text-[13px] text-[var(--color-text-dim)]">
-        Average per match{season ? `, ${season}` : ""} &mdash; each side&rsquo;s
-        own season, and a stat neither team has recorded yet is left off rather
-        than shown as zero.
+        Average per match{season ? `, ${season}` : ""}, over each side&rsquo;s
+        own season. A stat neither team has recorded yet is left off rather than
+        shown as zero.
       </p>
       <div className="mb-4 flex justify-between text-[12.5px] font-medium text-[var(--color-text-dim)]">
         <span>{homeLabel}</span>

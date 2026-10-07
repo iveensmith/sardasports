@@ -55,12 +55,24 @@ function Item({ row }: { row: BoardRow }) {
   );
 }
 
+function shortDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "UTC",
+  });
+}
+
 export function ResultsTicker({
   rows,
-  date,
+  from,
+  to,
 }: {
   rows: BoardRow[];
-  date: string | null;
+  /** First and last match date the strip covers, named so it is never read as
+   * last night's results when it is not. */
+  from: string | null;
+  to: string | null;
 }) {
   const settled = rows.filter(
     (row) =>
@@ -77,19 +89,16 @@ export function ResultsTicker({
       className="border-y border-[var(--color-line)] bg-[var(--color-surface)]/40 py-3"
     >
       <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10">
-        {/* The date is named rather than implied. These are the last picks
-            that settled, which is not necessarily last night's — saying
-            "last settled" over results from months ago would be a small lie
-            told by omission. */}
-        <p className="mb-2 text-[10.5px] tracking-[0.2em] text-[var(--color-text-faint)] uppercase">
-          Last settled
-          {date
-            ? ` · ${new Date(date).toLocaleDateString(undefined, {
-                day: "numeric",
-                month: "short",
-              })}`
-            : ""}{" "}
-          · {won} of {settled.length} came in
+        {/* The dates are named rather than implied. These are the newest picks
+            that settled, which is not necessarily last night's. */}
+        <p className="mb-2 text-[12px] text-[var(--color-text-faint)]">
+          Recently settled
+          {from && to
+            ? from === to
+              ? `, ${shortDate(to)}`
+              : `, ${shortDate(from)} to ${shortDate(to)}`
+            : ""}
+          : {won} of {settled.length} picks came in
         </p>
       </div>
 

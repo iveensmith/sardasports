@@ -38,7 +38,7 @@ const redHatText = Red_Hat_Text({
 });
 
 export const metadata: Metadata = {
-  title: "UniquePredict — calibrated sports predictions",
+  title: "UniquePredict | Calibrated sports predictions",
   description:
     "Football, basketball and tennis predictions from a model that reports its own confidence, and says so when it cannot price a market.",
 };

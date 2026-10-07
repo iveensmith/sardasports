@@ -50,9 +50,9 @@ export function WinRateChart({
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
       <h2 className="text-[15px] font-semibold">{title}</h2>
       <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
-        The line is the rate; the bars are how many calls it is over. Read them
-        together — a month standing on a dozen settled calls is not evidence of
-        a trend, however high the line goes.
+        The line is the rate; the bars are how many picks it is over. Read them
+        together: a month built on a dozen settled picks is not evidence of a
+        trend, however high the line goes.
       </p>
 
       <div className="mt-4 h-[260px] w-full">

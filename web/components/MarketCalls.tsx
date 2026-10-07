@@ -30,9 +30,9 @@ export function MarketCallTable({ calls }: { calls: Call[] }) {
       <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
         The engine&rsquo;s strongest selection in each market it can price.
         &ldquo;Base&rdquo; is how often that selection actually lands across
-        every completed match on record, so the lift beside it &mdash; not the
-        probability &mdash; is what this fixture adds. Over 1.5 goals lands in
-        three matches out of four on its own.
+        every completed match on record, so the lift beside it, not the
+        probability, is what this fixture adds. Over 1.5 goals lands in three
+        matches out of four on its own.
       </p>
 
       <table className="mt-4 w-full text-[13px]">
@@ -222,9 +222,9 @@ export function ValuePanel({ value }: { value: Value }) {
       <p className="mt-3 max-w-[70ch] text-[12px] leading-relaxed text-[var(--color-text-faint)]">
         This is the price, not the prediction. The best-priced selection is
         frequently the least likely outcome on the fixture, and the
-        engine&rsquo;s own backtest returns &minus;6.74% against bookmaker odds
-        &mdash; so a large positive figure here is a reason to look harder, not
-        a reason to bet.
+        engine&rsquo;s last recorded backtest against bookmaker odds lost 6.74%.
+        A large positive figure here is a reason to look harder, not a reason to
+        bet.
       </p>
     </section>
   );

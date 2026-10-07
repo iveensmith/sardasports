@@ -17,7 +17,7 @@ import type { Leagues } from "@/lib/discover";
 export const revalidate = 3600;
 
 export const metadata = {
-  title: "Leagues — UniquePredict",
+  title: "Leagues | UniquePredict",
   description:
     "Every competition the engine models, with how much match history sits behind each.",
 };
@@ -68,10 +68,10 @@ export default async function LeaguesPage() {
           Leagues
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          Everything the engine has a trained model for. The match count beside
-          each is how much completed history it was built from, and it varies by
-          two orders of magnitude &mdash; which is the single best predictor of
-          how much to trust a call in it.
+          Every competition the engine has a trained model for. The match count
+          beside each is how much completed history the model was built from. It
+          varies by two orders of magnitude, and it is the best single guide to
+          how much to trust a pick in that competition.
         </p>
       </header>
 

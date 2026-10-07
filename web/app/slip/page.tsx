@@ -26,7 +26,7 @@ import type { Slip } from "@/lib/discover";
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Slip builder — UniquePredict",
+  title: "Slip builder | UniquePredict",
   description:
     "Build an accumulator from the day's picks, with the chance of a return shown beside the price.",
 };
@@ -211,8 +211,8 @@ export default async function SlipPage({
         <p className="mt-4 text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
           Today&rsquo;s card could not reach {targetOdds}x within {maxLegs} legs
           at these prices. The slip below is what it could do. Raising the leg
-          cap would get closer to the target and lower the chance of a return
-          &mdash; that trade is the whole of what this page does.
+          cap gets closer to the target and lowers the chance of a return. That
+          trade-off is what this page is for.
         </p>
       )}
 
@@ -283,11 +283,11 @@ export default async function SlipPage({
 
       <p className="mt-7 max-w-[72ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
         Every leg has to land. Each one added multiplies the price and divides
-        the chance of a return, and the second effect is the larger of the two
-        against real bookmaker margins &mdash; the engine&rsquo;s own backtest
-        returns &minus;6.74% on single picks against these prices, and an
-        accumulator compounds that. This is a tool for constructing a slip, not
-        a recommendation to place one.
+        the chance of a return, and against real bookmaker margins the second
+        effect is the larger. The engine&rsquo;s last recorded backtest against
+        bookmaker odds lost 6.74% on single picks, and an accumulator compounds
+        that. This is a tool for building a slip, not a recommendation to place
+        one.
       </p>
     </div>
   );

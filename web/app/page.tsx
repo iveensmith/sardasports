@@ -17,25 +17,27 @@
 import Link from "next/link";
 import {
   EngineError,
-  getBoardDates,
   getDayBoard,
   getLeagues,
   getProgress,
+  getRecentSettled,
 } from "@/lib/api";
 import { allRows, type DayBoard } from "@/lib/board";
+import type { RecentSettled } from "@/lib/api";
+import type { LeagueCountry } from "@/lib/discover";
 import type { Progress } from "@/lib/progress";
-import { rate } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
 import { Hero } from "@/components/home/Hero";
 import { ResultsTicker } from "@/components/home/ResultsTicker";
 import { AboutTheEngine } from "@/components/home/AboutTheEngine";
 import { HowItWorks } from "@/components/home/HowItWorks";
+import { TopLeagues } from "@/components/home/TopLeagues";
 import { Faq } from "@/components/home/Faq";
 
 export const revalidate = 180;
 
 export const metadata = {
-  title: "UniquePredict — football predictions, every one graded",
+  title: "UniquePredict | Football predictions, every one graded",
   description:
     "A calibrated prediction engine. Every pick is settled against the final score and the record is public, including what it got wrong.",
 };
@@ -83,7 +85,7 @@ function BoardSection({
   // what has been ingested so far.
   if (rows.length === 0) {
     return (
-      <section id={id} className="mt-14 scroll-mt-20">
+      <section id={id} className="scroll-mt-20">
         <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <h2 className="text-[22px] font-bold tracking-[-0.022em]">{title}</h2>
           <Link
@@ -106,7 +108,7 @@ function BoardSection({
   const copy = !settled && unsettledBlurb ? unsettledBlurb : blurb;
 
   return (
-    <section id={id} className="mt-14 scroll-mt-20">
+    <section id={id} className="scroll-mt-20">
       <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
           <h2 className="text-[22px] font-bold tracking-[-0.022em]">
@@ -152,54 +154,34 @@ function BoardSection({
   );
 }
 
-/**
- * How many finished matches a day needs to carry the results strip.
- *
- * The strip itself hides below four settled picks, since a loop that is mostly
- * gap reads as broken. This is higher on purpose: not every match yields a
- * graded pick, and a strip of five is thin. Below this the page reaches back to
- * an earlier day with more — and names that day, so it is never passed off as
- * last night.
- */
-const TICKER_MIN_MATCHES = 8;
-
 export default async function HomePage() {
   let yesterday: DayBoard | null = null;
   let today: DayBoard | null = null;
   let tomorrow: DayBoard | null = null;
   let progress: Progress | null = null;
-  let settledDay: DayBoard | null = null;
+  let recent: RecentSettled | null = null;
   let error: string | null = null;
   let competitionCount: number | null = null;
   let countryCount: number | null = null;
+  let leagueCountries: LeagueCountry[] | null = null;
 
   try {
-    const [boards, dates, leagues] = await Promise.all([
+    const [boards, recentSettled, leagues] = await Promise.all([
       Promise.all([
         getDayBoard({ date: isoDay(-1) }).catch(() => null),
         getDayBoard({}),
         getDayBoard({ date: isoDay(1) }).catch(() => null),
         getProgress().catch(() => null),
       ]),
-      getBoardDates(3, TICKER_MIN_MATCHES).catch(() => null),
+      getRecentSettled(24).catch(() => null),
       getLeagues().catch(() => null),
     ]);
     [yesterday, today, tomorrow, progress] = boards;
     competitionCount = leagues?.competition_count ?? null;
     countryCount = leagues?.country_count ?? null;
+    leagueCountries = leagues?.countries ?? null;
 
-    // The strip wants a day with enough graded picks to fill it. Yesterday is
-    // used only if it has that many: "any result" is not enough, because the
-    // newest day with a result is often one match (the tail of a weekend, or
-    // the first scores to arrive) and a strip built on one match is hidden.
-    // Otherwise fall back to the last day that settled enough.
-    const settledDate = dates?.last_settled ?? null;
-    settledDay =
-      yesterday && yesterday.counts.finished >= TICKER_MIN_MATCHES
-        ? yesterday
-        : settledDate
-          ? await getDayBoard({ date: settledDate }).catch(() => null)
-          : null;
+    recent = recentSettled;
   } catch (e) {
     error =
       e instanceof EngineError || e instanceof Error
@@ -208,25 +190,31 @@ export default async function HomePage() {
   }
 
   const hasLive = (progress?.live.record.settled ?? 0) > 0;
-  const headline = hasLive ? progress!.live.record : progress?.overall;
-  const winRate = headline && headline.settled > 0 ? rate(headline) : null;
-  const isBacktest = !hasLive;
-
-  const tickerRows = settledDay ? allRows(settledDay) : [];
-  const tickerDate = settledDay?.date ?? null;
+  const backtestRecord =
+    (progress?.backtest.record.settled ?? 0) > 0
+      ? progress!.backtest.record
+      : null;
 
   return (
     <>
       <Hero
-        winRate={winRate}
-        settled={headline?.settled ?? 0}
-        isBacktest={isBacktest}
+        live={hasLive ? progress!.live.record : null}
+        backtest={backtestRecord}
+        liveSince={progress?.live.span?.first ?? null}
         fixturesToday={today?.counts.fixtures ?? 0}
       />
 
-      <ResultsTicker rows={tickerRows} date={tickerDate} />
+      <ResultsTicker
+        rows={recent?.rows ?? []}
+        from={recent?.from ?? null}
+        to={recent?.to ?? null}
+      />
 
-      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 sm:px-6 lg:px-10">
+      {/* One rule for the page's rhythm: every section after the first is set
+          off by a hairline and the same breathing room above and below it, so no
+          section can drift out of step. The first sits under the results strip,
+          which has its own rule. */}
+      <div className="mx-auto w-full max-w-[1200px] px-4 pb-16 sm:px-6 lg:px-10 [&>section]:mt-12 [&>section+section]:border-t [&>section+section]:border-[var(--color-line)] [&>section+section]:pt-12">
         {error && (
           <div className="mt-10 rounded-[var(--radius-lg)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-6">
             <p className="text-[15px] font-medium">The engine is unreachable</p>
@@ -239,7 +227,7 @@ export default async function HomePage() {
         <BoardSection
           title="Yesterday"
           settledTitle="Yesterday, settled"
-          blurb="Every pick graded against the final result. This is the board that decides whether the two below are worth reading."
+          blurb="Every pick graded against the final result, so today's and tomorrow's boards can be judged against it."
           unsettledBlurb="Results for these fixtures have not been ingested yet, so nothing here is graded. Once they are, every pick on this board settles automatically."
           emptyBlurb="No fixtures were ingested for yesterday's date."
           board={yesterday}
@@ -250,7 +238,7 @@ export default async function HomePage() {
           id="today"
           title="Today"
           blurb="A pick in each market for every fixture the engine has a trained model for."
-          emptyBlurb="Nothing has been ingested for today yet. Fixtures, odds and results are pulled in on a schedule rather than continuously, so an empty board here means the next ingest run hasn't happened — not that there is nothing to predict."
+          emptyBlurb="Nothing has been ingested for today yet. Fixtures, prices and results are pulled in on a schedule rather than continuously, so an empty board means the next ingest has not run, not that there is nothing to predict."
           board={today}
           href="/matches"
         />
@@ -263,23 +251,21 @@ export default async function HomePage() {
           href={`/matches?date=${isoDay(1)}`}
         />
 
+        <TopLeagues countries={leagueCountries} />
+
         <AboutTheEngine
-          settled={headline?.settled ?? 0}
-          winRate={winRate}
-          isBacktest={isBacktest}
+          gradedPicks={progress?.overall.settled ?? 0}
+          livePicks={progress?.live.record.settled ?? 0}
           competitionCount={competitionCount}
           countryCount={countryCount}
-          firstSettledDate={
-            (hasLive ? progress?.live.span?.first : progress?.span?.first) ??
-            null
-          }
+          firstSettledDate={progress?.span?.first ?? null}
         />
 
         <HowItWorks />
 
         <Faq
-          winRate={winRate}
-          settled={headline?.settled ?? 0}
+          live={hasLive ? progress!.live.record : null}
+          backtest={backtestRecord}
           competitionCount={competitionCount}
           countryCount={countryCount}
         />

@@ -1,16 +1,18 @@
 /**
- * The narrative the reference site tells with a decade of Trustpilot
- * reviews, a partner-logo strip, and a YouTube explainer — none of which
- * this site has a real one of. Reviews, "trusted by" logos and a company
- * video would all have to be invented to fill the same slot, so this
- * replaces them with the one thing that isn't invented: the engine's own
- * real numbers, restated as prose instead of left to the board tables to
- * imply.
+ * The case for the engine, in prose, with its real counts beside it.
  *
- * Every figure here is a prop, not a guess — if `settled` is 0 (a fresh
- * deployment, or the engine unreachable), the stat tiles show "—" rather
- * than a fabricated number, the same rule the board itself follows.
+ * The reference site fills this slot with user reviews, partner logos and a
+ * company video. This site has none of those, and inventing them would be the
+ * opposite of its argument, so the slot carries the one thing that is real:
+ * what the engine does, and how much of it has been checked.
+ *
+ * Every figure is a prop, never a guess. A count of zero shows as a dash.
+ * There is deliberately no win-rate tile here: live and reconstructed picks are
+ * different kinds of evidence, the hero states each on its own, and a single
+ * blended percentage would hide the distinction the track record exists to keep.
  */
+
+import Link from "next/link";
 
 function Tile({
   label,
@@ -19,12 +21,13 @@ function Tile({
   label: string;
   value: string | number | null;
 }) {
+  // Label above, number below, pushed apart: the tiles stretch to the height of
+  // the text beside them, and a number floating at the top of a tall box looks
+  // unfinished where one at the foot reads as anchored.
   return (
-    <div className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3">
-      <p className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
-        {label}
-      </p>
-      <p className="mt-1 text-[26px] leading-none font-bold tabular-nums">
+    <div className="flex min-h-[88px] flex-col justify-between rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] px-5 py-4">
+      <p className="text-[12.5px] text-[var(--color-text-faint)]">{label}</p>
+      <p className="mt-3 text-[32px] leading-none font-bold tabular-nums">
         {value ?? "—"}
       </p>
     </div>
@@ -32,55 +35,69 @@ function Tile({
 }
 
 export function AboutTheEngine({
-  settled,
-  winRate,
-  isBacktest,
+  gradedPicks,
+  livePicks,
   competitionCount,
   countryCount,
   firstSettledDate,
 }: {
-  settled: number;
-  winRate: string | null;
-  isBacktest: boolean;
+  gradedPicks: number;
+  livePicks: number;
   competitionCount: number | null;
   countryCount: number | null;
   firstSettledDate: string | null;
 }) {
   const since = firstSettledDate
-    ? new Date(firstSettledDate).toLocaleDateString(undefined, {
+    ? new Date(firstSettledDate).toLocaleDateString("en-GB", {
         month: "long",
         year: "numeric",
+        timeZone: "UTC",
       })
     : null;
+  const mostlyReconstructed = livePicks < gradedPicks / 2;
 
   return (
-    <section className="mt-16">
-      <div className="grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-start">
+    <section>
+      <div className="grid gap-8 md:grid-cols-[1.1fr_1fr] md:items-stretch">
         <div>
-          <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
-            About the engine
-          </p>
-          <h2 className="mt-2.5 text-[clamp(1.5rem,3vw,1.9rem)] font-bold tracking-[-0.02em]">
-            Built to be graded, not just believed
+          <h2 className="text-[clamp(1.5rem,3vw,1.9rem)] font-bold tracking-[-0.02em]">
+            Built to be checked, not just believed
           </h2>
           <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
-            Every pick above comes from the same calibrated engine, not a person
-            typing in tips. It blends three independent estimators &mdash; an
-            Elo rating system, a Poisson goal model, and a gradient-boosted
-            classifier trained per market &mdash; into one probability, then
-            settles every call against the real final score
+            Every pick on this site comes from one calibrated engine, not from a
+            person typing in tips. It blends three independent estimators, an
+            Elo rating system, a Poisson goal model and a gradient-boosted
+            classifier trained for each market, into a single probability. Each
+            pick is then graded against the real final score
             {since ? `, going back to ${since}` : ""}.
           </p>
           <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
-            {isBacktest
-              ? "The record below is currently a backtest — generated after each match from history truncated at kick-off, so it can't have leaked the result, but it hasn't been risked live yet either. The live record starts filling in on its own as the board runs forward, and is always labelled separately from this one."
-              : "Nothing here is edited by hand after the fact: a losing pick stays on the record exactly as it was called, and the full history — wins and losses both — is public on the track record page."}
+            {mostlyReconstructed
+              ? "Most of that record is reconstructed: each prediction was generated after the match from history cut off at kick-off, so it could not have seen the result, but it was never at risk of being wrong in public. The live record, stored before kick-off, grows as the board runs forward, and the two are always reported separately."
+              : "The record combines picks stored before kick-off with picks reconstructed afterwards from history cut off at kick-off. The two are always reported separately, because they are not the same kind of evidence."}
+          </p>
+          <p className="mt-3 max-w-[62ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
+            A losing pick stays on the record. The full history, wins and losses
+            both, is on the{" "}
+            <Link
+              href="/progress"
+              className="text-[var(--color-gold-bright)] hover:underline"
+            >
+              track record page
+            </Link>
+            , and you can download it.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Tile label="Settled calls" value={settled > 0 ? settled : null} />
-          <Tile label="Win rate" value={winRate} />
+        <div className="grid grid-cols-2 gap-3 md:grid-rows-2">
+          <Tile
+            label="Graded picks"
+            value={gradedPicks > 0 ? gradedPicks.toLocaleString() : null}
+          />
+          <Tile
+            label="Of which live"
+            value={livePicks > 0 ? livePicks.toLocaleString() : null}
+          />
           <Tile label="Competitions" value={competitionCount} />
           <Tile label="Countries" value={countryCount} />
         </div>

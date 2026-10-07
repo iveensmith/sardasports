@@ -11,7 +11,7 @@
  * the engine returns null for a line, null is what reaches the page.
  */
 
-import type { BoardDates, DayBoard } from "./board";
+import type { BoardDates, BoardRow, DayBoard } from "./board";
 import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
 import type { MarketKind, MarketPageData } from "./markets";
 import type { Progress } from "./progress";
@@ -162,6 +162,26 @@ export function getCompetitions(sport?: string): Promise<CompetitionsResponse> {
   const query = sport ? `?sport=${encodeURIComponent(sport)}` : "";
   return engineFetch<CompetitionsResponse>(`/competitions${query}`, {
     revalidate: 3600,
+  });
+}
+
+/** The newest graded best tips across recent days, for the home results strip. */
+export interface RecentSettled {
+  count: number;
+  won: number;
+  /** First and last match date covered (YYYY-MM-DD). Null when empty. */
+  from: string | null;
+  to: string | null;
+  rows: BoardRow[];
+}
+
+/**
+ * Read from stored predictions engine-side, so it needs no recomputation and
+ * does not depend on any one day having enough finished matches.
+ */
+export function getRecentSettled(limit = 24): Promise<RecentSettled> {
+  return engineFetch<RecentSettled>(`/board/recent-settled?limit=${limit}`, {
+    revalidate: 300,
   });
 }
 

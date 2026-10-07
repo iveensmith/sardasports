@@ -41,9 +41,9 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const league = await getLeague(slug).catch(() => null);
-  if (!league) return { title: "League — UniquePredict" };
+  if (!league) return { title: "League | UniquePredict" };
   return {
-    title: `${league.competition} predictions — UniquePredict`,
+    title: `${league.competition} predictions | UniquePredict`,
     description: `${league.competition}: result and goals rates from ${league.history.matches.toLocaleString()} matches on record, the engine's own record in this competition, and its picks for upcoming fixtures.`,
   };
 }

@@ -31,7 +31,7 @@ import { WinRateChart } from "@/components/progress/WinRateChart";
 export const revalidate = 3600;
 
 export const metadata = {
-  title: "Track record — UniquePredict",
+  title: "Track record | UniquePredict",
   description:
     "Every prediction the engine has made, graded against the final score. Backtested and live records reported separately.",
 };
@@ -219,11 +219,11 @@ export default async function ProgressPage() {
           Track record
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          Every prediction the engine has made is regraded here against the
-          final score — won, lost, or void where the match records no such stat.
-          Void calls are excluded from every rate rather than counted as either,
-          because a corners call on a competition that logs no corners was never
-          settleable.
+          Every prediction the engine has made is graded here against the final
+          score: won, lost, or void where the match records no such stat. Void
+          picks are excluded from every rate rather than counted either way,
+          because a corners pick in a competition that logs no corners could
+          never be settled.
         </p>
       </header>
 
@@ -248,26 +248,25 @@ export default async function ProgressPage() {
                 {overall.settled.toLocaleString()} settled predictions (
                 {backtestShare}%) were generated <em>after</em> the match was
                 played, from match history truncated at kick-off. The model saw
-                nothing it should not have — the feature pipeline is
-                leakage-safe and tested as such — but none of these was
-                published in advance and exposed to the risk of being wrong in
-                public. Only the {live.record.settled} in the live record were:
-                stored before kick-off, and graded afterwards without being
-                touched. The two are reported separately above, and never
-                blended into one headline figure. The breakdowns below count
-                both.
+                nothing it should not have, because the feature pipeline is
+                leakage-safe and tested as such, but none of these was published
+                in advance and exposed to the risk of being wrong in public.
+                Only the {live.record.settled} in the live record were: stored
+                before kick-off, then graded after the match. The two are
+                reported separately above and never blended into one headline
+                figure. The breakdowns below count both.
               </>
             ) : (
               <>
                 All {backtest.record.settled} settled predictions below were
                 generated <em>after</em> the match was played, from match
                 history truncated at kick-off. The model saw nothing it should
-                not have — the feature pipeline is leakage-safe and tested as
-                such — but none of these was published in advance and exposed to
-                the risk of being wrong in public. That is weaker evidence than
-                a live record and it is labelled as such. The live record begins
-                filling on its own as the board runs forward; nothing is
-                backfilled into it.
+                not have, because the feature pipeline is leakage-safe and
+                tested as such, but none of these was published in advance and
+                exposed to the risk of being wrong in public. That is weaker
+                evidence than a live record, and it is labelled as such. The
+                live record begins filling on its own as the board runs forward;
+                nothing is backfilled into it.
               </>
             )}
           </p>
@@ -338,7 +337,7 @@ export default async function ProgressPage() {
         {recentMonths.length > 1 && (
           <WinRateChart
             months={recentMonths}
-            title="Win rate by month — last 12 months"
+            title="Win rate by month, last 12 months"
           />
         )}
         <MonthlyTable months={progress.by_month} />

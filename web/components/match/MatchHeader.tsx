@@ -94,7 +94,9 @@ export function MatchHeader({
           <span
             className="text-[11px] font-semibold tracking-wider uppercase"
             style={{
-              color: finished ? "var(--color-text-faint)" : "var(--color-gold)",
+              color: finished
+                ? "var(--color-text-faint)"
+                : "var(--color-gold-bright)",
             }}
           >
             {finished ? "Finished" : "Scheduled"}

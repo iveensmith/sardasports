@@ -47,8 +47,12 @@ export function DateStrip({
         }
 
         return (
+          // No prefetch: each of these is a different day, and rendering a day
+          // runs the engine over its whole card. Prefetching all seven on every
+          // visit made seven heavy requests for the one a reader clicks.
           <Link
             key={day.date}
+            prefetch={false}
             href={`${basePath}?date=${day.date}`}
             aria-current={isActive ? "date" : undefined}
             className={className}

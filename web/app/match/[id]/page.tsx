@@ -223,7 +223,7 @@ function BasketballBody({
           <h3 className="mb-2 text-[15px] font-semibold text-[var(--color-text)]">
             No draw market
           </h3>
-          Basketball plays overtime until someone wins — there were zero ties in
+          Basketball plays overtime until someone wins. There were no ties in
           the 4,149 games this model learned from, so the two probabilities
           above sum to 100 on their own.
         </section>

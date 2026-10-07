@@ -33,16 +33,22 @@
 
 import Link from "next/link";
 import { HeroFigure } from "@/components/home/HeroFigure";
+import { rate, type SettledRecord } from "@/lib/progress";
+
+/** Below this many settled picks a win rate moves a long way on one result. */
+const SMALL_SAMPLE = 100;
 
 export function Hero({
-  winRate,
-  settled,
-  isBacktest,
+  live,
+  backtest,
+  liveSince,
   fixturesToday,
 }: {
-  winRate: string | null;
-  settled: number;
-  isBacktest: boolean;
+  /** Picks stored before kick-off, then graded. Null before any exist. */
+  live: SettledRecord | null;
+  /** Picks reconstructed after the match from history cut off at kick-off. */
+  backtest: SettledRecord | null;
+  liveSince: string | null;
   fixturesToday: number;
 }) {
   return (
@@ -89,27 +95,13 @@ export function Hero({
 
         <p className="mx-auto mt-5 max-w-[56ch] text-[clamp(0.95rem,1.6vw,1.075rem)] leading-relaxed text-[var(--color-text-dim)] text-balance">
           A calibrated engine blends three independent estimators across seven
-          markets. Every call is settled against the final score
-          {winRate && settled > 0 ? (
-            <>
-              {" "}
-              &mdash;{" "}
-              <b className="font-semibold text-[var(--color-text)]">
-                {winRate}
-              </b>{" "}
-              of{" "}
-              <b className="font-semibold text-[var(--color-text)]">
-                {settled.toLocaleString()}
-              </b>{" "}
-              settled calls came in
-              {isBacktest ? ", backtested" : ""}
-            </>
-          ) : null}
-          . Today the board carries{" "}
+          markets. Every pick is graded against the final score and stays on the
+          record, win or lose. Today&rsquo;s board covers{" "}
           <b className="font-semibold text-[var(--color-text)]">
             {fixturesToday}
           </b>{" "}
-          fixtures, free, with no account needed.
+          {fixturesToday === 1 ? "fixture" : "fixtures"}, free, with no account
+          needed.
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
@@ -121,12 +113,33 @@ export function Hero({
           </Link>
         </div>
 
-        {isBacktest && (
-          <p className="mx-auto mt-6 max-w-[60ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
-            That figure is a backtest &mdash; those predictions were generated
-            after the matches from history truncated at kick-off. It is labelled
-            as such everywhere it appears, and the live record starts filling on
-            its own as the board runs forward.
+        {(live || backtest) && (
+          <p className="mx-auto mt-6 max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+            {live && (
+              <>
+                Live record
+                {liveSince
+                  ? ` since ${new Date(liveSince).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}`
+                  : ""}
+                : {live.won} of {live.settled} picks won ({rate(live)})
+                {live.settled < SMALL_SAMPLE ? ", still a small sample" : ""}
+                .{" "}
+              </>
+            )}
+            {backtest && (
+              <>
+                {live ? "Reconstructed from past matches" : "Backtest"}:{" "}
+                {backtest.won.toLocaleString()} of{" "}
+                {backtest.settled.toLocaleString()} ({rate(backtest)}).{" "}
+              </>
+            )}
+            <Link
+              href="/progress"
+              className="text-[var(--color-gold-bright)] hover:underline"
+            >
+              How the two differ
+            </Link>
+            .
           </p>
         )}
       </div>

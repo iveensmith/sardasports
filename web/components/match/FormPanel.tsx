@@ -78,8 +78,8 @@ export function FormPanel({
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
       <h2 className="text-[15px] font-semibold">Form</h2>
       <p className="mt-1 mb-5 text-[13px] text-[var(--color-text-dim)]">
-        Each side&rsquo;s own last 10 completed matches &mdash; the denominator
-        differs when one side has played fewer.
+        Each side&rsquo;s own last 10 completed matches. The denominator differs
+        when one side has played fewer.
       </p>
       <div className="mb-4 flex justify-between text-[12.5px] font-medium text-[var(--color-text-dim)]">
         <span>{homeLabel}</span>

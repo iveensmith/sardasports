@@ -20,7 +20,7 @@ import {
 export const revalidate = 600;
 
 export const metadata = {
-  title: "Model leaderboard — UniquePredict",
+  title: "Model leaderboard | UniquePredict",
 };
 
 const SORTS: Array<{ id: LeaderboardSort; label: string }> = [
@@ -135,8 +135,9 @@ export default async function LeaderboardPage({
         <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every trained model, ranked by how far it beats the benchmark its own
           market has to clear. Accuracy across different markets is not
-          comparable — a line that falls one way most of the time hands a model
-          a high score for learning very little — so the gap is what ranks here.
+          comparable, because a line that falls one way most of the time hands a
+          model a high score for learning very little. The gap to the benchmark
+          is what ranks here.
         </p>
       </header>
 
@@ -266,7 +267,7 @@ export default async function LeaderboardPage({
                               borderColor: "var(--color-away)",
                               color: "var(--color-away)",
                             }}
-                            title={`Evaluated on fewer than ${threshold.toLocaleString()} matches — treat the edge as provisional.`}
+                            title={`Evaluated on fewer than ${threshold.toLocaleString()} matches, so treat the edge as provisional.`}
                           >
                             provisional
                           </span>
@@ -307,7 +308,7 @@ export default async function LeaderboardPage({
 
           <p className="mt-4 max-w-[74ch] text-[13px] leading-relaxed text-[var(--color-text-faint)]">
             Edge is accuracy minus the baseline, in percentage points, measured
-            on the held-out test period each model was evaluated against — never
+            on the held-out test period each model was evaluated against, never
             on data it trained on. A model with no recorded baseline shows its
             accuracy but no edge, because there is nothing to say how much of
             that accuracy is skill.

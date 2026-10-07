@@ -91,7 +91,7 @@ function OutcomeMark({ outcome }: { outcome: Outcome }) {
 function srOutcome(outcome: Outcome) {
   if (outcome === "won") return " (won)";
   if (outcome === "lost") return " (lost)";
-  if (outcome === "void") return " (not settled — stat not recorded)";
+  if (outcome === "void") return "  (not settled: stat not recorded)";
   return "";
 }
 
@@ -129,7 +129,7 @@ function TipCell({ tip }: { tip: Tip | undefined }) {
           }
           title={
             tip.odds_is_estimated
-              ? "Fair price implied by the engine's own probability — no bookmaker quoted this pick"
+              ? "Fair price implied by the engine's own probability. No bookmaker quoted this pick."
               : undefined
           }
         >
@@ -196,7 +196,7 @@ function OddsCell({
         }
         title={
           estimated
-            ? "Fair price implied by the engine's own probability — no bookmaker quoted this price"
+            ? "Fair price implied by the engine's own probability. No bookmaker quoted this price."
             : undefined
         }
       >
@@ -323,10 +323,11 @@ function Row({ row }: { row: BoardRow }) {
         </div>
       </td>
 
-      {/* `w-full` makes this the column that soaks up the table's spare
-          width, so the numeric columns stay at their natural size instead of
-          each being stretched a little. */}
-      <td className="w-full min-w-0 px-2 py-2">
+      {/* `sm:w-full` makes this the column that soaks up the table's spare
+          width, so the numeric columns keep their natural size instead of each
+          being stretched a little. Below `sm` it stays at its content width,
+          which brings the prices into the first view on a phone. */}
+      <td className="min-w-0 px-2 py-2 sm:w-full">
         <Link
           href={`/match/${row.slug}`}
           className="block min-w-0 hover:text-[var(--color-gold-bright)]"
@@ -361,6 +362,24 @@ function Row({ row }: { row: BoardRow }) {
   );
 }
 
+/**
+ * Edge shadows that appear only while there is more table to scroll to.
+ *
+ * On a phone the picks sit to the right of the fixture, off screen, and a thin
+ * scrollbar is the only sign of them. The two `local` layers are covers that
+ * travel with the content and hide the matching `scroll` shadow once the edge
+ * is reached, so a shadow shows exactly where something is still hidden. Pure
+ * CSS: no scroll listener, nothing to re-render.
+ */
+const SCROLL_EDGES = {
+  background: [
+    "linear-gradient(to right, var(--color-surface) 30%, transparent) left center / 36px 100% no-repeat local",
+    "linear-gradient(to left, var(--color-surface) 30%, transparent) right center / 36px 100% no-repeat local",
+    "radial-gradient(farthest-side at 0 50%, var(--color-line-strong), transparent) left center / 14px 100% no-repeat scroll",
+    "radial-gradient(farthest-side at 100% 50%, var(--color-line-strong), transparent) right center / 14px 100% no-repeat scroll",
+  ].join(", "),
+} as const;
+
 export function BoardTable({ rows }: { rows: BoardRow[] }) {
   if (rows.length === 0) return null;
 
@@ -374,12 +393,17 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
       {/* Horizontal scroll rather than dropped columns: the market columns
           are the point of the table, and a phone-width layout that hides
           them is a different product. */}
-      <div className="overflow-x-auto px-4 py-3 sm:px-5 sm:py-4">
-        <table className="w-full min-w-[760px] border-collapse">
+      <div
+        className="overflow-x-auto px-4 py-3 sm:px-5 sm:py-4"
+        style={SCROLL_EDGES}
+      >
+        <table className="w-full border-collapse sm:min-w-[760px]">
           <thead>
             <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
               <th className="px-1.5 pb-2 text-left font-medium">Time</th>
-              <th className="w-full px-2 pb-2 text-left font-medium">Match</th>
+              <th className="px-2 pb-2 text-left font-medium sm:w-full">
+                Match
+              </th>
               <th className="px-1.5 pb-2 text-center font-medium">1</th>
               <th className="px-1.5 pb-2 text-center font-medium">X</th>
               <th className="px-1.5 pb-2 text-center font-medium">2</th>

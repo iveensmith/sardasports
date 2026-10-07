@@ -29,7 +29,7 @@ import { FixtureRow } from "@/components/FixtureRow";
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Prediction board — UniquePredict",
+  title: "Prediction board | UniquePredict",
 };
 
 const VIEWS: Array<{ id: BoardView; label: string; blurb: string }> = [
@@ -42,7 +42,7 @@ const VIEWS: Array<{ id: BoardView; label: string; blurb: string }> = [
     id: "consensus",
     label: "Strongest consensus",
     blurb:
-      "All three independent estimators — Elo, Poisson and the trained model — back the same outcome. Ranked by confidence.",
+      "All three independent estimators (Elo, Poisson and the trained model) back the same outcome. Ranked by confidence.",
   },
   {
     id: "disagreement",
@@ -54,7 +54,7 @@ const VIEWS: Array<{ id: BoardView; label: string; blurb: string }> = [
     id: "passed",
     label: "Not called",
     blurb:
-      "Fixtures the engine has no coherent view of — either its own confidence is low, or most of its estimators dissent from the blended pick. Declining to call one is a result, not a gap.",
+      "Fixtures the engine has no coherent view of, either because its own confidence is low or because most of its estimators dissent from the blended pick. Declining to call one is a result, not a gap.",
   },
 ];
 

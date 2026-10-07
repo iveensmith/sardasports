@@ -4,9 +4,9 @@ import { MarketRoute } from "@/components/markets/MarketRoute";
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Correct score predictions today — UniquePredict",
+  title: "Correct score predictions today | UniquePredict",
   description:
-    "The likeliest exact score for each of today's fixtures, with the honest hit rate for the last 30 days — every settled call, not just the winners.",
+    "The likeliest exact score for each of today's fixtures, with the honest hit rate for the last 30 days: every settled pick, not just the winners.",
 };
 
 const copy: MarketCopy = {
@@ -20,12 +20,12 @@ const copy: MarketCopy = {
     "This is every settled call over the window, not only the winners. Even the likeliest single scoreline carries a modest chance, so a rate in the low double digits is what this market looks like; treat any page that shows only its hits as showing you a different thing.",
   emptyTitle: "No scoreline to show for this card",
   emptyBody:
-    "The engine had no scoreline view for any fixture on this day — either nothing is scheduled for competitions it models, or the fixtures have not been priced yet.",
+    "The engine had no scoreline view for any fixture on this day, either because nothing is scheduled in the competitions it models or because the fixtures have not been priced yet.",
   hitsHeading: "Recent correct score hits",
   explainerHeading: "How the likeliest score is chosen",
   explainer: [
     "Each fixture's scoreline comes from the engine's Poisson goal model. It estimates how many goals each side is expected to score from its attacking record and the opponent's defensive record, then prices every exact scoreline from those two expectations. The likeliest one is the pick, and its probability is printed beside it.",
-    "Because the pick is the single most likely of many scorelines, its probability is small by construction — commonly somewhere around one in eight to one in ten. That is not a flaw in the call; it is what a correct score is. It also means the price on offer for a correct score is long, which is why the fair price shown here is a long one.",
+    "Because the pick is the single most likely of many scorelines, its probability is small by construction, commonly around one in eight to one in ten. That is not a flaw in the pick; it is what a correct score is. It also means the price on offer for a correct score is long, which is why the fair price shown here is a long one.",
   ],
   faqs: [
     {

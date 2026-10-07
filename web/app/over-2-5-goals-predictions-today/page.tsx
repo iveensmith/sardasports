@@ -4,9 +4,9 @@ import { MarketRoute } from "@/components/markets/MarketRoute";
 export const revalidate = 300;
 
 export const metadata = {
-  title: "Over 2.5 goals predictions today — UniquePredict",
+  title: "Over 2.5 goals predictions today | UniquePredict",
   description:
-    "Today's fixtures the engine leans over 2.5 goals on, with the market's own record over the last 30 days — live and reconstructed calls kept apart.",
+    "Today's fixtures the engine leans over 2.5 goals on, with the market's own record over the last 30 days, with live and reconstructed picks kept apart.",
 };
 
 const copy: MarketCopy = {
@@ -17,7 +17,7 @@ const copy: MarketCopy = {
   picksHeading: "Today's over 2.5 goals picks",
   pickColumn: "Pick",
   rateNote:
-    "Over 2.5 is only counted as a call where the engine rates it above 50%. A fixture it rates under is not a call that failed to land. Read the rate against how often over 2.5 happens anyway, quoted above — beating that is the claim, not the raw percentage.",
+    "Over 2.5 is only counted as a pick where the engine rates it above 50%. A fixture it rates under is not a pick that failed to land. Read the rate against how often over 2.5 happens anyway, quoted above: beating that is the claim, not the raw percentage.",
   emptyTitle: "No fixture on this card leans over 2.5",
   emptyBody:
     "That is a result, not a gap. Some cards are low-scoring on the engine's numbers, and listing fixtures it rates under would misname them.",
@@ -34,7 +34,7 @@ const copy: MarketCopy = {
     },
     {
       q: "What does the percentage beside each pick mean?",
-      a: "It is the engine's probability that the match finishes with three or more goals. It is a probability, not a guarantee — a 60% call is expected to miss four times in ten.",
+      a: "It is the engine's probability that the match finishes with three or more goals. It is a probability, not a guarantee. A 60% pick is expected to miss four times in ten.",
     },
     {
       q: "Why are some prices marked with a ≈?",

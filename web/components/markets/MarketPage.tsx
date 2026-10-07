@@ -150,7 +150,7 @@ function PickRowView({ row }: { row: MarketPickRow }) {
             }
             title={
               pick.odds_is_estimated
-                ? "Fair price implied by the engine's own probability — no bookmaker quoted this pick"
+                ? "Fair price implied by the engine's own probability. No bookmaker quoted this pick."
                 : undefined
             }
           >
@@ -230,11 +230,11 @@ export function MarketPage({
             <span className="text-[13.5px] text-[var(--color-text-dim)]">
               {record.overall.won} of {record.overall.settled} landed
               {data.base_rate !== null &&
-                ` — it lands in ${data.base_rate.toFixed(1)}% of all matches on record`}
+                `, against ${data.base_rate.toFixed(1)}% of all matches on record`}
             </span>
           </p>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <Tally label="Live — stored before kick-off" tally={record.live} />
+            <Tally label="Live, stored before kick-off" tally={record.live} />
             <Tally
               label="Reconstructed after the match"
               tally={record.backtest}

@@ -1,57 +1,106 @@
 /**
- * The reference site's own three-step "how it works" explainer, in this
- * engine's actual terms rather than its wording. No live numbers here —
- * this is process, not a claim about performance, so it stays static
- * rather than reaching for a count that would go stale the day it's
- * fetched.
+ * "How our football predictions work": three illustrated steps.
+ *
+ * Follows the reference site's shape and placement: a centred label and heading
+ * after the "what you get" section, then three equal cards, each an inset
+ * diagram with a step badge above a title and two paragraphs. The words and the
+ * diagrams are this engine's own and describe what it actually does; nothing
+ * here is a claim about performance, so no live number sits in it to go stale.
+ * The longer version, with the markets and the grading rules, is /how-it-works.
+ *
+ * The steps are a true sequence (data in, cleaned, blended and graded), which is
+ * the one case where numbering them says something.
  */
+
+import Link from "next/link";
+import {
+  BlendDiagram,
+  CleaningDiagram,
+  DataCollectionDiagram,
+} from "@/components/home/StepIllustrations";
 
 const STEPS = [
   {
     step: "01",
-    title: "Ingest real results",
-    body: "Decades of historical results per competition, plus live fixtures, odds and final scores pulled in on a schedule from a licensed sports-data API — never typed in by hand.",
+    title: "Data collection",
+    Diagram: DataCollectionDiagram,
+    body: [
+      "Completed matches, fixtures and final scores come from public football datasets and a licensed sports-data feed, pulled in on a schedule. Nothing is typed in by hand.",
+      "Each result is kept with its competition, season and score and, where the source records them, half-time goals, corners and cards. That history is what every rating and model is built from.",
+    ],
   },
   {
     step: "02",
-    title: "Engineer leakage-safe features",
-    body: "Elo ratings, rolling form, head-to-head history, corner and card rates — every feature computed strictly from what was known before kick-off, checked against the training pipeline so nothing from after the final whistle leaks in.",
+    title: "Cleaning and validation",
+    Diagram: CleaningDiagram,
+    body: [
+      "Raw data is not used as it arrives. Team names from different sources are matched to a single club and duplicate fixtures are merged, so a club does not appear under two names and a match is not counted twice.",
+      "Where a source does not record a statistic, it is left empty rather than filled in as zero, and any market that depends on it is simply not priced for that competition.",
+    ],
   },
   {
     step: "03",
-    title: "Blend three independent models",
-    body: "An Elo rating system, a Poisson goal model, and a gradient-boosted classifier trained per market are blended into one probability, then settled against the real final score — win or lose, the call stays on the record.",
+    title: "Three estimators, one probability",
+    Diagram: BlendDiagram,
+    body: [
+      "An Elo rating system, a Poisson goal model and a gradient-boosted classifier trained for each market each form their own view of the match. They are blended into one probability per outcome, and how closely they agree becomes the confidence score.",
+      "Every pick is then graded against the real final score and goes on the public record, wins and losses both.",
+    ],
   },
 ];
 
 export function HowItWorks() {
   return (
-    <section className="mt-16">
-      <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
-        Behind the predictions
-      </p>
-      <h2 className="mt-2.5 text-[clamp(1.5rem,3vw,1.9rem)] font-bold tracking-[-0.02em]">
-        How this engine works
-      </h2>
-      <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {STEPS.map((s) => (
-          <div
-            key={s.step}
-            className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5"
+    <section aria-labelledby="how-it-works-heading">
+      <div className="text-center">
+        <p className="text-[12px] font-semibold tracking-[0.18em] text-[var(--color-gold-bright)] uppercase">
+          Behind the predictions
+        </p>
+        <h2
+          id="how-it-works-heading"
+          className="mt-3 text-[clamp(1.75rem,3.6vw,2.4rem)] font-bold tracking-[-0.02em]"
+        >
+          How our football predictions work
+        </h2>
+      </div>
+
+      <div className="mt-12 grid gap-6 md:grid-cols-3">
+        {STEPS.map(({ step, title, Diagram, body }) => (
+          <article
+            key={step}
+            className="group flex flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] transition-colors duration-300 hover:border-[var(--color-line-strong)]"
           >
-            <span
-              className="text-[12px] font-bold tracking-wider"
-              style={{ color: "var(--color-gold-bright)" }}
-            >
-              STEP {s.step}
-            </span>
-            <h3 className="mt-2 text-[15.5px] font-semibold">{s.title}</h3>
-            <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-              {s.body}
-            </p>
-          </div>
+            <div className="relative m-3 mb-0 aspect-[16/9] overflow-hidden rounded-[var(--radius-md)] border border-[var(--color-line)] bg-[linear-gradient(160deg,var(--color-surface-raised),var(--color-surface))] px-3 pt-8 pb-3">
+              <span className="absolute top-3 left-3 rounded-[6px] bg-[var(--color-gold)] px-2 py-1 text-[10.5px] leading-none font-bold tracking-wider text-[var(--color-ink-on-accent)]">
+                STEP {step}
+              </span>
+              <Diagram />
+            </div>
+
+            <div className="flex flex-1 flex-col p-6 pt-5">
+              <h3 className="text-[17px] font-semibold">{title}</h3>
+              {body.map((paragraph) => (
+                <p
+                  key={paragraph}
+                  className="mt-3 text-[14px] leading-relaxed text-[var(--color-text-dim)]"
+                >
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </article>
         ))}
       </div>
+
+      <p className="mt-6 text-center text-[13.5px] text-[var(--color-text-dim)]">
+        <Link
+          href="/how-it-works"
+          className="text-[var(--color-gold-bright)] hover:underline"
+        >
+          Read the full method
+        </Link>{" "}
+        for the markets, the grading rules and what the numbers do not mean.
+      </p>
     </section>
   );
 }

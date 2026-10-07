@@ -167,10 +167,9 @@ export function StatsComparison({
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
       <h2 className="text-[15px] font-semibold">Predicted vs actual</h2>
       <p className="mt-1 mb-5 text-[13px] text-[var(--color-text-dim)]">
-        Goals is the only row with a genuine predicted figure (shown small,
-        beneath the actual count) &mdash; corners and cards are priced as
-        over/under lines, not a single count, so the rest is what actually
-        happened.
+        Goals is the only row with a predicted figure (shown small, beneath the
+        actual count). Corners and cards are priced as over/under lines, not a
+        single count, so the other rows show only what actually happened.
       </p>
       <div className="space-y-5">
         {visibleRows.map((row) => (

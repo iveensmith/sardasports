@@ -34,9 +34,9 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const page = await getTeamPage(slug).catch(() => null);
-  if (!page) return { title: "Team — UniquePredict" };
+  if (!page) return { title: "Team | UniquePredict" };
   return {
-    title: `${page.team.name} predictions, stats and form — UniquePredict`,
+    title: `${page.team.name} predictions, stats and form | UniquePredict`,
     description: `${page.team.name}: recent results, form over the last ten matches, season averages and the engine's rating, all from matches on record.`,
   };
 }

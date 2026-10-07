@@ -233,10 +233,10 @@
 
   /* Unavailable. Kept at the same ~3.6:1 the dark theme deliberately holds
      this at — visible, but reading as de-emphasised beside real numbers. */
-  --color-unknown: #7c8898;
+  --color-unknown: #5f6b7c;
 
-  --color-won: #0d8a63;
-  --color-lost: #c7472e;
+  --color-won: #0a7553;
+  --color-lost: #b03a24;
 
   --color-ink-on-accent: #ffffff;
 

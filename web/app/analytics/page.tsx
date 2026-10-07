@@ -26,7 +26,7 @@ import {
 export const revalidate = 600;
 
 export const metadata = {
-  title: "Model analytics — UniquePredict",
+  title: "Model analytics | UniquePredict",
 };
 
 /**
@@ -291,7 +291,7 @@ export default async function AnalyticsPage() {
             </h2>
             <p className="mt-1 mb-5 max-w-[70ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
               Sorted by real edge. The thin bar is the baseline each model has
-              to beat — for a totals line that is “always guess the majority”,
+              to beat: for a totals line that is “always guess the majority”,
               for tennis “always pick the higher-rated player”. Where the two
               bars nearly meet, the model is not adding much.
             </p>
@@ -311,8 +311,8 @@ export default async function AnalyticsPage() {
               <strong className="text-[var(--color-text)]">−6.74%</strong>, from
               a smaller single-league dataset. It is quoted as history rather
               than as the current number, because it predates every league,
-              sport and model added since — a real, unfavourable result, which
-              is what an early-stage model should produce against efficient
+              sport and model added since. It is a real, unfavourable result,
+              which is what an early-stage model should expect against efficient
               bookmaker odds.
             </p>
           </section>
