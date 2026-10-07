@@ -98,17 +98,26 @@
   /* The landing hero's backlight and dissolve veil. Values equal to
      `--color-base` at increasing opacity, so the figure fades into the
      page exactly rather than into an approximated grey — see Hero.tsx. */
-  --hero-glow: radial-gradient(
-    58% 62% at 50% 24%,
-    rgba(227, 188, 69, 0.16),
-    rgba(201, 162, 39, 0.055) 45%,
-    transparent 72%
-  );
+  --hero-glow:
+    radial-gradient(
+      58% 62% at 50% 24%,
+      rgba(227, 188, 69, 0.16),
+      rgba(201, 162, 39, 0.055) 45%,
+      transparent 72%
+    ),
+    /* Light on the floor, full width, so the legs stand against something. */
+      radial-gradient(
+        70% 34% at 50% 100%,
+        rgba(227, 188, 69, 0.14),
+        rgba(201, 162, 39, 0.04) 55%,
+        transparent 78%
+      );
+  /* Closes only partway at the foot: the figure's legs are meant to be seen. */
   --hero-veil: linear-gradient(
     180deg,
     rgba(9, 13, 18, 0.3) 0%,
-    rgba(9, 13, 18, 0.58) 58%,
-    rgba(9, 13, 18, 0.96) 100%
+    rgba(9, 13, 18, 0.46) 58%,
+    rgba(9, 13, 18, 0.12) 100%
   );
   --hero-figure-opacity: 1;
 
@@ -162,17 +171,26 @@
 
   --color-ink-on-accent: #131313;
 
-  --hero-glow: radial-gradient(
-    58% 62% at 50% 24%,
-    rgba(227, 188, 69, 0.16),
-    rgba(201, 162, 39, 0.055) 45%,
-    transparent 72%
-  );
+  --hero-glow:
+    radial-gradient(
+      58% 62% at 50% 24%,
+      rgba(227, 188, 69, 0.16),
+      rgba(201, 162, 39, 0.055) 45%,
+      transparent 72%
+    ),
+    /* Light on the floor, full width, so the legs stand against something. */
+    radial-gradient(
+        70% 34% at 50% 100%,
+        rgba(227, 188, 69, 0.14),
+        rgba(201, 162, 39, 0.04) 55%,
+        transparent 78%
+      );
+  /* Closes only partway at the foot: the figure's legs are meant to be seen. */
   --hero-veil: linear-gradient(
     180deg,
     rgba(9, 13, 18, 0.3) 0%,
-    rgba(9, 13, 18, 0.58) 58%,
-    rgba(9, 13, 18, 0.96) 100%
+    rgba(9, 13, 18, 0.46) 58%,
+    rgba(9, 13, 18, 0.12) 100%
   );
   --hero-figure-opacity: 1;
 }

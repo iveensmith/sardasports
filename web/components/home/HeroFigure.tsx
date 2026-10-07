@@ -52,14 +52,25 @@ export function HeroFigure({ className = "" }: { className?: string }) {
         <linearGradient id="hf-body" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#05080c" stopOpacity="0.96" />
           <stop offset="55%" stopColor="#05080c" stopOpacity="0.88" />
-          <stop offset="100%" stopColor="#05080c" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#05080c" stopOpacity="0.9" />
         </linearGradient>
 
-        {/* Dissolves the legs into the page instead of cutting them off. */}
+        {/* The floor light. The body only reads as a shape against light, and
+            the bloom behind the head stops well above the legs, so without
+            this the lower half is dark on dark and disappears. A pool of light
+            on the ground puts the legs and boots in silhouette. */}
+        <radialGradient id="hf-floor" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#f0d98a" stopOpacity="0.34" />
+          <stop offset="45%" stopColor="#e3bc45" stopOpacity="0.12" />
+          <stop offset="100%" stopColor="#e3bc45" stopOpacity="0" />
+        </radialGradient>
+
+        {/* A light touch at the very foot only: the legs stay visible all the way
+            down to the boots. */}
         <linearGradient id="hf-fade" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#fff" stopOpacity="1" />
-          <stop offset="58%" stopColor="#fff" stopOpacity="1" />
-          <stop offset="100%" stopColor="#fff" stopOpacity="0" />
+          <stop offset="90%" stopColor="#fff" stopOpacity="1" />
+          <stop offset="100%" stopColor="#fff" stopOpacity="0.85" />
         </linearGradient>
         <mask id="hf-mask">
           <rect x="70" y="0" width="260" height="620" fill="url(#hf-fade)" />
@@ -68,6 +79,7 @@ export function HeroFigure({ className = "" }: { className?: string }) {
 
       {/* Light first, figure on top of it. */}
       <rect x="70" y="0" width="260" height="620" fill="url(#hf-core)" />
+      <ellipse cx="200" cy="585" rx="118" ry="150" fill="url(#hf-floor)" />
 
       <g mask="url(#hf-mask)" fill="url(#hf-body)">
         {/* Head and neck. */}
@@ -87,6 +99,10 @@ export function HeroFigure({ className = "" }: { className?: string }) {
         {/* Legs, feet a little apart. */}
         <path d="M166 410h30l-4 96-4 90h-24l3-90z" />
         <path d="M234 410h-30l4 96 4 90h24l-3-90z" />
+
+        {/* Boots, so the legs end somewhere. */}
+        <path d="M160 592h31l3 9c1 6-3 9-8 9h-22c-7 0-9-6-5-11z" />
+        <path d="M240 592h-31l-3 9c-1 6 3 9 8 9h22c7 0 9-6 5-11z" />
       </g>
     </svg>
   );
