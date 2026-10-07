@@ -2146,3 +2146,56 @@ fetched for all 13 upcoming fixtures with `scripts/fetch_odds.py --days 2`.
 
 **Caveat.** A fair price is not a price anyone will pay — it has no bookmaker margin —
 so "≈" numbers must never be read as value against the market.
+
+## nerdytips.com re-crawled; the real-data gaps built, the rest listed with reasons
+
+The owner asked for every page of the reference site to be visited and anything missing
+replicated. The whole site was crawled again (nav, footer, 10 league landing pages, a
+team page, a match page, the two market landing pages, a blog post, the content and
+account pages, a language variant): 127 distinct links on the home page alone. The
+audit against this project found these gaps that **can be built from real data**, and
+they are built:
+
+- **`/over-2-5-goals-predictions-today` and `/correct-score-predictions-today`**
+  (`app/services/market_page_service.py`, `GET /markets/{kind}`). The day's fixtures
+  ranked on one market, with that market's own 30-day record beside them, live and
+  reconstructed counted apart. Over 2.5 is only a *call* where the engine leans over
+  (so an under-leaning fixture is neither listed nor counted as a miss). Correct score
+  is shown at its true hit rate — every settled call, 9 of 78 (11.5%) when built — and
+  the recent-hits list says it is hits only. Prices are bookmaker where stored, else
+  the flagged fair price; there is no stored correct-score line, so those are always ≈.
+- **Team pages `/teams/[slug]`** (`app/services/team_page_service.py`,
+  `GET /teams/{slug}`, `GET /teams`). Form, results from the team's own side, next
+  fixtures, last-10 facts, season averages, and league position from our own results.
+  Linked from the match header, league tables and a footer "Top-rated teams" column
+  (ranked by engine Elo — not "popular", there is no traffic figure). TS and Python slug
+  functions agree on all 1,373 team names. No squad, players or market value: none are
+  ingested.
+- **`/how-it-works`**, a "How to read the board" glossary under `/matches`, and a
+  **Slip of the day** on `/bankers` (shown only for a card with matches still to play).
+  The page deliberately omits the reference's claims about expected goals, odds
+  movement and a "4 days before kick-off" window — this engine does none of those.
+- **Slip builder fix:** `candidate_legs` skipped nothing, so a slip could contain a
+  match already played. It now skips played fixtures. The slip service had no tests;
+  `tests/test_slip_service.py` adds nine.
+
+**Not built, and why** (each needs a decision or a source this project does not have):
+
+- Log in / Register / Subscribe / Hit&Win: need auth (blocked on Supabase) and, for
+  Subscribe, real plans and prices — the reference's are its own and must not be copied.
+- Blog: needs a content process. Per-match previews could be generated from real
+  numbers, but that is a product decision about auto-written prose.
+- About / Contact / Privacy / Terms / Recommended sites: need the owner's real
+  identity, contact address and legal text; a fabricated entity is exactly what the
+  no-fabrication rule forbids. Recommended sites is an endorsement list for the owner.
+- The 28 language versions: a translation project, not a template change.
+- Reviews/Trustpilot strip, social links, app-store badges, "trusted by" logos: would
+  all have to be invented.
+- Players and squad value on team pages; the World Cup / Euro landing pages (those
+  competitions are registered but disabled until the API plan covers them).
+
+**Found while verifying (not caused by this work, not fixed here):** several board
+requests at once can exhaust the backend's DB pool (5 + 10 overflow) because each
+predicts and writes per request; SQLite lock timeouts then blank rows. And the
+backend's rate limiter is 60 requests a minute per IP while the website is its only
+client, so every visitor shares that budget. See the progress checkpoint.

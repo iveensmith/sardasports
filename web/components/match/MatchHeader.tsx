@@ -9,7 +9,9 @@
  * printout.
  */
 
+import Link from "next/link";
 import type { Badge } from "@/lib/board";
+import { teamSlug } from "@/lib/teams";
 import type { MatchScore, Odds1X2 } from "@/lib/types";
 import { TeamCrest } from "@/components/board/TeamCrest";
 
@@ -36,6 +38,7 @@ export function MatchHeader({
   score,
   htScore,
   odds,
+  teamLinks = false,
 }: {
   home: string;
   away: string;
@@ -47,6 +50,9 @@ export function MatchHeader({
   score: MatchScore | null;
   htScore: MatchScore | null;
   odds: Odds1X2 | null;
+  /** Link each side to its team page. Football only: those pages hold clubs
+   * and national sides, not tennis players. */
+  teamLinks?: boolean;
 }) {
   const finished = status === "completed";
 
@@ -59,9 +65,18 @@ export function MatchHeader({
       <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
         <div className="flex flex-col items-center gap-2.5 text-center">
           <TeamCrest badge={homeBadge} name={home} size={48} />
-          <span className="text-[15px] leading-tight font-semibold">
-            {home}
-          </span>
+          {teamLinks ? (
+            <Link
+              href={`/teams/${teamSlug(home)}`}
+              className="text-[15px] leading-tight font-semibold hover:text-[var(--color-gold-bright)]"
+            >
+              {home}
+            </Link>
+          ) : (
+            <span className="text-[15px] leading-tight font-semibold">
+              {home}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-col items-center gap-1.5">
@@ -93,9 +108,18 @@ export function MatchHeader({
 
         <div className="flex flex-col items-center gap-2.5 text-center">
           <TeamCrest badge={awayBadge} name={away} size={48} />
-          <span className="text-[15px] leading-tight font-semibold">
-            {away}
-          </span>
+          {teamLinks ? (
+            <Link
+              href={`/teams/${teamSlug(away)}`}
+              className="text-[15px] leading-tight font-semibold hover:text-[var(--color-gold-bright)]"
+            >
+              {away}
+            </Link>
+          ) : (
+            <span className="text-[15px] leading-tight font-semibold">
+              {away}
+            </span>
+          )}
         </div>
       </div>
 

@@ -99,6 +99,10 @@ def candidate_legs(
     """
     legs: list[Leg] = []
     for row in rows:
+        # A fixture that has been played cannot be bet on, and a slip with a
+        # finished match in it is a slip nobody can place.
+        if row.get("score") is not None:
+            continue
         match_id = row["match_id"]
         entries = ranked_by_match.get(match_id) or []
         odds_markets = odds_by_match.get(match_id)

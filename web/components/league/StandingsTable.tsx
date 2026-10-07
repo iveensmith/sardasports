@@ -7,7 +7,9 @@
  * as live.
  */
 
+import Link from "next/link";
 import type { StandingRow } from "@/lib/discover";
+import { teamSlug } from "@/lib/teams";
 
 const COLUMNS: Array<{ key: keyof StandingRow; label: string }> = [
   { key: "played", label: "P" },
@@ -41,7 +43,14 @@ export function StandingsTable({ rows }: { rows: StandingRow[] }) {
               <td className="px-4 py-2.5 text-[var(--color-text-faint)] tabular-nums">
                 {index + 1}
               </td>
-              <td className="py-2.5 font-medium">{row.team}</td>
+              <td className="py-2.5 font-medium">
+                <Link
+                  href={`/teams/${teamSlug(row.team)}`}
+                  className="hover:text-[var(--color-gold-bright)]"
+                >
+                  {row.team}
+                </Link>
+              </td>
               {COLUMNS.map((c) => {
                 const value = row[c.key] as number;
                 return (

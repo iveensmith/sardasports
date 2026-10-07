@@ -52,6 +52,8 @@ export interface Bankers {
   count: number;
   /** How many fixtures were on the card before filtering. */
   considered: number;
+  /** Fixtures on the card still to be played. Zero once the day is over. */
+  upcoming: number;
   record: SettledRecord;
   rows: BoardRow[];
 }

@@ -3,18 +3,22 @@
  * a couple of real link columns, then a plain disclaimer bar.
  *
  * The reference's footer also carries social links, app-store badges, a
- * "Company" column (Tutorial/About/Contact/Privacy/Terms), a support
- * email, a named legal entity, and a two-column "Popular Teams" link farm.
- * None of those exist for real here — there is no social presence, no
- * mobile app, no About/Contact/Privacy/Terms pages, no support inbox, and
- * no per-team landing pages — so rather than wire up dead links or invent
- * content for pages that don't exist, they're left out entirely. "Top
- * leagues" is real: the six competitions with the most completed matches
- * on record, each linking to its own page under `/leagues/`.
+ * "Company" column (About/Contact/Privacy/Terms), a support email, a named
+ * legal entity, and a two-column "Popular Teams" link farm. Most of those do
+ * not exist for real here — there is no social presence, no mobile app, no
+ * About/Contact/Privacy/Terms pages, no support inbox — so rather than wire
+ * up dead links or invent content for pages that don't exist, they're left
+ * out entirely.
+ *
+ * Two columns are real. "Top-rated teams" links to team pages under `/teams/`
+ * and is ranked by the engine's own rating, not by popularity, because there
+ * is no traffic figure to call anything popular. "Top leagues" is the six
+ * competitions with the most completed matches on record, each linking to its
+ * own page under `/leagues/`.
  */
 
 import Link from "next/link";
-import { EngineError, getLeagues } from "@/lib/api";
+import { EngineError, getLeagues, getTopTeams } from "@/lib/api";
 
 const SITE_LINKS = [
   { href: "/matches", label: "Matches" },
@@ -23,6 +27,12 @@ const SITE_LINKS = [
   { href: "/leagues", label: "Leagues" },
   { href: "/progress", label: "Track record" },
   { href: "/leaderboard", label: "Models" },
+  { href: "/how-it-works", label: "How it works" },
+];
+
+const GUIDE_LINKS = [
+  { href: "/over-2-5-goals-predictions-today", label: "Over 2.5 goals today" },
+  { href: "/correct-score-predictions-today", label: "Correct scores today" },
 ];
 
 function Column({
@@ -57,10 +67,17 @@ export async function SiteFooter() {
     if (!(e instanceof EngineError)) throw e;
   }
 
+  let topTeams: { name: string; slug: string }[] = [];
+  try {
+    topTeams = await getTopTeams(6);
+  } catch (e) {
+    if (!(e instanceof EngineError)) throw e;
+  }
+
   return (
     <footer className="mt-24 border-t border-[var(--color-line)]">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr]">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="text-[17px] font-bold tracking-[-0.02em]">
               Unique<span className="text-[var(--color-gold)]">Predict</span>
@@ -85,6 +102,34 @@ export async function SiteFooter() {
               </li>
             ))}
           </Column>
+
+          <Column title="Predictions">
+            {GUIDE_LINKS.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </Column>
+
+          {topTeams.length > 0 && (
+            <Column title="Top-rated teams">
+              {topTeams.map((team) => (
+                <li key={team.slug}>
+                  <Link
+                    href={`/teams/${team.slug}`}
+                    className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+                  >
+                    {team.name}
+                  </Link>
+                </li>
+              ))}
+            </Column>
+          )}
 
           {topLeagues.length > 0 && (
             <Column title="Top leagues">

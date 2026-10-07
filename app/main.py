@@ -23,6 +23,7 @@ from app.api import (
     routes_history,
     routes_injuries,
     routes_leaderboard,
+    routes_markets,
     routes_matches,
     routes_model,
     routes_monitoring,
@@ -94,6 +95,7 @@ app.include_router(routes_board.router)
 app.include_router(routes_board_table.router)
 app.include_router(routes_progress.router)
 app.include_router(routes_discover.router)
+app.include_router(routes_markets.router)
 app.include_router(routes_leaderboard.router)
 app.include_router(routes_predict.router)
 app.include_router(routes_team.router)

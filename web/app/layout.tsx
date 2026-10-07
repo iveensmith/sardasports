@@ -54,6 +54,7 @@ const NAV = [
   { href: "/leagues", label: "Leagues" },
   { href: "/progress", label: "Track record" },
   { href: "/leaderboard", label: "Models" },
+  { href: "/how-it-works", label: "How it works" },
 ];
 
 // Runs before paint, outside React's tree, so the theme is correct on the

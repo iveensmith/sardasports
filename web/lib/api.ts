@@ -13,7 +13,9 @@
 
 import type { BoardDates, DayBoard } from "./board";
 import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
+import type { MarketKind, MarketPageData } from "./markets";
 import type { Progress } from "./progress";
+import type { TeamPageData } from "./teams";
 import type {
   Call,
   Calls,
@@ -161,6 +163,40 @@ export function getCompetitions(sport?: string): Promise<CompetitionsResponse> {
   return engineFetch<CompetitionsResponse>(`/competitions${query}`, {
     revalidate: 3600,
   });
+}
+
+/** One market's picks for a day, ranked, with that market's own record. */
+export function getMarketPage(
+  kind: MarketKind,
+  date?: string,
+): Promise<MarketPageData> {
+  const query = date ? `?on_date=${encodeURIComponent(date)}` : "";
+  return engineFetch<MarketPageData>(`/markets/${kind}${query}`, {
+    revalidate: 300,
+  });
+}
+
+/** The highest-rated recently active clubs, for navigation links. */
+export async function getTopTeams(
+  limit = 8,
+): Promise<Array<{ name: string; slug: string; elo_rating: number }>> {
+  const body = await engineFetch<{
+    teams: Array<{ name: string; slug: string; elo_rating: number }>;
+  }>(`/teams?limit=${limit}`, { revalidate: 3600 });
+  return body.teams;
+}
+
+/** A team's own page, by readable slug. Null when no team matches it. */
+export async function getTeamPage(slug: string): Promise<TeamPageData | null> {
+  try {
+    return await engineFetch<TeamPageData>(
+      `/teams/${encodeURIComponent(slug)}`,
+      { revalidate: 300 },
+    );
+  } catch (error) {
+    if (error instanceof EngineError && error.status === 404) return null;
+    throw error;
+  }
 }
 
 /** A team's current form and recent results — the match page's Form and

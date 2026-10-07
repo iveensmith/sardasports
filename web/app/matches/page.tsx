@@ -20,6 +20,7 @@ import { BoardTable } from "@/components/board/BoardTable";
 import { CountrySidebar } from "@/components/board/CountrySidebar";
 import { DateStrip } from "@/components/board/DateStrip";
 import { StatTiles } from "@/components/board/StatTiles";
+import { MarketGlossary } from "@/components/MarketGlossary";
 
 export const revalidate = 120;
 
@@ -155,6 +156,8 @@ export default async function MatchesPage({
           )}
         </main>
       </div>
+
+      <MarketGlossary />
     </div>
   );
 }

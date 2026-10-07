@@ -394,6 +394,7 @@ export default async function MatchPage({
           score={prediction.match_score}
           htScore={isFootball(prediction) ? prediction.ht_score : null}
           odds={prediction.odds_1x2}
+          teamLinks={isFootball(prediction)}
         />
       </div>
 

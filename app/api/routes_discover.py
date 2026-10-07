@@ -182,6 +182,9 @@ def bankers(
         "min_probability": min_probability,
         "count": len(selected),
         "considered": len(rows),
+        # Fixtures on the card still to be played, so a page can tell a card
+        # worth building a slip from a day that is already over.
+        "upcoming": sum(1 for row in rows if row["score"] is None),
         "record": record.as_dict(),
         "rows": selected,
     }

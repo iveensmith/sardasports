@@ -13,12 +13,17 @@
  * strength of its own adjectives.
  */
 
-import { EngineError, getBankers } from "@/lib/api";
-import type { Bankers } from "@/lib/discover";
+import { EngineError, getBankers, getSlip } from "@/lib/api";
+import type { Bankers, Slip } from "@/lib/discover";
 import { rate } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
+import { SlipOfTheDay } from "@/components/slip/SlipOfTheDay";
 
 export const revalidate = 300;
+
+/** The price the automatic slip aims for. Modest on purpose: every extra leg
+ * makes the whole thing less likely to land. */
+const SLIP_OF_THE_DAY_TARGET = 4;
 
 export const metadata = {
   title: "Bankers — UniquePredict",
@@ -44,6 +49,19 @@ export default async function BankersPage({
       e instanceof EngineError || e instanceof Error
         ? e.message
         : "The engine could not be reached.";
+  }
+
+  // A slip is only worth building for a card with matches still to play. It is
+  // an extra on this page, so a failure to build one never takes the bankers
+  // down with it.
+  let slip: Slip | null = null;
+  if (bankers && bankers.upcoming > 0) {
+    slip = await getSlip({
+      date: date || undefined,
+      targetOdds: SLIP_OF_THE_DAY_TARGET,
+      minLegs: 2,
+      maxLegs: 4,
+    }).catch(() => null);
   }
 
   if (error || !bankers) {
@@ -76,12 +94,12 @@ export default async function BankersPage({
           Bankers
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          The {bankers.count} picks from today&rsquo;s {bankers.considered}{" "}
-          fixtures that the engine makes at least{" "}
-          {bankers.min_probability.toFixed(0)}% likely, likeliest first. These
-          are the safest calls on the card, which is not the same as the most
-          valuable &mdash; a short price on a near-certainty is usually priced
-          about right.
+          {bankers.count === 1 ? "The one pick" : `The ${bankers.count} picks`}{" "}
+          from this card&rsquo;s {bankers.considered} fixtures that the engine
+          makes at least {bankers.min_probability.toFixed(0)}% likely, likeliest
+          first. These are the safest calls on the card, which is not the same
+          as the most valuable &mdash; a short price on a near-certainty is
+          usually priced about right.
         </p>
       </header>
 
@@ -126,6 +144,8 @@ export default async function BankersPage({
       ) : (
         <BoardTable rows={bankers.rows} />
       )}
+
+      {slip && <SlipOfTheDay slip={slip} />}
     </div>
   );
 }
