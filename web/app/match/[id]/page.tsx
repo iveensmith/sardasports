@@ -43,6 +43,13 @@ import { FormPanel } from "@/components/match/FormPanel";
 import { H2HPanel } from "@/components/match/H2HPanel";
 import { RecentMatchesPanel } from "@/components/match/RecentMatchesPanel";
 import { MatchTabs, type MatchTab } from "@/components/match/MatchTabs";
+import { JsonLd } from "@/components/seo/JsonLd";
+import {
+  breadcrumbLd,
+  matchPath,
+  pageMetadata,
+  sportsEventLd,
+} from "@/lib/seo";
 
 export const revalidate = 60;
 
@@ -317,6 +324,40 @@ const VALID_TABS: MatchTab[] = [
   "recent",
 ];
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const matchId = matchIdFromSlug(id);
+  const prediction =
+    matchId === null ? null : await getPrediction(matchId).catch(() => null);
+  if (matchId === null || !prediction) {
+    return {
+      title: "Match not found",
+      robots: { index: false, follow: true },
+    };
+  }
+
+  const { home, away } = competitors(prediction);
+  const when = new Date(prediction.match_date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const markets = isFootball(prediction)
+    ? "win probabilities, goals and BTTS picks"
+    : "win probabilities and totals";
+  return pageMetadata({
+    title: `${home} vs ${away} Prediction & Betting Tips`,
+    description: `${home} vs ${away} prediction (${prediction.competition}, ${when}): ${markets}, form and head-to-head.`,
+    // The readable address, whichever form the visitor arrived on.
+    path: matchPath(home, away, matchId),
+  });
+}
+
 export default async function MatchPage({
   params,
   searchParams,
@@ -372,12 +413,41 @@ export default async function MatchPage({
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-10">
+      <JsonLd
+        data={[
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Matches", path: "/matches" },
+            {
+              name: `${home} vs ${away}`,
+              path: matchPath(home, away, matchId),
+            },
+          ]),
+          ...(isFootball(prediction)
+            ? [
+                sportsEventLd({
+                  name: `${home} vs ${away}`,
+                  path: matchPath(home, away, matchId),
+                  startDate: prediction.match_date,
+                  homeTeam: home,
+                  awayTeam: away,
+                  competition: prediction.competition,
+                  played: prediction.match_status === "completed",
+                }),
+              ]
+            : []),
+        ]}
+      />
       <Link
         href="/matches"
         className="text-[14px] text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
       >
         Back to matches
       </Link>
+
+      <h1 className="mt-4 text-[clamp(1.4rem,3vw,1.9rem)] leading-tight font-bold tracking-[-0.02em]">
+        {home} vs {away} prediction
+      </h1>
 
       <div className="mt-5">
         <MatchHeader

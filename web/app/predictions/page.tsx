@@ -25,12 +25,17 @@ import {
 } from "@/lib/api";
 import type { Competition } from "@/lib/types";
 import { FixtureRow } from "@/components/FixtureRow";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
-export const metadata = {
-  title: "Prediction board | UniquePredict",
-};
+export const metadata = pageMetadata({
+  title: "Prediction board",
+  description:
+    "The prediction board, grouped by how strongly the engine's estimators agree.",
+  path: "/predictions",
+  noindex: true,
+});
 
 const VIEWS: Array<{ id: BoardView; label: string; blurb: string }> = [
   {

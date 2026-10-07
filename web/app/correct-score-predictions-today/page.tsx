@@ -1,15 +1,18 @@
 import type { MarketCopy } from "@/components/markets/MarketPage";
 import { MarketRoute } from "@/components/markets/MarketRoute";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
-export const metadata = {
-  title: "Correct score predictions today | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Correct Score Predictions & Tips Today",
   description:
-    "The likeliest exact score for each of today's fixtures, with the honest hit rate for the last 30 days: every settled pick, not just the winners.",
-};
+    "The likeliest exact score for each of today's fixtures, with the honest 30-day hit rate: every settled pick, not just the winners.",
+  path: "/correct-score-predictions-today",
+});
 
 const copy: MarketCopy = {
+  path: "/correct-score-predictions-today",
   eyebrow: "Correct score",
   title: "Correct score predictions today",
   intro:

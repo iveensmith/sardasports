@@ -10,7 +10,7 @@
 
 import type { Badge, CompetitionRef, Outcome } from "./board";
 
-export type MarketKind = "over-2-5" | "correct-score";
+export type MarketKind = "over-2-5" | "btts" | "correct-score";
 
 export interface MarketPick {
   /** "Over 2.5 goals", or the scoreline "2-1". */

@@ -26,14 +26,15 @@ TODAY = datetime(2026, 10, 7)
 def _stored(over: float, scoreline: str | None = "1-0", probability: float = 0.15) -> Prediction:
     return Prediction(
         match_id=0,
-        prob_home=50.0,
-        prob_draw=25.0,
-        prob_away=25.0,
+        # Stored the way the engine stores them: 1X2 and BTTS as fractions.
+        prob_home=0.5,
+        prob_draw=0.25,
+        prob_away=0.25,
         expected_goals_home=1.5,
         expected_goals_away=1.0,
         top_scorelines=[{"score": scoreline, "probability": probability}] if scoreline else [],
-        prob_btts_yes=50.0,
-        prob_btts_no=50.0,
+        prob_btts_yes=0.5,
+        prob_btts_no=0.5,
         goals_markets=[
             {"line": 2.5, "prob_over": over, "prob_under": 100.0 - over, "model_used": True}
         ],
@@ -289,3 +290,74 @@ def test_correct_score_picks_carry_no_base_rate(db_session, teams, monkeypatch):
 
 def test_an_unknown_market_page_is_a_404(client):
     assert client.get("/markets/not-a-market").status_code == 404
+
+
+# --- both teams to score ---------------------------------------------------------------------
+
+
+def _played_btts(db_session, teams, when, score, btts_yes):
+    """A played match whose stored BTTS probability is a fraction, as stored."""
+    match = _played(db_session, teams, when, score, over=50.0)
+    row = db_session.query(Prediction).filter(Prediction.match_id == match.id).one()
+    row.prob_btts_yes = btts_yes
+    row.prob_btts_no = 1 - btts_yes
+    db_session.commit()
+    return match
+
+
+def test_a_quoted_btts_price_is_used_and_an_unquoted_one_is_a_flagged_fair_price():
+    prediction = {"btts_yes": 60.0}
+
+    quoted = svc._pick("btts", prediction, {"btts": {"yes": 1.8}})
+    assert quoted["label"] == "Both teams to score"
+    assert quoted["odds"] == pytest.approx(1.8)
+    assert quoted["odds_is_estimated"] is False
+
+    unquoted = svc._pick("btts", prediction, None)
+    assert unquoted["odds"] == pytest.approx(1.67)
+    assert unquoted["odds_is_estimated"] is True
+
+
+def test_btts_has_no_pick_without_a_probability():
+    assert svc._pick("btts", {}, None) is None
+
+
+def test_btts_wins_only_when_both_sides_score():
+    from app.services.settlement import MatchResult
+
+    pick = {"label": "Both teams to score"}
+    assert svc._settle("btts", pick, MatchResult(home_score=2, away_score=1)) == "won"
+    assert svc._settle("btts", pick, MatchResult(home_score=1, away_score=0)) == "lost"
+    assert svc._settle("btts", pick, MatchResult(home_score=0, away_score=0)) == "lost"
+
+
+def test_the_btts_record_reads_stored_fractions_and_counts_only_yes_leaning_calls(
+    db_session, teams
+):
+    _played_btts(db_session, teams, datetime(2026, 10, 1, 15), (2, 1), 0.62)  # yes, landed
+    _played_btts(db_session, teams, datetime(2026, 10, 2, 15), (1, 0), 0.58)  # yes, missed
+    _played_btts(db_session, teams, datetime(2026, 10, 3, 15), (3, 2), 0.30)  # leaned no
+
+    record = svc._record(db_session, "btts", TODAY)
+
+    assert record["overall"] == {"settled": 2, "won": 1, "rate": 50.0}
+
+
+def test_the_btts_page_lists_only_yes_leaning_fixtures(db_session, teams, monkeypatch):
+    yes = _fixture(db_session, teams, datetime(2026, 10, 7, 15))
+    no = _fixture(db_session, teams, datetime(2026, 10, 7, 18))
+    db_session.commit()
+    by_id = {
+        yes.id: {**_prediction(50.0), "btts_yes": 64.0},
+        no.id: {**_prediction(50.0), "btts_yes": 31.0},
+    }
+    monkeypatch.setattr(
+        svc,
+        "predict_with_stored_fallback",
+        lambda session, matches: [by_id[m.id] for m in matches],
+    )
+
+    page = svc.build_market_page(db_session, "btts", TODAY)
+
+    assert [p["pick"]["probability"] for p in page["picks"]] == [64.0]
+    assert page["considered"] == 2

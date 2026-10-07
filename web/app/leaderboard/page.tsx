@@ -16,12 +16,16 @@ import {
   type LeaderboardRow,
   type LeaderboardSort,
 } from "@/lib/api";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 600;
 
-export const metadata = {
-  title: "Model leaderboard | UniquePredict",
-};
+export const metadata = pageMetadata({
+  title: "Prediction Model Accuracy Leaderboard",
+  description:
+    "Every trained prediction model ranked by how far it beats the benchmark its own market has to clear, measured on matches it never trained on.",
+  path: "/leaderboard",
+});
 
 const SORTS: Array<{ id: LeaderboardSort; label: string }> = [
   { id: "edge", label: "Edge over baseline" },
@@ -130,7 +134,7 @@ export default async function LeaderboardPage({
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
       <header className="mb-7">
         <h1 className="text-[32px] font-bold tracking-[-0.02em]">
-          Model leaderboard
+          Prediction model leaderboard
         </h1>
         <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every trained model, ranked by how far it beats the benchmark its own

@@ -28,6 +28,8 @@ import { ProbabilitySplit } from "@/components/ProbabilitySplit";
 import { EngineError, getLeague } from "@/lib/api";
 import { tierLabel, type LeagueDetail } from "@/lib/discover";
 import { rate } from "@/lib/progress";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -41,11 +43,17 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const league = await getLeague(slug).catch(() => null);
-  if (!league) return { title: "League | UniquePredict" };
-  return {
-    title: `${league.competition} predictions | UniquePredict`,
-    description: `${league.competition}: result and goals rates from ${league.history.matches.toLocaleString()} matches on record, the engine's own record in this competition, and its picks for upcoming fixtures.`,
-  };
+  if (!league) {
+    return {
+      title: "League not found",
+      robots: { index: false, follow: true },
+    };
+  }
+  return pageMetadata({
+    title: `${league.competition} Predictions & Tips Today`,
+    description: `${league.competition} predictions and tips: upcoming fixtures, the table, current form and the engine's own record in this competition.`,
+    path: `/leagues/${slug}`,
+  });
 }
 
 function longDate(iso: string): string {
@@ -152,6 +160,13 @@ export default async function LeaguePage({
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-10 sm:px-6 lg:px-10">
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Leagues", path: "/leagues" },
+          { name: league.competition, path: `/leagues/${slug}` },
+        ])}
+      />
       <nav
         aria-label="Breadcrumb"
         className="text-[12.5px] text-[var(--color-text-faint)]"
@@ -171,7 +186,7 @@ export default async function LeaguePage({
           </p>
         </div>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
-          {league.competition}
+          {league.competition} predictions
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           {summary(league)}

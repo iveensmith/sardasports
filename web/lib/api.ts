@@ -196,6 +196,17 @@ export function getMarketPage(
   });
 }
 
+/** League, team and match page slugs for the sitemap, with real last-modified dates. */
+export interface SeoUrls {
+  leagues: Array<{ slug: string; lastmod: string | null }>;
+  teams: Array<{ slug: string; lastmod: string | null }>;
+  matches: Array<{ slug: string; lastmod: string | null }>;
+}
+
+export function getSeoUrls(): Promise<SeoUrls> {
+  return engineFetch<SeoUrls>("/seo/urls", { revalidate: 3600 });
+}
+
 /** The highest-rated recently active clubs, for navigation links. */
 export async function getTopTeams(
   limit = 8,

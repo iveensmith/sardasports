@@ -21,11 +21,16 @@ import type {
   TeamUpcoming,
 } from "@/lib/teams";
 import type { SeasonStat, TeamFormSummary } from "@/lib/types";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbLd, pageMetadata } from "@/lib/seo";
 
 export const revalidate = 600;
 
 /** Past this, "recent form" is last season's and should be labelled so. */
 const STALE_AFTER_DAYS = 45;
+
+/** Below this many recorded matches a team page is too thin to be indexed. */
+const MIN_MATCHES_TO_INDEX = 3;
 
 export async function generateMetadata({
   params,
@@ -34,11 +39,18 @@ export async function generateMetadata({
 }) {
   const { slug } = await params;
   const page = await getTeamPage(slug).catch(() => null);
-  if (!page) return { title: "Team | UniquePredict" };
-  return {
-    title: `${page.team.name} predictions, stats and form | UniquePredict`,
-    description: `${page.team.name}: recent results, form over the last ten matches, season averages and the engine's rating, all from matches on record.`,
-  };
+  if (!page) {
+    return { title: "Team not found", robots: { index: false, follow: true } };
+  }
+  return pageMetadata({
+    title: `${page.team.name} Predictions, Stats & Form`,
+    description: `${page.team.name} form, recent results, next fixtures and season averages, with the engine's predictions for ${page.team.name} matches.`,
+    path: `/teams/${slug}`,
+    // A team with next to nothing on record is a thin page: no form, no table
+    // position, little to say. It stays reachable and is not offered to search
+    // engines until there is enough to be worth a result.
+    noindex: page.recent_matches.length < MIN_MATCHES_TO_INDEX,
+  });
 }
 
 const LETTER_STYLE: Record<FormLetter, { color: string; word: string }> = {
@@ -239,7 +251,7 @@ function Header({ page }: { page: TeamPageData }) {
               : (team.country ?? "Team")}
         </p>
         <h1 className="mt-1.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
-          {team.name}
+          {team.name} predictions and form
         </h1>
       </div>
     </header>
@@ -291,6 +303,16 @@ export default async function TeamPage({
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
+      <JsonLd
+        data={breadcrumbLd([
+          { name: "Home", path: "/" },
+          { name: "Leagues", path: "/leagues" },
+          ...(standing
+            ? [{ name: standing.short_name, path: `/leagues/${standing.slug}` }]
+            : []),
+          { name: team.name, path: `/teams/${team.slug}` },
+        ])}
+      />
       <Header page={page} />
 
       {stale && newest && (

@@ -31,7 +31,7 @@ from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row, effective_odds_markets, odds_for
 from app.services.settlement import MatchResult, result_from_match
-from app.services.stored_predictions import predict_with_stored_fallback
+from app.services.stored_predictions import payload_from_stored, predict_with_stored_fallback
 
 # How far back the record looks, and how many hits are listed.
 RECORD_WINDOW_DAYS = 30
@@ -51,8 +51,13 @@ class MarketSpec:
 
 SPECS = {
     "over-2-5": MarketSpec(slug="over-2-5", hit_word="winner"),
+    "btts": MarketSpec(slug="btts", hit_word="winner"),
     "correct-score": MarketSpec(slug="correct-score", hit_word="hit"),
 }
+
+# Yes/over-style markets: a pick only where the engine rates the yes side above
+# 50%. A fixture it rates under is not a pick that failed to land.
+LEANING_KINDS = {"over-2-5", "btts"}
 
 
 def _over_probability(prediction: dict | None) -> float | None:
@@ -78,6 +83,16 @@ def _top_scoreline(prediction: dict | None) -> tuple[str, float] | None:
     return str(score), round(float(probability) * 100.0, 1)
 
 
+def _btts_probability(prediction: dict | None) -> float | None:
+    """P(both teams score), as a percentage."""
+    value = (prediction or {}).get("btts_yes")
+    return float(value) if isinstance(value, int | float) and value > 0 else None
+
+
+def _settle_btts(result: MatchResult) -> str:
+    return "won" if result.home_score > 0 and result.away_score > 0 else "lost"
+
+
 def _settle_over(result: MatchResult) -> str:
     return "won" if result.total_goals > OVER_LINE else "lost"
 
@@ -94,6 +109,12 @@ def _pick(kind: str, prediction: dict | None, odds_markets: dict | None) -> dict
             return None
         price = odds_for("goals", f"over_{OVER_LINE}", odds_markets)
         label = "Over 2.5 goals"
+    elif kind == "btts":
+        probability = _btts_probability(prediction)
+        if probability is None:
+            return None
+        price = odds_for("btts", "yes", odds_markets)
+        label = "Both teams to score"
     else:
         top = _top_scoreline(prediction)
         if top is None:
@@ -114,14 +135,11 @@ def _pick(kind: str, prediction: dict | None, odds_markets: dict | None) -> dict
 
 
 def _settle(kind: str, pick: dict, result: MatchResult) -> str:
-    return _settle_over(result) if kind == "over-2-5" else _settle_score(pick["label"], result)
-
-
-def _stored_payload(prediction: Prediction) -> dict:
-    return {
-        "goals_markets": prediction.goals_markets or [],
-        "top_scorelines": prediction.top_scorelines or [],
-    }
+    if kind == "over-2-5":
+        return _settle_over(result)
+    if kind == "btts":
+        return _settle_btts(result)
+    return _settle_score(pick["label"], result)
 
 
 def _record(session: Session, kind: str, today: datetime) -> dict:
@@ -146,12 +164,12 @@ def _record(session: Session, kind: str, today: datetime) -> dict:
     hits: list[dict] = []
     for prediction, match in rows:
         result = result_from_match(match)
-        pick = _pick(kind, _stored_payload(prediction), None)
+        pick = _pick(kind, payload_from_stored(prediction), None)
         if result is None or pick is None:
             continue
-        # Over 2.5 is only a *call* where the engine leans over; a fixture it
-        # rates under is not a pick that failed to land.
-        if kind == "over-2-5" and pick["probability"] < 50.0:
+        # Only a *call* where the engine leans yes; a fixture it rates under is
+        # not a pick that failed to land.
+        if kind in LEANING_KINDS and pick["probability"] < 50.0:
             continue
         outcome = _settle(kind, pick, result)
         is_live = prediction.created_at is not None and prediction.created_at < match.match_date
@@ -223,9 +241,9 @@ def build_market_page(session: Session, kind: str, target_day: datetime) -> dict
         if pick is None:
             continue
         considered += 1
-        # The same rule as the record: Over 2.5 is a call only where the
-        # engine leans over, so a fixture it rates under is not listed as one.
-        if kind == "over-2-5" and pick["probability"] < 50.0:
+        # The same rule as the record: a call only where the engine leans yes,
+        # so a fixture it rates under is not listed as one.
+        if kind in LEANING_KINDS and pick["probability"] < 50.0:
             continue
         row = build_row(
             match,
@@ -254,7 +272,10 @@ def build_market_page(session: Session, kind: str, target_day: datetime) -> dict
         )
 
     picks.sort(key=lambda p: (-p["pick"]["probability"], p["match_date"]))
-    base_rate = base_rates.get(f"goals:over_{OVER_LINE}") if kind == "over-2-5" else None
+    base_rate = {
+        "over-2-5": base_rates.get(f"goals:over_{OVER_LINE}"),
+        "btts": base_rates.get("btts:yes"),
+    }.get(kind)
     return {
         "kind": kind,
         "date": start.date().isoformat(),

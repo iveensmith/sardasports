@@ -15,12 +15,15 @@
 import Link from "next/link";
 import { FaqItem } from "@/components/FaqItem";
 import { MarketGlossary } from "@/components/MarketGlossary";
+import { breadcrumbLd, faqLd, pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
-export const metadata = {
-  title: "How it works | UniquePredict",
+export const metadata = pageMetadata({
+  title: "How Our AI Football Predictions Work",
   description:
-    "How the engine turns results into probabilities, how each pick is graded against the final score, and what its numbers do and do not mean.",
-};
+    "How the engine turns past results into football predictions: Elo, Poisson and boosted models blended, then every pick graded against the final score.",
+  path: "/how-it-works",
+});
 
 const STAGES: Array<{ title: string; body: string[] }> = [
   {
@@ -86,12 +89,21 @@ const FAQS: Array<{ q: string; a: string }> = [
 export default function HowItWorksPage() {
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
+      <JsonLd
+        data={[
+          faqLd(FAQS),
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "How it works", path: "/how-it-works" },
+          ]),
+        ]}
+      />
       <header className="max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
           Behind the predictions
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.75rem)] leading-tight font-bold tracking-[-0.02em]">
-          How a prediction is made and judged
+          How our football predictions are made and judged
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every pick on this site is computed, not written. This page walks

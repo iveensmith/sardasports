@@ -22,14 +22,16 @@
 import Link from "next/link";
 import { EngineError, getSlip } from "@/lib/api";
 import type { Slip } from "@/lib/discover";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
-export const metadata = {
-  title: "Slip builder | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Free Accumulator Builder for Football Bet Slips",
   description:
-    "Build an accumulator from the day's picks, with the chance of a return shown beside the price.",
-};
+    "Build a football accumulator from today's priced picks: set a target price and legs, and see the combined price beside the chance every leg lands.",
+  path: "/slip",
+});
 
 const TARGETS = [2, 3, 5, 10, 20];
 const LEG_CAPS = [3, 4, 5, 6, 8];
@@ -149,7 +151,7 @@ export default async function SlipPage({
           Built from today&rsquo;s card
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
-          Slip builder
+          Football accumulator builder
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           An accumulator from the engine&rsquo;s surest priced picks, one leg

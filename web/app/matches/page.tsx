@@ -21,14 +21,44 @@ import { CountrySidebar } from "@/components/board/CountrySidebar";
 import { DateStrip } from "@/components/board/DateStrip";
 import { StatTiles } from "@/components/board/StatTiles";
 import { MarketGlossary } from "@/components/MarketGlossary";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 120;
 
-export const metadata = {
-  title: "Football predictions by day | UniquePredict",
-  description:
-    "Every fixture the engine prices, with a pick in each market and every past pick graded against the result.",
-};
+/** A real YYYY-MM-DD, or null. Anything else in the URL is ignored, not echoed. */
+function validDate(value: string | string[] | undefined): string | null {
+  const first = Array.isArray(value) ? value[0] : value;
+  return first && /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : null;
+}
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const date = validDate((await searchParams).date);
+  if (!date) {
+    return pageMetadata({
+      title: "Today's Football Predictions & Betting Tips",
+      description:
+        "Today's football predictions for every fixture the engine prices: 1X2, over/under goals and both teams to score, with every past pick graded against the result.",
+      path: "/matches",
+    });
+  }
+  const label = new Date(date).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  // The country filter is the same card re-sliced, so it is not a separate
+  // address: both resolve to the day's own page.
+  return pageMetadata({
+    title: `Football Predictions for ${label}`,
+    description: `Football predictions and betting tips for ${label}: a pick in each market for every fixture the engine prices, graded against the result once played.`,
+    path: `/matches?date=${date}`,
+  });
+}
 
 function Empty({ date }: { date: string }) {
   return (
@@ -108,7 +138,7 @@ export default async function MatchesPage({
 
       <header className="mt-8 mb-5">
         <h1 className="text-[clamp(1.6rem,3.5vw,2.1rem)] font-bold tracking-[-0.02em]">
-          {shown}
+          Football predictions for {shown}
         </h1>
         <p className="mt-2 max-w-[70ch] text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
           {settled

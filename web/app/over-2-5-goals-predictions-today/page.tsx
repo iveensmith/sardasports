@@ -1,15 +1,18 @@
 import type { MarketCopy } from "@/components/markets/MarketPage";
 import { MarketRoute } from "@/components/markets/MarketRoute";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
-export const metadata = {
-  title: "Over 2.5 goals predictions today | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Over 2.5 Goals Predictions & Tips Today",
   description:
-    "Today's fixtures the engine leans over 2.5 goals on, with the market's own record over the last 30 days, with live and reconstructed picks kept apart.",
-};
+    "Today's fixtures the engine rates likelier than not to have 3+ goals, ranked, with the market's 30-day record. Live and reconstructed picks kept apart.",
+  path: "/over-2-5-goals-predictions-today",
+});
 
 const copy: MarketCopy = {
+  path: "/over-2-5-goals-predictions-today",
   eyebrow: "Over 2.5 goals",
   title: "Over 2.5 goals predictions today",
   intro:

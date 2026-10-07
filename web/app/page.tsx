@@ -33,14 +33,17 @@ import { AboutTheEngine } from "@/components/home/AboutTheEngine";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { TopLeagues } from "@/components/home/TopLeagues";
 import { Faq } from "@/components/home/Faq";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 180;
 
-export const metadata = {
-  title: "UniquePredict | Football predictions, every one graded",
+export const metadata = pageMetadata({
+  title: "Football Predictions Today: Free AI Tips, Every Pick Graded",
   description:
-    "A calibrated prediction engine. Every pick is settled against the final score and the record is public, including what it got wrong.",
-};
+    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. Every pick is graded against the final score on a public record.",
+  path: "/",
+  absoluteTitle: true,
+});
 
 function isoDay(offset: number): string {
   const day = new Date();

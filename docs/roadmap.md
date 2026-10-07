@@ -2303,3 +2303,27 @@ spacing, applied once on the page container (`[&>section+section]` in `web/app/p
 per section, so a new section cannot drift out of step. The first sits under the results strip,
 which has its own rule. The four "About" tiles are equal (253 x 153 px at desktop) and stretch from the
 heading to the last line of the text beside them.
+
+## SEO pass
+
+Full plan, keyword map and launch checklist: [`docs/seo.md`](seo.md). Summary of what changed:
+
+- **Crawlability:** `robots.txt`, `sitemap.xml` (about 1,100 URLs with real last-modified dates,
+  fed by `GET /seo/urls`), and a staging safeguard: until `NEXT_PUBLIC_SITE_URL` is set the whole
+  site is `noindex` and `robots.txt` disallows everything.
+- **Per-page metadata** through one builder (`web/lib/seo.ts`): unique titles within about 62
+  characters, descriptions within 155, canonicals, Open Graph and Twitter cards, a generated share
+  image. Every page has one H1 that names what it is; the home H1 is now "Football predictions,
+  every one graded".
+- **Match pages** (the long tail, "X vs Y prediction") had one shared title and no H1; each now
+  has its own title, description, H1, canonical on the readable URL, breadcrumb and `SportsEvent`.
+- **Structured data:** Organization, WebSite, FAQPage, BreadcrumbList, SportsEvent and Dataset
+  (the track record's two real CSVs), all describing visible content.
+- **New page:** `/both-teams-to-score-predictions-today` (BTTS), same engine as the over 2.5 and
+  correct-score pages. Over the 30 days checked its yes-leaning picks won 46.2% of 39, below the
+  52.6% base rate; the page reports that as it stands.
+- Thin team pages (under three recorded matches) are `noindex`.
+
+**Launch blockers for ranking, not yet done:** About / Contact / Privacy / Terms /
+responsible-gambling pages (need real details), analytics, and making the engine crawl-safe under
+a burst of requests (queued as its own task).

@@ -17,6 +17,8 @@
 
 import { FaqItem } from "@/components/FaqItem";
 import { rate, type SettledRecord } from "@/lib/progress";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { faqLd } from "@/lib/seo";
 
 const BANKER_PERCENT = 80;
 
@@ -102,6 +104,7 @@ export function Faq({
 
   return (
     <section>
+      <JsonLd data={faqLd(items)} />
       <h2 className="text-[clamp(1.5rem,3vw,1.9rem)] font-bold tracking-[-0.02em]">
         Frequently asked questions
       </h2>

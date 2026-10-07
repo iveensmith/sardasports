@@ -27,14 +27,17 @@ import type { SettledRecord } from "@/lib/progress";
 import { MonthlyTable } from "@/components/progress/MonthlyTable";
 import { ProgressFaq } from "@/components/progress/ProgressFaq";
 import { WinRateChart } from "@/components/progress/WinRateChart";
+import { breadcrumbLd, pageMetadata, recordDatasetLd } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Track record | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Football Prediction Accuracy & Full Track Record",
   description:
-    "Every prediction the engine has made, graded against the final score. Backtested and live records reported separately.",
-};
+    "Every prediction graded against the final score: won, lost or void, with live and reconstructed picks counted apart and the full history to download.",
+  path: "/progress",
+});
 
 function StatCard({
   label,
@@ -211,12 +214,21 @@ export default async function ProgressPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 py-12">
+      <JsonLd
+        data={[
+          recordDatasetLd(),
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: "Track record", path: "/progress" },
+          ]),
+        ]}
+      />
       <header className="mb-8 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
           Every call, counted
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.75rem)] leading-tight font-bold tracking-[-0.02em]">
-          Track record
+          Prediction accuracy and track record
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every prediction the engine has made is graded here against the final

@@ -18,6 +18,7 @@ import type { Bankers, Slip } from "@/lib/discover";
 import { rate } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
 import { SlipOfTheDay } from "@/components/slip/SlipOfTheDay";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
 
@@ -25,11 +26,12 @@ export const revalidate = 300;
  * makes the whole thing less likely to land. */
 const SLIP_OF_THE_DAY_TARGET = 4;
 
-export const metadata = {
-  title: "Bankers | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Football Banker Tips Today: Picks Rated 80%+",
   description:
-    "The day's likeliest picks, with every settled one graded against the result.",
-};
+    "The day's safest football picks, the ones our engine rates 80% likely or better, with how every settled batch went. Banker tips, graded in public.",
+  path: "/bankers",
+});
 
 export default async function BankersPage({
   searchParams,
@@ -91,7 +93,7 @@ export default async function BankersPage({
           {shown}
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
-          Bankers
+          Football banker tips
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           {bankers.count === 1 ? "The one pick" : `The ${bankers.count} picks`}{" "}

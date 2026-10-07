@@ -22,12 +22,16 @@ import {
   ModelAccuracyChart,
   type ModelRow,
 } from "@/components/ModelAccuracyChart";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 600;
 
-export const metadata = {
-  title: "Model analytics | UniquePredict",
-};
+export const metadata = pageMetadata({
+  title: "Model analytics",
+  description: "Model accuracy and calibration detail.",
+  path: "/analytics",
+  noindex: true,
+});
 
 /**
  * Every trained model, with the human label and the sport it belongs to.

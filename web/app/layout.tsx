@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { organizationLd, websiteLd } from "@/lib/seo";
+import { IS_LIVE_SITE, SITE_NAME, SITE_URL } from "@/lib/site";
 import { Red_Hat_Display, Red_Hat_Text } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
@@ -38,9 +41,44 @@ const redHatText = Red_Hat_Text({
 });
 
 export const metadata: Metadata = {
-  title: "UniquePredict | Calibrated sports predictions",
+  // Every canonical URL and share link on the site resolves against this.
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Football Predictions Today: Free AI Tips, Every Pick Graded",
+    template: `%s | ${SITE_NAME}`,
+  },
   description:
-    "Football, basketball and tennis predictions from a model that reports its own confidence, and says so when it cannot price a market.",
+    "Free AI football predictions for today's matches: 1X2, over 2.5, both teams to score and correct score. Every pick is graded against the final score on a public record.",
+  applicationName: SITE_NAME,
+  category: "sports",
+  // Not a ranking factor for Google, which ignores it; kept for the engines
+  // that still read it. The words that rank are in titles, headings and copy.
+  keywords: [
+    "football predictions",
+    "football predictions today",
+    "football betting tips",
+    "AI football predictions",
+    "over 2.5 goals predictions",
+    "both teams to score predictions",
+    "correct score predictions",
+    "banker tips today",
+    "accumulator builder",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: "en_GB",
+    url: "/",
+    title: "Football Predictions Today: Free AI Tips, Every Pick Graded",
+    description:
+      "Free AI football predictions for today's matches, with every pick graded against the final score on a public record.",
+  },
+  twitter: { card: "summary_large_image" },
+  // Until a real public address is configured this is a local or staging copy
+  // and must not be indexed. See lib/site.ts.
+  robots: IS_LIVE_SITE
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
 };
 
 // Ordered by what a visitor came for, not by what the product is proudest
@@ -90,6 +128,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="min-h-dvh antialiased">
+        <JsonLd data={[organizationLd(), websiteLd()]} />
         <header className="sticky top-0 z-50 border-b border-[var(--color-line)] bg-[var(--color-base)]/85 backdrop-blur-md">
           <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-8">
             <Link

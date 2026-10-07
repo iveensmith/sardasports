@@ -13,14 +13,16 @@ import Link from "next/link";
 import { LeagueDirectory } from "@/components/league/LeagueDirectory";
 import { EngineError, getLeagues } from "@/lib/api";
 import type { Leagues } from "@/lib/discover";
+import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 3600;
 
-export const metadata = {
-  title: "Leagues | UniquePredict",
+export const metadata = pageMetadata({
+  title: "Football Leagues & Competitions Covered",
   description:
-    "Every competition the engine models, with how much match history sits behind each.",
-};
+    "Every football league and competition our engine models, from top flights to lower divisions, with how much match history each is built from.",
+  path: "/leagues",
+});
 
 export default async function LeaguesPage() {
   let leagues: Leagues | null = null;
@@ -65,7 +67,7 @@ export default async function LeaguesPage() {
           countries
         </p>
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
-          Leagues
+          Football leagues and competitions
         </h1>
         <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
           Every competition the engine has a trained model for. The match count

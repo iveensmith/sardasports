@@ -16,6 +16,8 @@
 
 import Link from "next/link";
 import { FaqItem } from "@/components/FaqItem";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { breadcrumbLd, faqLd } from "@/lib/seo";
 import { TeamCrest } from "@/components/board/TeamCrest";
 import type { Outcome } from "@/lib/board";
 import type {
@@ -26,6 +28,8 @@ import type {
 } from "@/lib/markets";
 
 export interface MarketCopy {
+  /** The page's own path, for its breadcrumb. */
+  path: string;
   eyebrow: string;
   title: string;
   intro: string;
@@ -202,6 +206,15 @@ export function MarketPage({
 
   return (
     <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
+      <JsonLd
+        data={[
+          faqLd(copy.faqs),
+          breadcrumbLd([
+            { name: "Home", path: "/" },
+            { name: copy.title, path: copy.path },
+          ]),
+        ]}
+      />
       <header className="mb-6 max-w-[72ch]">
         <p className="text-[11px] tracking-[0.14em] text-[var(--color-gold-bright)] uppercase">
           {copy.eyebrow} · {shown}
