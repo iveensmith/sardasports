@@ -19,7 +19,6 @@ from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row
 from app.services.league_service import build_league, competition_for_slug, slug_for
-from app.services.prediction_service import predict_for_matches
 from app.services.settlement import Outcome, Record
 from app.services.slip_service import (
     DEFAULT_MAX_ODD,
@@ -27,6 +26,7 @@ from app.services.slip_service import (
     build_slip,
     candidate_legs,
 )
+from app.services.stored_predictions import predict_with_stored_fallback
 from ml.competition_catalogue import BY_COMPETITION, competitions_in, countries
 from ml.markets import candidate_calls, rank_calls
 
@@ -127,7 +127,7 @@ def _day_rows(db: Session, target: date):
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
-    predictions = predict_for_matches(db, matches)
+    predictions = predict_with_stored_fallback(db, matches)
 
     rows, ranked_by_match, odds_by_match = [], {}, {}
     for match, prediction in zip(matches, predictions, strict=True):

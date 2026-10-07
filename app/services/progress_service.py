@@ -44,6 +44,7 @@ from app.models.match import Match
 from app.models.prediction import Prediction
 from app.services.base_rates import market_base_rates
 from app.services.settlement import Outcome, Record, result_from_match, settle_key
+from app.services.stored_predictions import payload_from_stored
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
 
 # How many days of daily results the "recent form" chart covers.
@@ -67,21 +68,6 @@ class _Graded:
     live: bool
 
 
-def _prediction_payload(prediction: Prediction) -> dict:
-    """The stored row, back in the shape `ml.markets` expects."""
-    return {
-        "home_win": prediction.prob_home,
-        "draw": prediction.prob_draw,
-        "away_win": prediction.prob_away,
-        "btts_yes": prediction.prob_btts_yes,
-        "btts_no": prediction.prob_btts_no,
-        "goals_markets": prediction.goals_markets or [],
-        "ht_goals_markets": prediction.ht_goals_markets or [],
-        "corners_markets": prediction.corners_markets or [],
-        "cards_markets": prediction.cards_markets or [],
-    }
-
-
 def _grade_all(session: Session) -> list[_Graded]:
     """Regenerate and settle every stored prediction on a played fixture."""
     base_rates = market_base_rates(session, "football")
@@ -98,7 +84,7 @@ def _grade_all(session: Session) -> list[_Graded]:
         result = result_from_match(match)
         if result is None:
             continue
-        ranked = rank_calls(candidate_calls(_prediction_payload(prediction)), base_rates)
+        ranked = rank_calls(candidate_calls(payload_from_stored(prediction)), base_rates)
         best = headline_call(ranked)
         if best is None:
             continue

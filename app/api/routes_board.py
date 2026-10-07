@@ -34,7 +34,7 @@ from app.database.session import get_db
 from app.models import Match, Team
 from app.services.base_rates import market_base_rates
 from app.services.pick_service import best_pick, most_likely_outcome
-from app.services.prediction_service import predict_for_matches
+from app.services.stored_predictions import predict_with_stored_fallback
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
 
 router = APIRouter(tags=["predictions"])
@@ -137,7 +137,7 @@ def predictions_today(
         query = query.filter(Match.competition == competition)
     matches = query.order_by(Match.match_date.asc()).limit(limit).all()
 
-    predictions = predict_for_matches(db, matches)
+    predictions = predict_with_stored_fallback(db, matches)
 
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}

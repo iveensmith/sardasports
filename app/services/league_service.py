@@ -24,9 +24,9 @@ from app.models.match import Match
 from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row, slugify
-from app.services.prediction_service import predict_for_matches
 from app.services.progress_service import competition_record
 from app.services.standings_service import compute_standings
+from app.services.stored_predictions import predict_with_stored_fallback
 from ml.competition_catalogue import BY_COMPETITION, CompetitionMeta
 from ml.competitions import INTERNATIONAL_COMPETITIONS
 
@@ -158,7 +158,7 @@ def _fixtures(db: Session, competition: str) -> list[dict]:
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
-    predictions = predict_for_matches(db, matches)
+    predictions = predict_with_stored_fallback(db, matches)
     return [
         build_row(
             match,

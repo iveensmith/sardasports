@@ -30,8 +30,8 @@ from app.models.prediction import Prediction
 from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row, effective_odds_markets, odds_for
-from app.services.prediction_service import predict_for_matches
 from app.services.settlement import MatchResult, result_from_match
+from app.services.stored_predictions import predict_with_stored_fallback
 
 # How far back the record looks, and how many hits are listed.
 RECORD_WINDOW_DAYS = 30
@@ -211,7 +211,7 @@ def build_market_page(session: Session, kind: str, target_day: datetime) -> dict
         .all()
     }
     base_rates = market_base_rates(session, "football")
-    predictions = predict_for_matches(session, matches)
+    predictions = predict_with_stored_fallback(session, matches)
 
     picks: list[dict] = []
     considered = 0

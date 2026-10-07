@@ -2199,3 +2199,107 @@ requests at once can exhaust the backend's DB pool (5 + 10 overflow) because eac
 predicts and writes per request; SQLite lock timeouts then blank rows. And the
 backend's rate limiter is 60 requests a minute per IP while the website is its only
 client, so every visitor shares that budget. See the progress checkpoint.
+
+## Design and copy pass: honest write-ups, contrast, mobile board
+
+Run with the frontend and design skills (`frontend-design`, `design-taste-frontend`,
+`better-interface`, `emil-design-eng`, `apple-design`, `find-animation-opportunities`).
+`better-interface` delegates to six domain skills (`better-accessibility`, `better-layout`,
+`better-writing`, `better-typography`, `better-colors`, `better-ui`) that are **not installed**
+here, so those domains were not reviewed against their own rules; the checks below were done
+directly (computed contrast ratios, a real keyboard-focus test, phone-width overflow checks).
+
+**Copy.** Every visible write-up was rewritten for a professional register: consistent
+"pick" terminology, no em-dashes in visible text, page titles use `|`, and the home FAQ now
+has 13 answers (accuracy, publication timing, how to read a row, confidence, best tip,
+bankers, coverage, profitability, betting advice, fixed matches). Two phrases borrowed from
+the reference site ("We've got answers", "Got questions?") are gone, as are four decorative
+eyebrow labels (three on the home page, one on the track-record FAQ).
+
+**Accuracy fixes found while writing** (the old copy was wrong, not just clumsy):
+- The FAQ said confidence is "out of 100"; the board shows it out of ten.
+- It described the best tip as "furthest above its base rate"; the code picks the likeliest
+  call among those that beat their base rate, else the likeliest overall.
+- It said every pick is "published before kick-off and never altered"; neither is true.
+  The reconstructed record is generated afterwards, and `_persist_prediction` overwrites the
+  stored row on every recompute (a follow-up task was queued to freeze rows at kick-off).
+  The track-record banner's "graded afterwards without being touched" was softened for the
+  same reason.
+- The hero led with the live 90.3% (31 picks) and hid the 1,999-pick backtest at 77.9%; it now
+  states both, labelled, with "a small sample" while live picks number under 100. The home
+  "About" tiles dropped their blended win-rate tile for the same reason.
+- The slip page and the match page's market table quoted the -6.74% backtest as the engine's current return;
+  the Analytics page rightly calls it an old single-league figure. All now say "last recorded".
+
+**Design and accessibility.**
+- Light-mode contrast: won `#0d8a63`→`#0a7553`, lost `#c7472e`→`#b03a24`, no-data glyph
+  `#7c8898`→`#5f6b7c`, so small settled-pick text clears 4.5:1 on every surface; the
+  "Scheduled" label uses the brighter gold. Dark mode already passed everywhere that matters.
+- Phone board: the fixture column no longer soaks up the width below `sm`, so the 1/X/2 prices
+  are in the first view, and the table has scroll-edge shadows (pure CSS) that show only where
+  more columns are hidden.
+- Date-strip and country links no longer prefetch: each prefetch ran the engine over a full day.
+- Checked and left alone: the global focus ring (2px gold, verified on the league search box),
+  reduced-motion handling, press feedback, and an absence of decorative animation.
+
+**Motion.** None added. Frequency and purpose checks (find-animation-opportunities) leave the
+board, nav and table without motion; the one orchestrated moment is the existing hero.
+
+## The results strip, and a track-record scale bug found on the way
+
+**Why the carousel kept vanishing.** The strip was built from "the last day with at least 8
+finished matches", fetched as a full day's board with `.catch(() => null)`. Two structural
+faults: this card is small (1 to 9 matches a day), so a qualifying day is rare and ages out of the
+3-day window; and the board fetch recomputes a whole day's predictions, so under load it timed out
+or failed and the strip silently disappeared. The earlier fix (`min_settled`) only widened the
+threshold.
+
+**The fix.** `GET /board/recent-settled` (`app/services/recent_results.py`) reads the newest graded
+best tips straight from stored predictions: no recomputation, no day-size threshold, spans as many
+days as it needs, and the strip prints the dates it covers. It cannot fail the way a live
+prediction can, and a test asserts it never calls the predictor. Boards, league pages, the market
+pages and the bankers/slip routes also now fall back to a stored prediction when a live one fails
+(`predict_with_stored_fallback`), so a transient lock no longer blanks a whole card as "no
+trained model".
+
+**Track-record scale bug (the published record changed).** The `predictions` table stores 1X2 and
+BTTS probabilities as fractions (0.62) and over/under, corners, cards and half-time lines as
+percentages (62.0). `progress_service` read them raw, so match-result and BTTS calls sat on a scale
+100 times smaller than every other market and could never lead: the record's "headline call" was
+a goals, cards or double-chance pick wherever the board's best tip was a match result (0 match-result
+headlines versus 91 of 300 once corrected). The test fixtures stored percentages, which hid it.
+`stored_predictions.payload_from_stored` is now the single converter. Effect on the published
+numbers: live 28 of 31 (90.3%) became 27 of 31 (87.1%); backtest 1,557 of 1,999 (77.9%) became
+1,524 of 1,999 (76.2%); overall 78.1% became 76.4%. These are the honest figures for the picks
+the board actually leads with.
+
+**Still open** (separate tasks): the DB-pool pile-up under concurrent requests, and freezing a
+stored prediction at kick-off.
+
+## Home page: "Top leagues" and the illustrated "How our football predictions work"
+
+Placed where the reference places them: **Top leagues** closes the picks section (under the
+Yesterday/Today/Tomorrow boards, behind a divider, centred label, 5x2 grid of linked tiles);
+the **three step cards** sit after the "what you get" section and before the FAQ, each an inset
+16:9 diagram with a STEP badge above a title and two paragraphs.
+
+Where this deliberately differs from the reference, and why:
+- **Tiles are real, linked competitions only.** The reference's second row is Champions League,
+  Europa League, Conference League, World Cup 2026 and Euro 2028. The UEFA club competitions are
+  registered but disabled here (no data), so no tile is drawn for a page that does not exist. The
+  grid keeps their slots: `components/home/TopLeagues.tsx` matches them by name, so the moment one
+  is enabled and appears in `/leagues` it replaces a filler tile automatically. Today the fillers
+  are Championship, Eredivisie and Primeira Liga; World Cup and Euros are real (history only).
+  Labels say "World Cup" and "Euros", not "2026"/"2028", because the site holds past tournaments.
+- **Flags, not league logos.** League emblems are licensed artwork with no source here; each tile
+  uses its country flag (a globe for World/Europe) and a faint enlarged copy as the watermark.
+- **Diagram 3 is not a neural network.** The reference draws one; this engine blends an Elo
+  rating, a Poisson goal model and a gradient-boosted classifier, so the diagram shows three
+  estimators merging into one probability and a graded pick. Diagrams and all text are original.
+- Their copy about xG, injuries, weather and Java software is not claimed: none of it is done here.
+
+**Home page rhythm.** Every home section after the first is now set off by a hairline and equal
+spacing, applied once on the page container (`[&>section+section]` in `web/app/page.tsx`) rather than
+per section, so a new section cannot drift out of step. The first sits under the results strip,
+which has its own rule. The four "About" tiles are equal (253 x 153 px at desktop) and stretch from the
+heading to the last line of the text beside them.

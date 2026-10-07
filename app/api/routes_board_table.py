@@ -30,7 +30,8 @@ from app.models.match import Match
 from app.models.team import Team
 from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row, is_won
-from app.services.prediction_service import predict_for_matches
+from app.services.recent_results import DEFAULT_LIMIT, MAX_LIMIT, recent_settled
+from app.services.stored_predictions import predict_with_stored_fallback
 from ml.competition_catalogue import meta_for
 
 router = APIRouter(tags=["board"])
@@ -88,7 +89,7 @@ def board(
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
 
-    predictions = predict_for_matches(db, matches)
+    predictions = predict_with_stored_fallback(db, matches)
     rows = [
         build_row(
             match,
@@ -200,3 +201,16 @@ def board_dates(
         "days": days,
         "last_settled": newest[0] if newest else None,
     }
+
+
+@router.get("/board/recent-settled")
+def board_recent_settled(
+    limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The newest graded best tips across recent days, for the home results strip.
+
+    Read from stored predictions, so it needs no recomputation and does not
+    depend on any one day having enough finished matches.
+    """
+    return recent_settled(db, limit)

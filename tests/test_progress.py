@@ -19,14 +19,17 @@ def _prediction(match_id: int, created_at: datetime) -> Prediction:
     return Prediction(
         match_id=match_id,
         created_at=created_at,
-        prob_home=62.0,
-        prob_draw=22.0,
-        prob_away=16.0,
+        # Stored the way the engine stores them: 1X2 and BTTS as fractions,
+        # over/under lines as percentages. A fixture that wrote both as
+        # percentages is what hid a scale bug in the track record for a while.
+        prob_home=0.62,
+        prob_draw=0.22,
+        prob_away=0.16,
         expected_goals_home=2.1,
         expected_goals_away=0.9,
         top_scorelines=["2-0", "2-1"],
-        prob_btts_yes=44.0,
-        prob_btts_no=56.0,
+        prob_btts_yes=0.44,
+        prob_btts_no=0.56,
         goals_markets=[
             {"line": 1.5, "prob_over": 81.0, "prob_under": 19.0, "model_used": True},
             {"line": 2.5, "prob_over": 55.0, "prob_under": 45.0, "model_used": True},

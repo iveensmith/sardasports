@@ -240,7 +240,7 @@ def test_the_day_lists_only_over_leaning_fixtures_best_first(db_session, teams, 
     db_session.commit()
     by_id = {weak.id: _prediction(52.0), strong.id: _prediction(71.0), under.id: _prediction(34.0)}
     monkeypatch.setattr(
-        svc, "predict_for_matches", lambda session, matches: [by_id[m.id] for m in matches]
+        svc, "predict_with_stored_fallback", lambda session, matches: [by_id[m.id] for m in matches]
     )
 
     page = svc.build_market_page(db_session, "over-2-5", TODAY)
@@ -257,7 +257,9 @@ def test_a_played_fixture_on_the_day_is_graded(db_session, teams, monkeypatch):
         db_session, teams, datetime(2026, 10, 7, 12), status="completed", score=(2, 1)
     )
     db_session.commit()
-    monkeypatch.setattr(svc, "predict_for_matches", lambda session, matches: [_prediction(66.0)])
+    monkeypatch.setattr(
+        svc, "predict_with_stored_fallback", lambda session, matches: [_prediction(66.0)]
+    )
 
     page = svc.build_market_page(db_session, "over-2-5", TODAY)
 
@@ -271,7 +273,7 @@ def test_a_fixture_the_engine_could_not_price_is_left_out_not_failed(
 ):
     _fixture(db_session, teams, datetime(2026, 10, 7, 15))
     db_session.commit()
-    monkeypatch.setattr(svc, "predict_for_matches", lambda session, matches: [None])
+    monkeypatch.setattr(svc, "predict_with_stored_fallback", lambda session, matches: [None])
 
     page = svc.build_market_page(db_session, "correct-score", TODAY)
 
@@ -281,7 +283,7 @@ def test_a_fixture_the_engine_could_not_price_is_left_out_not_failed(
 
 
 def test_correct_score_picks_carry_no_base_rate(db_session, teams, monkeypatch):
-    monkeypatch.setattr(svc, "predict_for_matches", lambda session, matches: [])
+    monkeypatch.setattr(svc, "predict_with_stored_fallback", lambda session, matches: [])
     assert svc.build_market_page(db_session, "correct-score", TODAY)["base_rate"] is None
 
 
