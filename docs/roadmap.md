@@ -1733,10 +1733,14 @@ feature schema is unchanged (pinned by a test).
 
 - **Cups settle on the 90-minute score.** The API's `goals` includes extra
   time. The Copa del Rey final was Barcelona 3–2 Real Madrid after extra time;
-  the 90-minute score, which is what 1X2 is about, was 2–2. About one cup tie
-  in six goes beyond 90 minutes (22 of 126 in Copa del Rey 2024) and every one
-  is level at 90, so using `goals` would have mislabelled the 1X2 outcome of
-  all of them. `score.fulltime` is used.
+  the 90-minute score, which is what 1X2 is about, was 2–2. About one
+  single-leg cup tie in six goes beyond 90 minutes (22 of 126 in Copa del Rey
+  2024) and every one of those is level at 90, so using `goals` would have
+  mislabelled the 1X2 outcome of all of them. In a *two-legged* tie it is the
+  aggregate that triggers extra time, so a second leg's own 90-minute score need
+  not be level: a 2024-25 Champions League qualifier went to penalties after a
+  0–1 second leg. Reading `score.fulltime` is right in both cases; assuming
+  "level at 90" would not have been.
 - **Neutral ground.** Every cup final, and the FA Cup semi-finals (Wembley), are
   flagged neutral so Elo gives neither side a home edge.
 - **Season labels come from the competition, not the batch.** A first version
@@ -1816,3 +1820,51 @@ one real league sample, and three club rosters for the matching experiment.
 `tests/test_team_identity.py`, `tests/test_fetch_api_competitions.py` and
 `tests/test_live_fixture_identity.py` pin all of the above, using trimmed real
 payloads in `tests/data/api_football_sample.json`.
+
+## UEFA club competitions registered — built, waiting on the subscription
+
+Champions League (id 2, seasons 2011–2026), Europa League (id 3, 2014–2026) and
+Conference League (id 848, 2021–2026) are in the registry alongside the domestic
+cups, taking it to 122 competitions. Ids and season ranges come from the saved
+`/leagues?country=World` discovery response, not memory. They add 35 requests
+for their whole history; the full core scope is now **936 requests** (518 for
+2022–2026). Like everything else in the registry they are disabled until data
+and retrained models exist.
+
+Left out on purpose: the UEFA Super Cup (one match a year), the Youth League
+and women's competitions, and the national-team qualifiers (World Cup and Euro
+qualification, Finalissima), which belong to the "all international matches"
+work, still to do.
+
+**What a real Champions League season looks like** (2024-25, 279 fixtures, 81
+clubs, one request): qualifying rounds are *included* — 90 of the 279 matches
+are the 1st to 3rd qualifying rounds and the qualifying play-off — then the
+eight-match league stage, the knockout play-offs, and the knockouts. The
+qualifiers pull in small clubs from across Europe with no history here; they are
+ingested as results all the same and will arrive as thin-data clubs, so expect
+the new-clubs report for these competitions to be long.
+
+**A claim of mine was wrong, found by reading the real data.** I had written that
+every cup tie that goes to extra time or penalties is level after 90 minutes.
+That is true of a single-leg cup (all 22 in Copa del Rey 2024), but in a
+two-legged tie it is the *aggregate* that triggers extra time. Ballkani v UE
+Santa Coloma went to penalties after a second leg whose 90-minute score was
+0–1; the API's headline `goals` for it is 1–2. Reading `score.fulltime` was
+already right in both cases — only the explanation was overbroad — and it is
+corrected in the registry docstring, the ingest script and the section above.
+The case is pinned in a test using the real fixture.
+
+**Not the same as "international".** The catalogue files these under "Europe"
+beside the Euros and the Nations League, which makes `is_international` true for
+them, but they are made of clubs. The league page no longer tells a reader that
+"a national-team competition has no fixed set of clubs" about the Champions
+League: the API now carries `national_teams` separately, and the page says the
+field "changes every season" instead. They are also kept out of the
+national-team Poisson pool (pinned by a test). Like any competition under an
+international group they get no standings table; the league phase has one in the
+new format, but a table spanning qualifiers, a league phase and two-legged
+knockouts is not a table of anything.
+
+**Neutral ground:** the final only, flagged from the round name (the 2025 final,
+PSG 5–0 Inter, was at the Allianz Arena). The semi-finals are two legs, home and
+away.

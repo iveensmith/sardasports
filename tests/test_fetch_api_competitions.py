@@ -280,7 +280,8 @@ def test_every_registry_entry_is_well_formed():
         assert comp.first_season <= comp.last_season
         assert comp.kind in {"league", "cup"}
         assert (comp.tier is None) == (comp.kind == "cup")
-        assert comp.country_code
+        # Every nation has a flag; "Europe" is a grouping and deliberately has none.
+        assert (comp.country_code is None) == (comp.country == "Europe")
     cups = [c for c in BY_ID.values() if c.kind == "cup"]
     assert all(c.neutral_rounds for c in cups), "every cup final is at a neutral venue"
 
@@ -315,3 +316,87 @@ def _ingest_labels(items):
         return labels
     finally:
         session.close()
+
+
+# --- the UEFA club competitions ---------------------------------------------
+
+UCL = BY_ID[2]
+
+
+def _ucl(round_name, status=None):
+    items = [i for i in SAMPLE["ucl"] if i["league"]["round"] == round_name]
+    if status:
+        items = [i for i in items if i["fixture"]["status"]["short"] == status]
+    return items[0]
+
+
+def test_the_three_uefa_club_competitions_are_registered_under_europe():
+    names = {
+        2: "UEFA Champions League",
+        3: "UEFA Europa League",
+        848: "UEFA Conference League",
+    }
+    for api_id, name in names.items():
+        comp = BY_ID[api_id]
+        assert comp.name == name and comp.country == "Europe" and comp.kind == "cup"
+        assert comp.country_code is None and comp.tier is None
+        assert comp.split_year is True  # the season starts in July
+        assert comp.scope == "core"
+
+
+def test_uefa_club_competitions_are_not_in_the_national_team_pool():
+    """They sit under "Europe" beside the Euros, but they are made of clubs. The
+    national-team Poisson pool must not swallow them."""
+    from ml.competitions import INTERNATIONAL_COMPETITIONS, fit_pool
+
+    for name in ("UEFA Champions League", "UEFA Europa League", "UEFA Conference League"):
+        assert name not in INTERNATIONAL_COMPETITIONS
+        assert fit_pool(name) == name
+
+
+def test_the_champions_league_final_is_neutral_and_recorded_at_90_minutes():
+    row = parse_fixture(_ucl("Final"), UCL)
+    assert row["neutral_venue"] is True
+    assert (row["home_score"], row["away_score"]) == (5, 0)  # PSG 5-0 Inter
+
+
+def test_a_league_stage_match_is_an_ordinary_home_and_away_fixture():
+    row = parse_fixture(_ucl("League Stage - 4"), UCL)
+    assert row["neutral_venue"] is False
+    assert (row["home_score"], row["away_score"]) == (4, 0)
+
+
+def test_a_qualifying_round_match_is_ingested_like_any_other():
+    """Qualifiers bring in clubs from across Europe; they are results all the same."""
+    row = parse_fixture(_ucl("1st Qualifying Round", "FT"), UCL)
+    assert row is not None and row["round"] == "1st Qualifying Round"
+
+
+def test_a_second_leg_settled_on_penalties_keeps_its_own_90_minute_score():
+    """In a two-legged tie extra time is triggered by the aggregate, so the
+    second leg's 90-minute score is not level. Ballkani v UE Santa Coloma:
+    the API's headline `goals` is 1-2 (extra time included), the match's own
+    90-minute score is 0-1 — and it is the latter that is recorded."""
+    item = _ucl("1st Qualifying Round", "PEN")
+    assert (item["goals"]["home"], item["goals"]["away"]) == (1, 2)
+
+    row = parse_fixture(item, UCL)
+
+    assert (row["home_score"], row["away_score"]) == (0, 1)
+    assert row["home_score"] != row["away_score"]  # not level, unlike a single-leg cup
+    assert row["beyond_90"] is True
+
+
+def test_the_champions_league_semi_final_is_not_neutral():
+    """Two legs, home and away; only the final is at a neutral venue."""
+    assert parse_fixture(_ucl("Semi-finals"), UCL)["neutral_venue"] is False
+
+
+def test_champions_league_season_is_labelled_across_both_years(db_session):
+    counts = ingest_competition_season(
+        db_session, UCL, 2024, SAMPLE["ucl"], TeamResolver(db_session)
+    )
+    assert counts["inserted"] == 5
+    assert {m.season for m in db_session.query(Match).filter(Match.competition == UCL.name)} == {
+        "2024-2025"
+    }

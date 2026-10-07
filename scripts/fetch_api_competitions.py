@@ -21,12 +21,15 @@ Usage:
 
 Four things this gets right that a naive loader would not
 ---------------------------------------------------------
-**The 90-minute score.** A cup tie that goes to extra time or penalties is
-level after 90 minutes — all 22 of them in Copa del Rey 2024 — and the engine
-predicts the 1X2 market on the 90-minute result. The API's top-level `goals`
-includes extra time, so a tie settled on penalties would be recorded with a
-winner and every 1X2 label would be wrong. `score.fulltime` is the 90-minute
-score and is the one used. About one cup tie in six is affected.
+**The 90-minute score.** The engine predicts the 1X2 market on the 90-minute
+result. The API's top-level `goals` includes extra time, so a match settled
+after extra time would be recorded with a winner it did not have at 90 minutes
+and its 1X2 label would be wrong. `score.fulltime` is the 90-minute score and
+is the one used. About one single-leg cup tie in six is affected, and all 22 of
+them in Copa del Rey 2024 were level at 90. In a two-legged tie extra time is
+triggered by the *aggregate*, so a second leg's own 90-minute score need not be
+level (a Champions League qualifier went to penalties after a 0-1 second leg) —
+which is another reason to read the field and not assume.
 
 **Neutral ground.** Matches in a registry competition's `neutral_rounds`
 (every cup final; the FA Cup semi-finals) are flagged neutral, so Elo gives

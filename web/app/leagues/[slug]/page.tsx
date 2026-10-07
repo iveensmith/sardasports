@@ -212,9 +212,11 @@ export default async function LeaguePage({
           label={league.season ? `Teams, ${league.season}` : "Teams"}
           value={league.teams !== null ? String(league.teams) : "—"}
           note={
-            league.is_international
-              ? "A national-team competition has no fixed set of clubs"
-              : undefined
+            !league.is_international
+              ? undefined
+              : league.national_teams
+                ? "A national-team competition has no fixed set of clubs"
+                : "Clubs qualify from across Europe, so the field changes every season"
           }
         />
         <Tile

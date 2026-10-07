@@ -140,6 +140,10 @@ export interface LeagueDetail {
   tier: number | null;
   /** No table or form for these: a table of friendlies is not a table. */
   is_international: boolean;
+  /** True for national-team competitions (World Cup, friendlies). False for a
+   *  continental club competition such as the Champions League, which is also
+   *  grouped under a confederation but is made of clubs. */
+  national_teams: boolean;
   history: LeagueHistory;
   /** Days since the newest result on record. Null with no results at all. */
   last_match_age_days: number | null;

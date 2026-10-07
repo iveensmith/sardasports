@@ -127,6 +127,7 @@ def test_the_page_carries_the_table_and_rates_for_a_played_season(client, db_ses
     assert body["standings"][0]["team"] == "Alpha"
     assert body["standings"][0]["points"] == 24  # 8 wins from 8
     assert body["slug"] == "english-premier-league"
+    assert body["national_teams"] is False
     assert len(body["results"]) == 10
 
 
@@ -168,6 +169,7 @@ def test_an_international_competition_has_no_table_and_no_form(client, db_sessio
     body = client.get("/leagues/international-friendlies").json()
 
     assert body["is_international"] is True
+    assert body["national_teams"] is True
     assert body["history"]["matches"] == 1
     assert body["standings"] == []
     assert body["teams"] is None

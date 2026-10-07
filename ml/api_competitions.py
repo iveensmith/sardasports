@@ -1,9 +1,10 @@
 """Competitions the engine ingests from API-Football, beyond the Football-Data.co.uk leagues.
 
 This is the registry behind the lower divisions of England, Spain, Germany,
-Italy, France, the Netherlands and Portugal, and those countries' domestic
-cups. Football-Data.co.uk publishes none of these (see docs/roadmap.md), so
-every row here is sourced from API-Football and keyed by its league id.
+Italy, France, the Netherlands and Portugal, those countries' domestic cups,
+and the UEFA club competitions (Champions, Europa and Conference League).
+Football-Data.co.uk publishes none of these (see docs/roadmap.md), so every
+row here is sourced from API-Football and keyed by its league id.
 
 Provenance: generated from `/leagues?country=...` responses, then reviewed.
 Ids, season ranges and names come from that data; the tier and family
@@ -34,8 +35,12 @@ are played at a neutral venue, so the engine gives neither side a home edge
 FA Cup semi-finals are at Wembley.
 
 Cup results are settled on the 90-minute score, never the final one — see
-scripts/fetch_api_competitions.py. About one cup tie in six goes to extra time
-or penalties, and every one of them is level after 90 minutes.
+scripts/fetch_api_competitions.py. About one single-leg cup tie in six goes to
+extra time or penalties, and every one of those is level after 90 minutes. A
+two-legged tie differs: extra time is triggered by the *aggregate* being level,
+so a second leg's own 90-minute score need not be (a Champions League
+qualifier went to penalties after a 0-1 second leg). Either way, the 90-minute
+score of the match itself is the one that is settled.
 
 Not registered, deliberately: super cups (a handful of one-off matches a year
 is a feature column fitted on noise), youth and reserve competitions, women's
@@ -88,8 +93,9 @@ class ApiCompetition:
     neutral_rounds: str = ""
 
     @property
-    def country_code(self) -> str:
-        return COUNTRY_CODES[self.country]
+    def country_code(self) -> str | None:
+        """ISO code for the flag; None for a continental competition."""
+        return COUNTRY_CODES.get(self.country)
 
     def is_neutral(self, round_name: str | None) -> bool:
         return bool(
@@ -313,6 +319,29 @@ _CUPS: tuple[tuple[int, str, str, str, str, str, int, int, bool], ...] = (
         "core",
         r"^Final$|^Semi-finals$",
         2019,
+        2026,
+        True,
+    ),
+    (
+        2,
+        "UEFA Champions League",
+        "Europe",
+        "Champions League",
+        "core",
+        r"^Final$",
+        2011,
+        2026,
+        True,
+    ),
+    (3, "UEFA Europa League", "Europe", "Europa League", "core", r"^Final$", 2014, 2026, True),
+    (
+        848,
+        "UEFA Conference League",
+        "Europe",
+        "Conference League",
+        "core",
+        r"^Final$",
+        2021,
         2026,
         True,
     ),

@@ -558,5 +558,357 @@
     }
    }
   }
+ ],
+ "ucl": [
+  {
+   "fixture": {
+    "id": 1374812,
+    "referee": "I. Kovács",
+    "timezone": "UTC",
+    "date": "2025-05-31T19:00:00+00:00",
+    "timestamp": 1748718000,
+    "periods": {
+     "first": 1748718000,
+     "second": 1748721600
+    },
+    "venue": {
+     "id": 700,
+     "name": "Allianz Arena",
+     "city": "München"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": 1
+    }
+   },
+   "league": {
+    "id": 2,
+    "name": "UEFA Champions League",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/2.png",
+    "flag": null,
+    "season": 2024,
+    "round": "Final",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 85,
+     "name": "Paris Saint Germain",
+     "logo": "https://media.api-sports.io/football/teams/85.png",
+     "winner": true
+    },
+    "away": {
+     "id": 505,
+     "name": "Inter",
+     "logo": "https://media.api-sports.io/football/teams/505.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 5,
+    "away": 0
+   },
+   "score": {
+    "halftime": {
+     "home": 2,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 5,
+     "away": 0
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1208418,
+    "referee": "L. Cibelli",
+    "timezone": "UTC",
+    "date": "2024-07-09T15:30:00+00:00",
+    "timestamp": 1720539000,
+    "periods": {
+     "first": 1720539000,
+     "second": 1720542600
+    },
+    "venue": {
+     "id": 11572,
+     "name": "Aukštaitija stadionas",
+     "city": "Panevėžys"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 2,
+    "name": "UEFA Champions League",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/2.png",
+    "flag": null,
+    "season": 2024,
+    "round": "1st Qualifying Round",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 3874,
+     "name": "Panevėžys",
+     "logo": "https://media.api-sports.io/football/teams/3874.png",
+     "winner": true
+    },
+    "away": {
+     "id": 649,
+     "name": "HJK Helsinki",
+     "logo": "https://media.api-sports.io/football/teams/649.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 3,
+    "away": 0
+   },
+   "score": {
+    "halftime": {
+     "home": 1,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 3,
+     "away": 0
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1299038,
+    "referee": "M. Oliver",
+    "timezone": "UTC",
+    "date": "2024-11-05T17:45:00+00:00",
+    "timestamp": 1730828700,
+    "periods": {
+     "first": 1730828700,
+     "second": 1730832300
+    },
+    "venue": {
+     "id": 1143,
+     "name": "Philips Stadion",
+     "city": "Eindhoven"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": 4
+    }
+   },
+   "league": {
+    "id": 2,
+    "name": "UEFA Champions League",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/2.png",
+    "flag": null,
+    "season": 2024,
+    "round": "League Stage - 4",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 197,
+     "name": "PSV Eindhoven",
+     "logo": "https://media.api-sports.io/football/teams/197.png",
+     "winner": true
+    },
+    "away": {
+     "id": 547,
+     "name": "Girona",
+     "logo": "https://media.api-sports.io/football/teams/547.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 4,
+    "away": 0
+   },
+   "score": {
+    "halftime": {
+     "home": 2,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 4,
+     "away": 0
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1208413,
+    "referee": "O. Derevinskyi",
+    "timezone": "UTC",
+    "date": "2024-07-16T14:30:00+00:00",
+    "timestamp": 1721140200,
+    "periods": {
+     "first": 1721140200,
+     "second": 1721143800
+    },
+    "venue": {
+     "id": null,
+     "name": "Stadiumi Zahir Pajaziti",
+     "city": "Besiana, Podujevo"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "PEN",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 2,
+    "name": "UEFA Champions League",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/2.png",
+    "flag": null,
+    "season": 2024,
+    "round": "1st Qualifying Round",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 12733,
+     "name": "Ballkani",
+     "logo": "https://media.api-sports.io/football/teams/12733.png",
+     "winner": false
+    },
+    "away": {
+     "id": 703,
+     "name": "UE Santa Coloma",
+     "logo": "https://media.api-sports.io/football/teams/703.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 1,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 1
+    },
+    "extratime": {
+     "home": 1,
+     "away": 1
+    },
+    "penalty": {
+     "home": 5,
+     "away": 6
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 1371730,
+    "referee": "S. Vinčić",
+    "timezone": "UTC",
+    "date": "2025-04-29T19:00:00+00:00",
+    "timestamp": 1745953200,
+    "periods": {
+     "first": 1745953200,
+     "second": 1745956800
+    },
+    "venue": {
+     "id": 494,
+     "name": "Emirates Stadium",
+     "city": "London"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": 6
+    }
+   },
+   "league": {
+    "id": 2,
+    "name": "UEFA Champions League",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/2.png",
+    "flag": null,
+    "season": 2024,
+    "round": "Semi-finals",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 42,
+     "name": "Arsenal",
+     "logo": "https://media.api-sports.io/football/teams/42.png",
+     "winner": false
+    },
+    "away": {
+     "id": 85,
+     "name": "Paris Saint Germain",
+     "logo": "https://media.api-sports.io/football/teams/85.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 0,
+    "away": 1
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 1
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 1
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  }
  ]
 }

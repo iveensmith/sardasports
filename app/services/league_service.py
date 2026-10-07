@@ -28,6 +28,7 @@ from app.services.prediction_service import predict_for_matches
 from app.services.progress_service import competition_record
 from app.services.standings_service import compute_standings
 from ml.competition_catalogue import BY_COMPETITION, CompetitionMeta
+from ml.competitions import INTERNATIONAL_COMPETITIONS
 
 # How many fixtures and results the page lists. A page, not an archive: the
 # full board for any day is one link away.
@@ -255,6 +256,9 @@ def build_league(db: Session, meta: CompetitionMeta) -> dict:
         "country_code": meta.country_code,
         "tier": meta.tier,
         "is_international": meta.is_international,
+        # Not the same thing: the Champions League sits under "Europe" like the
+        # Euros do, but is made of clubs, not national teams.
+        "national_teams": competition in INTERNATIONAL_COMPETITIONS,
         "history": history,
         # Days since the newest result on record, so the page can say how
         # current the table and rates are rather than imply they are live.
