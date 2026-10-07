@@ -40,10 +40,11 @@ class Settings(BaseSettings):
     analyst_model: str = "claude-sonnet-5"
 
     # Scheduler (app/scheduler.py) — off by default so tests/scripts never
-    # accidentally start background jobs.
+    # accidentally start background jobs. What it fetches and how often is not
+    # configured here: the daily refresh walks every league and the current
+    # season, and the API jobs follow the account's own plan and remaining quota
+    # (see app/services/api_budget.py).
     enable_scheduler: bool = False
-    scheduler_league: str = "E0"
-    scheduler_seasons: str = "2425"
 
     # Injuries (scripts/sync_injuries.py) — requires your own key from
     # dashboard.api-football.com. Unset by default; get_injuries stays

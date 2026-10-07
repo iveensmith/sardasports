@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from dataclasses import dataclass
 from io import StringIO
 from pathlib import Path
 
@@ -107,6 +108,91 @@ def fetch_country_file(country: str, timeout: int = 30) -> pd.DataFrame:
     return df
 
 
+@dataclass(frozen=True)
+class ExtraLeague:
+    """One league on a Football-Data.co.uk country file."""
+
+    country: str
+    # Which "League" value to keep; None for a country file with only one league.
+    league: str | None
+    # Our internal code, which is also the raw-file prefix (`MLS1_2626.csv`).
+    code: str
+
+
+# Every league this source supplies, with the League filter confirmed against the
+# live country files. The daily refresh walks this table, so a league missing here
+# is a league that silently stops updating. A test pins it against clean_data.
+EXTRA_LEAGUES: tuple[ExtraLeague, ...] = (
+    ExtraLeague("USA", "MLS", "MLS1"),
+    ExtraLeague("ARG", "Liga Profesional", "ARG1"),
+    ExtraLeague("BRA", "Serie A", "BRA1"),
+    ExtraLeague("JPN", "J1 League", "JPN1"),
+    ExtraLeague("MEX", "Liga MX", "MEX1"),
+    ExtraLeague("RUS", "Premier League", "RUS1"),
+    ExtraLeague("POL", "Ekstraklasa", "POL1"),
+    ExtraLeague("NOR", "Eliteserien", "NOR1"),
+    ExtraLeague("AUT", "Bundesliga", "AUT1"),
+    ExtraLeague("CHN", "Super League", "CHN1"),
+    ExtraLeague("DNK", "Superliga", "DNK1"),
+    ExtraLeague("FIN", "Veikkausliiga", "FIN1"),
+    ExtraLeague("IRL", "Premier Division", "IRL1"),
+    ExtraLeague("ROU", "Superliga", "ROU1"),
+    ExtraLeague("SWE", "Allsvenskan", "SWE1"),
+    ExtraLeague("SWZ", "Super League", "SWZ1"),
+)
+
+
+def write_seasons(
+    country: str, league: str | None, code: str, years: list[int], df: pd.DataFrame | None = None
+) -> list[Path]:
+    """Download a country file and write one raw CSV per requested season.
+
+    Returns the files written. Nothing found is an empty list, not an error:
+    this is called from a scheduled job, where raising would take the whole
+    refresh down for one country's quiet week.
+    """
+    if df is None:
+        logger.info("Downloading %s/%s.csv ...", BASE_URL, country)
+        df = fetch_country_file(country)
+
+    if league:
+        before = len(df)
+        # Stripped comparison: this source is inconsistent about a trailing
+        # space on the League column (e.g. Argentina's file has both
+        # "Liga Profesional" and "Liga Profesional " for the same
+        # competition) — an exact match silently drops close to half the
+        # rows for some countries.
+        df = df[df["League"].str.strip() == league.strip()]
+        logger.info("Filtered League=%s: %d -> %d rows", league, before, len(df))
+
+    # Parsed once per row rather than per requested year: this source's
+    # Season column is int64 for some countries (Brazil), a bare-year string
+    # for others (Argentina), and a split-year string for others still
+    # (Mexico, Russia, Poland) — `_parse_season_value` reads all three back
+    # to a comparable starting year.
+    start_years = df["Season"].apply(_parse_season_value)
+
+    RAW_DIR.mkdir(parents=True, exist_ok=True)
+    saved = []
+    for year in years:
+        season_rows = df[start_years == str(year)]
+        if season_rows.empty:
+            logger.warning("No rows for %s season %s — skipping", country, year)
+            continue
+
+        available = {src: dst for src, dst in COLUMN_MAP.items() if src in season_rows.columns}
+        out = season_rows[list(available.keys())].rename(columns=available)
+
+        # Every matching row shares one season shape, so the first row's raw
+        # Season value is enough to pick same-year vs split-year encoding.
+        season_code = _season_code(season_rows["Season"].iloc[0], year)
+        dest = RAW_DIR / f"{code}_{season_code}.csv"
+        out.to_csv(dest, index=False)
+        saved.append(dest)
+        logger.info("Saved %s (%d matches)", dest, len(out))
+    return saved
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fetch a Football-Data.co.uk 'extra' country file, split by season"
@@ -122,45 +208,7 @@ def main() -> None:
     args = parser.parse_args()
 
     years = [int(s.strip()) for s in args.seasons.split(",") if s.strip()]
-
-    logger.info("Downloading %s/%s.csv ...", BASE_URL, args.country)
-    df = fetch_country_file(args.country)
-
-    if args.league:
-        before = len(df)
-        # Stripped comparison: this source is inconsistent about a trailing
-        # space on the League column (e.g. Argentina's file has both
-        # "Liga Profesional" and "Liga Profesional " for the same
-        # competition) — an exact match silently drops close to half the
-        # rows for some countries.
-        df = df[df["League"].str.strip() == args.league.strip()]
-        logger.info("Filtered League=%s: %d -> %d rows", args.league, before, len(df))
-
-    # Parsed once per row rather than per requested year: this source's
-    # Season column is int64 for some countries (Brazil), a bare-year string
-    # for others (Argentina), and a split-year string for others still
-    # (Mexico, Russia, Poland) — `_parse_season_value` reads all three back
-    # to a comparable starting year.
-    start_years = df["Season"].apply(_parse_season_value)
-
-    RAW_DIR.mkdir(parents=True, exist_ok=True)
-    saved = []
-    for year in years:
-        season_rows = df[start_years == str(year)]
-        if season_rows.empty:
-            logger.warning("No rows for %s season %s — skipping", args.country, year)
-            continue
-
-        available = {src: dst for src, dst in COLUMN_MAP.items() if src in season_rows.columns}
-        out = season_rows[list(available.keys())].rename(columns=available)
-
-        # Every matching row shares one season shape, so the first row's raw
-        # Season value is enough to pick same-year vs split-year encoding.
-        code = _season_code(season_rows["Season"].iloc[0], year)
-        dest = RAW_DIR / f"{args.code}_{code}.csv"
-        out.to_csv(dest, index=False)
-        saved.append(dest)
-        logger.info("Saved %s (%d matches)", dest, len(out))
+    saved = write_seasons(args.country, args.league, args.code, years)
 
     if not saved:
         raise SystemExit("No seasons written — check --country/--league/--seasons.")

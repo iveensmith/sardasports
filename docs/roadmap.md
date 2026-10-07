@@ -1969,3 +1969,50 @@ than a thin one, and that tennis and unfinished matches do not count.
 - After a change to a page's data calls, the dev server's `.next` cache kept
   serving the old render and masked the fix until it was cleared — the same
   trap recorded in the project notes.
+
+## The scheduler made safe to switch on, and the daily refresh made correct
+
+Still **off** (`ENABLE_SCHEDULER=false`) — turning it on remains the owner's call —
+but it can now be turned on without either of the two ways it would have failed.
+
+**1. The daily refresh was the root of the original staleness.** `refresh_data_job`
+re-downloaded `E0` for season `2425` and nothing else: last season, one league. So
+even a running scheduler would have left the whole domestic record frozen, which is
+exactly how it went a year stale. It now pulls every league from the free source
+for the current season (the 19 main leagues by season code, plus the 16 country
+files by year), plus the previous season through July–September when a season's
+last results are still arriving, then cleans and loads. None of it touches the
+API quota, so it keeps the domestic record current on any plan. A failed download
+or a down country skips that file and carries on. The league table
+(`EXTRA_LEAGUES` in `scripts/fetch_extra_league.py`) is pinned by a test against
+`clean_data.LEAGUE_NAMES`, so a league added to the pipeline and forgotten here
+fails a test instead of silently stopping updating. Run for real end to end it
+refreshed all 35 league codes, re-cleaned 118,007 rows, rebuilt Elo, and inserted
+nothing new (nothing had been played since the morning's data). The old
+`SCHEDULER_LEAGUE` / `SCHEDULER_SEASONS` settings are gone; `.env` still carries
+them harmlessly (`extra="ignore"`).
+
+**2. A quota guard.** Each API job now asks API-Football itself how much of the day
+is left — its `/status` call is free and uncounted — and runs only if its worst-case
+cost fits with a margin of 5 to spare. Asking the source means a script run by hand
+or a second process cannot make it wrong, and there is no state to persist. It
+fails closed: an unreadable status skips the job, because one missed run is cheap
+and a spent quota is not.
+
+**3. Right-sized cadence, by plan.** The old jobs would have spent far more than a
+free plan's 100 a day. The free profile is worst-case 99: fixtures 3 runs × 3 days,
+odds 2 × (9 + 10), results 4 × 3, stats 1 × 20, injuries 1 × 20 — and a test
+computes that sum from the profile, so changing a cadence or a cap cannot silently
+break the budget. A paid plan gets the original busier cadence and larger caps. Which
+applies is read from the account's own daily limit (1,000 or more is paid), so
+upgrading the plan changes behaviour with no edit; an unreadable status means free.
+
+**4. The injury sync no longer loops over every team.** It covered all 3,467
+(tennis players included) at two requests each, which alone would have spent the
+quota at 03:30. It now covers only football teams with a fixture in the next three
+days, soonest first, capped at 10 on the free plan.
+
+Not done: the first request counted by the guard on subscription day still wants a
+look at real numbers — the caps are worst cases, not measurements. 37 new tests in
+`tests/test_scheduler_budget.py`; the guard's skip cases are seeded with real
+fixtures so they cannot pass for want of anything to do.

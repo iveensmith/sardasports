@@ -16,51 +16,190 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.database.session import SessionLocal
+from app.services.api_budget import MARGIN, PAID_DAILY_LIMIT, api_status, is_paid_plan
 from app.utils.config import get_settings
 from app.utils.logging import get_logger
+from app.utils.seasons import season_codes_to_refresh
 
 logger = get_logger(__name__)
 
 _scheduler: BackgroundScheduler | None = None
 
 
-def refresh_data_job() -> None:
-    """Daily: re-download the configured league/seasons, re-clean, re-load.
+# What each API job may spend in one run, and when it runs, per plan.
+#
+# The free plan allows 100 requests a day. The numbers below are worst cases and
+# add up to 99 on it:
+#
+#     fixtures   3 runs x 3 days                    =   9
+#     odds       2 runs x (3 days x 3 pages + 10)   =  38
+#     results    4 runs x 3 days                    =  12
+#     stats      1 run  x 10 fixtures x 2 requests  =  20
+#     injuries   1 run  x 10 teams x 2 requests     =  20
+#
+# A paid plan allows thousands, so it gets the original, busier cadence and
+# larger caps. Which one applies is read from the account's own daily limit, not
+# configured by hand, so upgrading the plan changes the behaviour with no edit.
+# An unreadable status falls back to the free profile: the safe one.
+PROFILES: dict[str, dict] = {
+    "free": {
+        "fixtures": {"days": 3, "cron": {"hour": "*/8"}},
+        "odds": {"days": 3, "backfill": 10, "cron": {"hour": "*/12", "minute": 15}},
+        "results": {"days": 3, "cron": {"hour": "*/6"}},
+        "stats": {"fixtures": 10, "cron": {"hour": 5, "minute": 10}},
+        "injuries": {"teams": 10},
+    },
+    "paid": {
+        "fixtures": {"days": 7, "cron": {"hour": "*/4"}},
+        "odds": {"days": 3, "backfill": 40, "cron": {"hour": "*/4", "minute": 15}},
+        "results": {"days": 3, "cron": {"hour": "*/3"}},
+        "stats": {"fixtures": 40, "cron": {"hour": "*/3", "minute": 10}},
+        "injuries": {"teams": 100},
+    },
+}
 
-    Football-Data.co.uk publishes whole-season files rather than a
-    single-day feed, so "daily fixture refresh" here means re-pulling the
-    current season's file (results and any newly-completed matches land in
-    it) — safe and idempotent per `scripts/load_to_db.py`'s own guarantees.
+# One odds page is up to this many requests per day on the free plan's cap.
+ODDS_PAGES_PER_DAY = 3
+
+# How far ahead "playing soon" looks when choosing teams whose injuries matter.
+INJURY_LOOKAHEAD_DAYS = 3
+
+
+def _profile_for(limit: int) -> dict:
+    return PROFILES["paid" if limit >= PAID_DAILY_LIMIT else "free"]
+
+
+def _admit(name: str, settings, cost_for) -> dict | None:
+    """Decide whether an API job may run now. Returns its plan profile, or None.
+
+    `cost_for(profile)` is the job's worst-case spend. The job runs only if that
+    fits in what the account has left today, read from API-Football itself, with a
+    margin spare. If the status cannot be read the job is skipped: one missed run
+    is cheap, and a spent quota is not.
     """
+    if not settings.api_football_key:
+        logger.info("%s skipped: API_FOOTBALL_KEY not set", name)
+        return None
+    status = api_status(settings)
+    if status is None:
+        logger.warning("%s skipped: could not read the API quota", name)
+        return None
+    profile = _profile_for(status["limit"])
+    cost = cost_for(profile)
+    remaining = status["limit"] - status["used"]
+    if remaining < cost + MARGIN:
+        logger.warning(
+            "%s skipped: needs up to %d requests but only %d of today's %d remain",
+            name,
+            cost,
+            remaining,
+            status["limit"],
+        )
+        return None
+    return profile
+
+
+def refresh_data_job() -> None:
+    """Daily: re-download every league from the free source, re-clean, re-load.
+
+    Football-Data.co.uk publishes whole-season files rather than a single-day
+    feed, so "daily refresh" means re-pulling the current season's file for every
+    league (results and newly completed matches land in it). That is the 19 main
+    leagues by season code plus the 16 country files by year. None of it touches
+    the API-Football quota, which is why it is the part of the pipeline that keeps
+    the domestic record current whatever plan the account is on.
+
+    It once pulled only the Premier League's 2024-25 season, which is how the
+    whole domestic record went stale by a year: the season it fetched was over
+    and no other league was fetched at all. Safe and idempotent per
+    `scripts/load_to_db.py`'s own guarantees; a failed download skips that file
+    and carries on.
+    """
+    from datetime import UTC, datetime
+
     from scripts.clean_data import main as clean_main
-    from scripts.download_data import download_season
+    from scripts.download_data import KNOWN_LEAGUES, download_season
+    from scripts.fetch_extra_league import EXTRA_LEAGUES, write_seasons
     from scripts.load_to_db import main as load_main
 
-    settings = get_settings()
-    for season in settings.scheduler_seasons.split(","):
-        download_season(settings.scheduler_league, season.strip())
+    today = datetime.now(UTC).date()
+    fetched = failed = 0
+
+    for code in season_codes_to_refresh(today):
+        for league in KNOWN_LEAGUES:
+            if download_season(league, code) is None:
+                failed += 1
+            else:
+                fetched += 1
+
+    # Bare starting years: a calendar-year league's current season starts this
+    # year, a split-year league's started this year or last.
+    years = [today.year - 1, today.year]
+    for spec in EXTRA_LEAGUES:
+        try:
+            saved = write_seasons(spec.country, spec.league, spec.code, years)
+        except Exception as exc:  # one country's outage must not stop the rest
+            logger.warning("refresh_data_job: %s failed: %s", spec.country, exc)
+            failed += 1
+            continue
+        fetched += len(saved)
+
+    logger.info("refresh_data_job: %d file(s) refreshed, %d failed", fetched, failed)
     clean_main()
     load_main()
     logger.info("refresh_data_job completed")
 
 
+def _teams_playing_soon(session, limit: int):
+    """Teams with a football fixture in the next few days, soonest first, capped.
+
+    Injuries matter for a team that is about to play. The sync once looped over
+    every team in the database — tennis players among them — which is thousands of
+    requests for news about clubs with nothing on the calendar.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from app.models import Match, Team
+
+    now = datetime.now(UTC).replace(tzinfo=None)
+    fixtures = (
+        session.query(Match)
+        .filter(
+            Match.status == "scheduled",
+            Match.sport == "football",
+            Match.match_date >= now,
+            Match.match_date < now + timedelta(days=INJURY_LOOKAHEAD_DAYS),
+        )
+        .order_by(Match.match_date.asc())
+        .all()
+    )
+    ids: list[int] = []
+    for match in fixtures:
+        for team_id in (match.home_team_id, match.away_team_id):
+            if team_id not in ids:
+                ids.append(team_id)
+    ids = ids[:limit]
+    by_id = {t.id: t for t in session.query(Team).filter(Team.id.in_(ids))} if ids else {}
+    return [by_id[i] for i in ids if i in by_id]
+
+
 def sync_injuries_job() -> None:
-    """Daily: refresh injuries for every team in the configured league — best
-    effort, skipped entirely (not a scheduler failure) if API_FOOTBALL_KEY
-    isn't set, since this is an optional feature that needs your own key."""
+    """Daily: refresh injuries for teams that are about to play — best effort.
+
+    Skipped (not a scheduler failure) without an API key, or when the day's quota
+    cannot cover it. The team count is capped per plan, and each team costs up to
+    two requests (resolving its API id, then fetching injuries).
+    """
     settings = get_settings()
-    if not settings.api_football_key:
-        logger.info("sync_injuries_job skipped: API_FOOTBALL_KEY not set")
+    profile = _admit("sync_injuries_job", settings, lambda p: 2 * p["injuries"]["teams"])
+    if profile is None:
         return
 
     from scripts.sync_injuries import ApiFootballError, sync_team_injuries
 
     session = SessionLocal()
     try:
-        from app.models import Team
-
-        teams = session.query(Team).all()
-        for team in teams:
+        for team in _teams_playing_soon(session, profile["injuries"]["teams"]):
             try:
                 sync_team_injuries(session, team, settings)
             except ApiFootballError as exc:
@@ -70,81 +209,81 @@ def sync_injuries_job() -> None:
 
 
 def fetch_upcoming_fixtures_job() -> None:
-    """Daily: ingest newly-announced fixtures for every modelled competition.
+    """Ingest newly-announced fixtures for every modelled competition.
 
-    Fixture lists roll forward day by day — a free API-Football plan only
-    ever shows a few days ahead at any one moment — so running this daily is
-    what turns that narrow window into a continuously up-to-date board
-    instead of a one-off snapshot from whenever someone last ran it by hand.
-    Skipped entirely, not a scheduler failure, if `API_FOOTBALL_KEY` isn't
-    set, matching `sync_injuries_job`'s convention.
+    Fixture lists roll forward day by day — a free API-Football plan only ever
+    shows a few days ahead at any one moment — so running this regularly is what
+    turns that narrow window into a continuously up-to-date board instead of a
+    one-off snapshot. One request per day looked at, so the cost is the number of
+    days; the free profile looks three ahead, the window it can actually answer.
     """
     settings = get_settings()
-    if not settings.api_football_key:
-        logger.info("fetch_upcoming_fixtures_job skipped: API_FOOTBALL_KEY not set")
+    profile = _admit("fetch_upcoming_fixtures_job", settings, lambda p: p["fixtures"]["days"])
+    if profile is None:
         return
 
     from scripts.fetch_upcoming_fixtures import main as fetch_fixtures_main
 
-    fetch_fixtures_main([])
+    fetch_fixtures_main(["--days", str(profile["fixtures"]["days"])])
 
 
 def fetch_odds_job() -> None:
-    """Daily: refresh bookmaker prices for upcoming fixtures.
+    """Refresh bookmaker prices for upcoming fixtures.
 
-    Runs after `fetch_upcoming_fixtures_job` so freshly-ingested fixtures
-    already exist to attach prices to. Skipped entirely, not a scheduler
-    failure, if `API_FOOTBALL_KEY` isn't set.
+    Runs after the fixtures job so freshly-ingested fixtures already exist to
+    attach prices to. The bulk call paginates, up to three pages a day on a free
+    plan, and a per-fixture fallback fills what it missed up to a cap; both are
+    counted in the worst case.
     """
     settings = get_settings()
-    if not settings.api_football_key:
-        logger.info("fetch_odds_job skipped: API_FOOTBALL_KEY not set")
+    profile = _admit(
+        "fetch_odds_job",
+        settings,
+        lambda p: p["odds"]["days"] * ODDS_PAGES_PER_DAY + p["odds"]["backfill"],
+    )
+    if profile is None:
         return
 
     from scripts.fetch_odds import main as fetch_odds_main
 
-    fetch_odds_main([])
+    odds = profile["odds"]
+    fetch_odds_main(["--days", str(odds["days"]), "--max-backfill", str(odds["backfill"])])
 
 
 def fetch_results_job() -> None:
-    """Every few hours: fill in results for fixtures that have finished.
+    """Fill in results for fixtures that have finished.
 
     `evaluate_predictions_job` (below) can only backfill actual results onto
-    `prediction_history` once a match's row says `status="completed"` — this
-    is what flips it. Skipped entirely, not a scheduler failure, if
-    `API_FOOTBALL_KEY` isn't set, matching `sync_injuries_job`'s convention:
-    this pipeline only exists for a deployment that opted into API-Football
-    fixtures in the first place.
+    `prediction_history` once a match's row says `status="completed"` — this is
+    what flips it. One request per day walked back, so the cost is the number of
+    days.
     """
     settings = get_settings()
-    if not settings.api_football_key:
-        logger.info("fetch_results_job skipped: API_FOOTBALL_KEY not set")
+    profile = _admit("fetch_results_job", settings, lambda p: p["results"]["days"])
+    if profile is None:
         return
 
     from scripts.fetch_results import fetch_and_apply_results
 
-    updated = fetch_and_apply_results()
+    updated = fetch_and_apply_results(days_back=profile["results"]["days"])
     logger.info("fetch_results_job marked %d fixture(s) completed", updated)
 
 
 def fetch_match_stats_job() -> None:
-    """Every few hours, after `fetch_results_job`: per-fixture statistics and
-    goal events for matches that now have a score but nothing else.
+    """Per-fixture statistics and goal events for matches that now have a score.
 
-    Runs on the same skip-if-unconfigured convention as `fetch_results_job` —
-    this is two more API-Football requests per fixture on top of that job's
-    one per day, so it is deliberately its own job rather than folded into
-    it, and can be tuned or disabled independently once real request volume
-    is known.
+    Two requests per fixture, so this is deliberately its own job with its own cap
+    rather than folded into the results job: it is the one whose cost scales with
+    how much football was played.
     """
     settings = get_settings()
-    if not settings.api_football_key:
-        logger.info("fetch_match_stats_job skipped: API_FOOTBALL_KEY not set")
+    profile = _admit("fetch_match_stats_job", settings, lambda p: 2 * p["stats"]["fixtures"])
+    if profile is None:
         return
 
     from scripts.fetch_match_stats import fetch_and_apply_match_stats
 
-    updated = fetch_and_apply_match_stats()
+    updated = fetch_and_apply_match_stats(max_fixtures=profile["stats"]["fixtures"])
     logger.info("fetch_match_stats_job fetched statistics/events for %d fixture(s)", updated)
 
 
@@ -260,27 +399,34 @@ def start_scheduler() -> BackgroundScheduler | None:
     if _scheduler is not None:
         return _scheduler
 
+    # The cadence follows the account's plan, read from the API itself: a free
+    # plan gets the quota-safe one, a paid plan the busier one. See PROFILES.
+    profile = PROFILES["paid" if is_paid_plan(settings) else "free"]
+
     scheduler = BackgroundScheduler()
     scheduler.add_job(refresh_data_job, CronTrigger(hour=3, minute=0), id="daily_refresh_data")
     scheduler.add_job(sync_injuries_job, CronTrigger(hour=3, minute=30), id="daily_sync_injuries")
-    # Runs a few times a day so the visible board rolls forward as new
-    # fixtures are announced, rather than only ever reflecting whatever was
-    # ingested the last time someone ran the script by hand.
+    # Rolls the visible board forward as new fixtures are announced, rather than
+    # only ever reflecting whatever was ingested the last time someone ran the
+    # script by hand.
     scheduler.add_job(
-        fetch_upcoming_fixtures_job, CronTrigger(hour="*/4"), id="fetch_upcoming_fixtures"
+        fetch_upcoming_fixtures_job,
+        CronTrigger(**profile["fixtures"]["cron"]),
+        id="fetch_upcoming_fixtures",
     )
-    # Right after fixtures, so newly-ingested rows have prices by the time
+    # After fixtures in the day, so newly-ingested rows have prices by the time
     # anyone loads the board.
-    scheduler.add_job(fetch_odds_job, CronTrigger(hour="*/4", minute=15), id="fetch_odds")
+    scheduler.add_job(fetch_odds_job, CronTrigger(**profile["odds"]["cron"]), id="fetch_odds")
     # Runs ahead of evaluate_predictions_job's */6 cadence so a completed
     # match's result is already in the database by the time that job looks
     # for one to backfill.
-    scheduler.add_job(fetch_results_job, CronTrigger(hour="*/3"), id="fetch_results")
-    # A few minutes after fetch_results, so it only ever sees fixtures that
-    # already have a score — it never has anything to do for one that isn't
-    # completed yet.
     scheduler.add_job(
-        fetch_match_stats_job, CronTrigger(hour="*/3", minute=10), id="fetch_match_stats"
+        fetch_results_job, CronTrigger(**profile["results"]["cron"]), id="fetch_results"
+    )
+    # Only ever sees fixtures that already have a score, so it has nothing to do
+    # for one that isn't completed yet.
+    scheduler.add_job(
+        fetch_match_stats_job, CronTrigger(**profile["stats"]["cron"]), id="fetch_match_stats"
     )
     scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
     scheduler.add_job(

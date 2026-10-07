@@ -42,3 +42,28 @@ def label_like(sample: str, year: int) -> str | None:
 def fallback_label(year: int, first_kickoff_month: int) -> str:
     """For a competition with no history: football starting July or later is split-year."""
     return f"{year}-{year + 1}" if first_kickoff_month >= 7 else str(year)
+
+
+def european_season_code(today) -> str:
+    """The Football-Data season code for the season running on `today`.
+
+    A season starts in the summer, so July onwards belongs to the season that
+    began that year ("2627" in October 2026) and January to June to the one that
+    began the year before ("2526" in March 2027).
+    """
+    start = today.year if today.month >= 7 else today.year - 1
+    return f"{start % 100:02d}{(start + 1) % 100:02d}"
+
+
+def season_codes_to_refresh(today) -> list[str]:
+    """The season codes a daily refresh should pull.
+
+    Always the current one. From July to September the previous season is pulled
+    too: its last results and any corrections land in the weeks after it ends,
+    and a refresh that had already moved on would never collect them.
+    """
+    current = european_season_code(today)
+    if 7 <= today.month <= 9:
+        previous = european_season_code(today.replace(year=today.year - 1))
+        return [current, previous]
+    return [current]
