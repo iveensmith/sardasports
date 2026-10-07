@@ -44,11 +44,11 @@ tournament football is lower-scoring than a friendly.
 
 from __future__ import annotations
 
-from ml.api_competitions import family_of
+from ml.api_competitions import enabled_national, family_of
 
-# National-team competitions. Keep in sync with the international block of
-# `ml.training.common.KNOWN_COMPETITIONS`.
-INTERNATIONAL_COMPETITIONS: frozenset[str] = frozenset(
+# The national-team competitions the engine launched with. Keep in sync with the
+# international block of `ml.training.common.KNOWN_COMPETITIONS`.
+_BASE_INTERNATIONAL_COMPETITIONS: frozenset[str] = frozenset(
     {
         "FIFA World Cup",
         "UEFA European Championship",
@@ -58,6 +58,12 @@ INTERNATIONAL_COMPETITIONS: frozenset[str] = frozenset(
         "Africa Cup of Nations Qualifiers",
         "International Friendlies",
     }
+)
+
+# Plus every national-team competition enabled in the API registry, so they join
+# the one shared pool and get their Elo K. Empty until something is enabled.
+INTERNATIONAL_COMPETITIONS: frozenset[str] = _BASE_INTERNATIONAL_COMPETITIONS | frozenset(
+    c.name for c in enabled_national()
 )
 
 # The bucket key every international competition shares. Chosen to be

@@ -13,7 +13,7 @@
     },
     "venue": {
      "id": null,
-     "name": "Estadio Olímpico de Sevilla",
+     "name": "Estadio Ol\u00edmpico de Sevilla",
      "city": "Sevilla"
     },
     "status": {
@@ -73,7 +73,7 @@
   {
    "fixture": {
     "id": 1350688,
-    "referee": "Alejandro Hernández",
+    "referee": "Alejandro Hern\u00e1ndez",
     "timezone": "UTC",
     "date": "2025-02-25T20:30:00+00:00",
     "timestamp": 1740515400,
@@ -83,7 +83,7 @@
     },
     "venue": {
      "id": 19939,
-     "name": "Estadi Olímpic Lluís Companys",
+     "name": "Estadi Ol\u00edmpic Llu\u00eds Companys",
      "city": "Barcelona"
     },
     "status": {
@@ -154,7 +154,7 @@
     "venue": {
      "id": 3994,
      "name": "Estadio Nuevo Municipal Las Gaunas",
-     "city": "Logroño"
+     "city": "Logro\u00f1o"
     },
     "status": {
      "long": "Match Finished",
@@ -176,7 +176,7 @@
    "teams": {
     "home": {
      "id": 5280,
-     "name": "UD Logroñés",
+     "name": "UD Logro\u00f1\u00e9s",
      "logo": "https://media.api-sports.io/football/teams/5280.png",
      "winner": false
     },
@@ -223,8 +223,8 @@
     },
     "venue": {
      "id": null,
-     "name": "Campo de Fútbol O Monte",
-     "city": "A Coruña"
+     "name": "Campo de F\u00fatbol O Monte",
+     "city": "A Coru\u00f1a"
     },
     "status": {
      "long": "Match Finished",
@@ -491,7 +491,7 @@
   {
    "fixture": {
     "id": 1231431,
-    "referee": "Hélder Carvalho",
+    "referee": "H\u00e9lder Carvalho",
     "timezone": "UTC",
     "date": "2024-08-10T10:00:00+00:00",
     "timestamp": 1723284000,
@@ -501,7 +501,7 @@
     },
     "venue": {
      "id": 21117,
-     "name": "Estádio do Marítimo",
+     "name": "Est\u00e1dio do Mar\u00edtimo",
      "city": "Ilha da Madeira"
     },
     "status": {
@@ -563,7 +563,7 @@
   {
    "fixture": {
     "id": 1374812,
-    "referee": "I. Kovács",
+    "referee": "I. Kov\u00e1cs",
     "timezone": "UTC",
     "date": "2025-05-31T19:00:00+00:00",
     "timestamp": 1748718000,
@@ -574,7 +574,7 @@
     "venue": {
      "id": 700,
      "name": "Allianz Arena",
-     "city": "München"
+     "city": "M\u00fcnchen"
     },
     "status": {
      "long": "Match Finished",
@@ -643,8 +643,8 @@
     },
     "venue": {
      "id": 11572,
-     "name": "Aukštaitija stadionas",
-     "city": "Panevėžys"
+     "name": "Auk\u0161taitija stadionas",
+     "city": "Panev\u0117\u017eys"
     },
     "status": {
      "long": "Match Finished",
@@ -666,7 +666,7 @@
    "teams": {
     "home": {
      "id": 3874,
-     "name": "Panevėžys",
+     "name": "Panev\u0117\u017eys",
      "logo": "https://media.api-sports.io/football/teams/3874.png",
      "winner": true
     },
@@ -843,7 +843,7 @@
   {
    "fixture": {
     "id": 1371730,
-    "referee": "S. Vinčić",
+    "referee": "S. Vin\u010di\u0107",
     "timezone": "UTC",
     "date": "2025-04-29T19:00:00+00:00",
     "timestamp": 1745953200,
@@ -899,6 +899,218 @@
     "fulltime": {
      "home": 0,
      "away": 1
+    },
+    "extratime": {
+     "home": null,
+     "away": null
+    },
+    "penalty": {
+     "home": null,
+     "away": null
+    }
+   }
+  }
+ ],
+ "wc": [
+  {
+   "fixture": {
+    "id": 979139,
+    "referee": "S. Marciniak",
+    "timezone": "UTC",
+    "date": "2022-12-18T15:00:00+00:00",
+    "timestamp": 1671375600,
+    "periods": {
+     "first": 1671375600,
+     "second": 1671379200
+    },
+    "venue": {
+     "id": null,
+     "name": "Lusail Iconic Stadium",
+     "city": "Lusail"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "PEN",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 1,
+    "name": "World Cup",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/1.png",
+    "flag": null,
+    "season": 2022,
+    "round": "Final",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 26,
+     "name": "Argentina",
+     "logo": "https://media.api-sports.io/football/teams/26.png",
+     "winner": true
+    },
+    "away": {
+     "id": 2,
+     "name": "France",
+     "logo": "https://media.api-sports.io/football/teams/2.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 3,
+    "away": 3
+   },
+   "score": {
+    "halftime": {
+     "home": 2,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 2,
+     "away": 2
+    },
+    "extratime": {
+     "home": 1,
+     "away": 1
+    },
+    "penalty": {
+     "home": 4,
+     "away": 2
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 978072,
+    "referee": "M. Oliver",
+    "timezone": "UTC",
+    "date": "2022-12-09T15:00:00+00:00",
+    "timestamp": 1670598000,
+    "periods": {
+     "first": 1670598000,
+     "second": 1670601600
+    },
+    "venue": {
+     "id": null,
+     "name": "Education City Stadium",
+     "city": "Ar-Rayyan"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "PEN",
+     "elapsed": 120,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 1,
+    "name": "World Cup",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/1.png",
+    "flag": null,
+    "season": 2022,
+    "round": "Quarter-finals",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 3,
+     "name": "Croatia",
+     "logo": "https://media.api-sports.io/football/teams/3.png",
+     "winner": true
+    },
+    "away": {
+     "id": 6,
+     "name": "Brazil",
+     "logo": "https://media.api-sports.io/football/teams/6.png",
+     "winner": false
+    }
+   },
+   "goals": {
+    "home": 1,
+    "away": 1
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 0
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 0
+    },
+    "extratime": {
+     "home": 1,
+     "away": 1
+    },
+    "penalty": {
+     "home": 4,
+     "away": 2
+    }
+   }
+  },
+  {
+   "fixture": {
+    "id": 855736,
+    "referee": "D. Orsato",
+    "timezone": "UTC",
+    "date": "2022-11-20T16:00:00+00:00",
+    "timestamp": 1668960000,
+    "periods": {
+     "first": 1668960000,
+     "second": 1668963600
+    },
+    "venue": {
+     "id": null,
+     "name": "Al Bayt Stadium",
+     "city": "Al Khor"
+    },
+    "status": {
+     "long": "Match Finished",
+     "short": "FT",
+     "elapsed": 90,
+     "extra": null
+    }
+   },
+   "league": {
+    "id": 1,
+    "name": "World Cup",
+    "country": "World",
+    "logo": "https://media.api-sports.io/football/leagues/1.png",
+    "flag": null,
+    "season": 2022,
+    "round": "Group Stage - 1",
+    "standings": true
+   },
+   "teams": {
+    "home": {
+     "id": 1569,
+     "name": "Qatar",
+     "logo": "https://media.api-sports.io/football/teams/1569.png",
+     "winner": false
+    },
+    "away": {
+     "id": 2382,
+     "name": "Ecuador",
+     "logo": "https://media.api-sports.io/football/teams/2382.png",
+     "winner": true
+    }
+   },
+   "goals": {
+    "home": 0,
+    "away": 2
+   },
+   "score": {
+    "halftime": {
+     "home": 0,
+     "away": 2
+    },
+    "fulltime": {
+     "home": 0,
+     "away": 2
     },
     "extratime": {
      "home": null,

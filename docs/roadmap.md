@@ -1868,3 +1868,72 @@ knockouts is not a table of anything.
 **Neutral ground:** the final only, flagged from the round name (the 2025 final,
 PSG 5–0 Inter, was at the Allianz Arena). The semi-finals are two legs, home and
 away.
+
+## National-team competitions registered, and a stored-score bug corrected
+
+Asked for "all international matches available". The registry now carries 44
+men's senior national-team competitions (kind `national`), taking it to 166
+entries: the World Cup and the six confederations' qualification (29–34), the
+Euros, Copa América, AFCON, the Asian Cup, the Gold Cup, the OFC Nations Cup, the
+Nations Leagues (UEFA and CONCACAF), the Confederations Cup, the Finalissima,
+the Arab, Gulf, ASEAN, SAFF, EAFF, CAFA, COSAFA and CECAFA tournaments, the
+Caribbean Cup, the invitationals (China, Kirin, King's, Malta), and the
+Friendlies feeds. Seven were already in the engine and are registered
+`already_modelled`, so the same ingest can deepen their history without giving
+them a second feature column. The full national scope is 312 requests of history
+(132 for 2022–2026); the whole core scope is now 162 competitions, 1,248
+requests. Like everything in the registry they are disabled until data and
+retrained models exist.
+
+**Excluded:** youth (U-17 to U-23), women's, club tournaments and multi-sport
+games (the Olympics, Asian Games, Pacific Games and so on), and competitions
+whose status I could not establish from the listing (The Atlantic Cup, Como
+Cup, COTIF). Those can be added once someone has looked at what they are.
+
+**How they fit the model.** National teams share one international Poisson pool
+and are weighted by an Elo K, so each registry entry carries a K. They reuse the
+four tiers the first seven were calibrated on — 90 World Cup, 80 continental
+finals, 70 competitive fixtures at full strength, 45 friendlies and invitationals
+— and no new numbers. That is a judgement by category, not a fit: 22
+competitions are at 70 and 13 at 45, and neither assignment has been tested.
+Run `scripts/elo_calibration.py` before trusting them. Minor tournaments share a
+family (Regional, Invitational, Intercontinental; the six World Cup qualifying
+groups are one), so a few dozen matches do not get a feature column of their
+own: nine new columns for 37 new competitions. Tournaments hosted by one nation
+are neutral throughout, which carries the host-nation approximation the first
+seven already had; qualifiers and the Nations Leagues are home-and-away.
+`INTERNATIONAL_COMPETITIONS` and `INTERNATIONAL_ELO_K` both extend from the
+registry, and the existing assertion that they agree still holds.
+
+### A stored-score bug in the existing international data — fixed
+
+`scripts/fetch_international.py` read the API's headline `goals`, which includes
+extra time, and its comment called that "the right thing to train on". It is not:
+the 1X2 market is about the 90-minute result. Re-fetching the seasons it had
+loaded and comparing with the database found **28 matches that went beyond 90
+minutes, 10 of them stored with the extra-time score** — including the 2022 World
+Cup final (stored 3–3, 2–2 at 90 minutes), Spain–Germany at Euro 2024 (2–1 vs
+1–1), Croatia–Brazil (1–1 vs 0–0), Netherlands–Croatia and Portugal–Denmark in
+the Nations League, and Argentina–Colombia at Copa América.
+
+- **Source fixed.** The loader now reads `score.fulltime` through a pure
+  function (`ninety_minute_score`) tested on the real final, falling back to
+  `goals` only for a payload with no `fulltime`.
+- **Data corrected.** The registry ingest now corrects a held match that went
+  beyond 90 minutes and carries the wrong score — and only such a match: an
+  ordinary result is never rewritten (pinned by a test). Run against the saved
+  payloads it corrected exactly the 10 and inserted none. Elo was rebuilt over
+  198,124 matches. A pre-correction backup is in the session scratchpad.
+- **Not yet done:** the 12 football models were not retrained for ten changed
+  labels among ~198,000 matches; that happens at the next retrain, which enabling
+  these competitions needs anyway. The raw files in `data/raw/` still hold the old
+  scores, so rebuilding a database from scratch with the old CSV pipeline would
+  reintroduce them — re-run `fetch_international.py` (the fixed version) first.
+
+Deep history is limited by the plan: the free tier serves seasons 2022–2024, so
+the World Cup qualifying cycles before that, and every pre-2022 friendly, wait
+on the subscription — which would roughly quadruple the thin international pool,
+the single highest-value data job in this repo (see the known defects above).
+`tests/test_fetch_international.py` and additions to
+`tests/test_fetch_api_competitions.py` pin all of this using real World Cup 2022
+fixtures.

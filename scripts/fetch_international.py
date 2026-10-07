@@ -113,15 +113,36 @@ def fetch_season(
             return []
         raise SystemExit(f"API-Football error for league={league_id} season={season}: {errors}")
 
+    return rows_from_items(payload.get("response", []))
+
+
+def ninety_minute_score(item: dict) -> tuple[int | None, int | None]:
+    """The score after 90 minutes, which is what the 1X2 market is about.
+
+    The API's top-level `goals` includes extra time, so a final won after 120
+    minutes carries a winner it did not have at 90. `score.fulltime` is the
+    90-minute score. This loader used `goals` for its first 1,798 matches, and
+    ten of them — among them the 2022 World Cup final, stored 3-3 when it was
+    2-2 — held an extra-time score; see docs/roadmap.md. `goals` is only a
+    fallback for a payload with no `fulltime`.
+    """
+    full = (item.get("score") or {}).get("fulltime") or {}
+    if full.get("home") is not None and full.get("away") is not None:
+        return full["home"], full["away"]
+    goals = item.get("goals") or {}
+    return goals.get("home"), goals.get("away")
+
+
+def rows_from_items(items: list[dict]) -> list[dict]:
+    """Finished fixtures as Football-Data-shaped rows."""
     rows = []
-    for item in payload.get("response", []):
+    for item in items:
         if item.get("fixture", {}).get("status", {}).get("short") not in FINISHED_STATUSES:
             continue
         date_raw = item.get("fixture", {}).get("date")
         home = item.get("teams", {}).get("home", {}).get("name")
         away = item.get("teams", {}).get("away", {}).get("name")
-        goals = item.get("goals", {})
-        home_score, away_score = goals.get("home"), goals.get("away")
+        home_score, away_score = ninety_minute_score(item)
         if not (date_raw and home and away and home_score is not None and away_score is not None):
             continue
         match_date = datetime.fromisoformat(date_raw.replace("Z", "+00:00"))
@@ -133,9 +154,8 @@ def fetch_season(
             "FTAG": away_score,
         }
         # Same free-in-this-response half-time score as the domestic adapter.
-        # A penalty-shootout win still reports the 90/120-minute score here,
-        # which is the right thing to train on: the shootout isn't a goal
-        # process the Poisson/goals models should ever see.
+        # The score above is the 90-minute one, so extra time and the shootout
+        # are never seen by the 1X2 or goals models.
         halftime = item.get("score", {}).get("halftime", {})
         ht_home, ht_away = halftime.get("home"), halftime.get("away")
         if ht_home is not None and ht_away is not None:

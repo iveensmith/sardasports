@@ -57,12 +57,19 @@ that little data allows.
 
 from __future__ import annotations
 
+from ml.api_competitions import enabled_national
 from ml.competitions import INTERNATIONAL_COMPETITIONS
 
 # One entry per international competition; the assertion below keeps this
 # honest if a competition is ever added to `ml.competitions` and forgotten
 # here, which would silently leave it on the club K of 20.
-INTERNATIONAL_ELO_K: dict[str, float] = {
+#
+# The first seven were calibrated (see the module docstring). Competitions added
+# later through the API registry carry their K in `ml.api_competitions`, assigned
+# from the same four tiers — 90, 80, 70, 45 — rather than from new numbers. That
+# is a judgement by category, not a fit: once they have data, run
+# scripts/elo_calibration.py before trusting it.
+_BASE_INTERNATIONAL_ELO_K: dict[str, float] = {
     # Highest stakes, strongest squads, most informative result.
     "FIFA World Cup": 90.0,
     # Continental finals: the same intensity over a shorter tournament.
@@ -76,6 +83,11 @@ INTERNATIONAL_ELO_K: dict[str, float] = {
     # above the club K of 20, because for many national teams friendlies are
     # most of the record we have.
     "International Friendlies": 45.0,
+}
+
+INTERNATIONAL_ELO_K: dict[str, float] = {
+    **_BASE_INTERNATIONAL_ELO_K,
+    **{c.name: c.elo_k for c in enabled_national() if c.elo_k is not None},
 }
 
 assert set(INTERNATIONAL_ELO_K) == set(INTERNATIONAL_COMPETITIONS), (

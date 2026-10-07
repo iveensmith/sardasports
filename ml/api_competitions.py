@@ -42,6 +42,18 @@ so a second leg's own 90-minute score need not be (a Champions League
 qualifier went to penalties after a 0-1 second leg). Either way, the 90-minute
 score of the match itself is the one that is settled.
 
+National teams
+--------------
+Men's senior national-team competitions are registered too (kind "national"),
+filed under their confederation. They are not clubs, so they do not use a
+family of regional groups: every one shares the single international Poisson
+pool, and what distinguishes them is the Elo K, taken from the scheme the first
+seven were calibrated on — 90 World Cup, 80 continental finals, 70 competitive
+fixtures at full strength, 45 friendlies and invitationals. Minor tournaments
+share a family so that a few dozen matches do not get a feature column of their
+own. The seven competitions already in the engine are registered with
+`already_modelled`, so the same ingest can deepen their history.
+
 Not registered, deliberately: super cups (a handful of one-off matches a year
 is a feature column fitted on noise), youth and reserve competitions, women's
 competitions, play-off rounds (one-off ties whose stakes are not those of the
@@ -63,6 +75,9 @@ COUNTRY_CODES = {
     "Portugal": "PT",
 }
 
+# `neutral_rounds` value meaning "every match is at a neutral venue".
+EVERY_ROUND = "."
+
 
 @dataclass(frozen=True)
 class ApiCompetition:
@@ -71,7 +86,7 @@ class ApiCompetition:
     name: str
     country: str
     short_name: str
-    # "league" or "cup".
+    # "league", "cup", or "national" (a national-team competition).
     kind: str
     # 1 = top flight. None for cups, where a tier number means nothing.
     tier: int | None
@@ -91,6 +106,18 @@ class ApiCompetition:
     scope: str = "core"
     # Regex on the API round name; matching matches are at a neutral venue.
     neutral_rounds: str = ""
+    # National-team competitions (kind "national") share one Poisson pool and
+    # are weighted by an Elo K — see ml.competitions and ml.elo.football.
+    national_teams: bool = False
+    elo_k: float | None = None
+    # Already in the engine (loaded by scripts/fetch_international.py). Registered
+    # so the same ingest can deepen its history, but never re-added as a feature
+    # column — it already has one.
+    already_modelled: bool = False
+    # Drop under-age, reserve and academy sides. The Friendlies feed mixes U17
+    # sides in with senior ones; a registered league's reserve sides are real
+    # members, so this is off by default and on only for friendlies-type feeds.
+    exclude_youth: bool = False
 
     @property
     def country_code(self) -> str | None:
@@ -98,6 +125,10 @@ class ApiCompetition:
         return COUNTRY_CODES.get(self.country)
 
     def is_neutral(self, round_name: str | None) -> bool:
+        if self.neutral_rounds == EVERY_ROUND:
+            # A single-host tournament is neutral whether or not the feed names
+            # the round — a fixture with no round must not lose its neutrality.
+            return True
         return bool(
             self.neutral_rounds and round_name and re.search(self.neutral_rounds, round_name)
         )
@@ -347,6 +378,571 @@ _CUPS: tuple[tuple[int, str, str, str, str, str, int, int, bool], ...] = (
     ),
 )
 
+# National-team competitions: (api id, name, short name, confederation, family, Elo K,
+# neutral-round regex, first season, last season, already modelled, drop youth sides)
+_NATIONALS: tuple[tuple[int, str, str, str, str, int, str, int, int, bool, bool], ...] = (
+    (
+        1,
+        "FIFA World Cup",
+        "World Cup",
+        "World",
+        "FIFA World Cup",
+        90,
+        r".",
+        2010,
+        2026,
+        True,
+        False,
+    ),
+    (
+        29,
+        "FIFA World Cup Qualification - Africa",
+        "WCQ Africa",
+        "Africa",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2023,
+        False,
+        False,
+    ),
+    (
+        30,
+        "FIFA World Cup Qualification - Asia",
+        "WCQ Asia",
+        "Asia",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2026,
+        False,
+        False,
+    ),
+    (
+        31,
+        "FIFA World Cup Qualification - CONCACAF",
+        "WCQ CONCACAF",
+        "North America",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2026,
+        False,
+        False,
+    ),
+    (
+        32,
+        "FIFA World Cup Qualification - Europe",
+        "WCQ Europe",
+        "Europe",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2024,
+        False,
+        False,
+    ),
+    (
+        33,
+        "FIFA World Cup Qualification - Oceania",
+        "WCQ Oceania",
+        "Oceania",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2026,
+        False,
+        False,
+    ),
+    (
+        34,
+        "FIFA World Cup Qualification - South America",
+        "WCQ South America",
+        "South America",
+        "FIFA World Cup Qualification",
+        70,
+        r"",
+        2018,
+        2026,
+        False,
+        False,
+    ),
+    (
+        21,
+        "FIFA Confederations Cup",
+        "Confederations Cup",
+        "World",
+        "Intercontinental Tournaments",
+        80,
+        r".",
+        2009,
+        2017,
+        False,
+        False,
+    ),
+    (
+        913,
+        "CONMEBOL-UEFA Finalissima",
+        "Finalissima",
+        "World",
+        "Intercontinental Tournaments",
+        80,
+        r".",
+        2022,
+        2026,
+        False,
+        False,
+    ),
+    (
+        10,
+        "International Friendlies",
+        "Friendlies",
+        "World",
+        "International Friendlies",
+        45,
+        r"",
+        2017,
+        2026,
+        True,
+        True,
+    ),
+    (
+        1222,
+        "FIFA Series",
+        "FIFA Series",
+        "World",
+        "International Friendlies",
+        45,
+        r"",
+        2026,
+        2026,
+        False,
+        True,
+    ),
+    (
+        1247,
+        "FIFA ASEAN Cup",
+        "FIFA ASEAN Cup",
+        "Asia",
+        "International Friendlies",
+        45,
+        r"",
+        2026,
+        2026,
+        False,
+        True,
+    ),
+    (
+        4,
+        "UEFA European Championship",
+        "Euros",
+        "Europe",
+        "UEFA European Championship",
+        80,
+        r".",
+        2008,
+        2024,
+        True,
+        False,
+    ),
+    (
+        960,
+        "UEFA European Championship Qualification",
+        "Euro Qualification",
+        "Europe",
+        "Continental Championship Qualification",
+        70,
+        r"",
+        2023,
+        2023,
+        False,
+        False,
+    ),
+    (
+        5,
+        "UEFA Nations League",
+        "Nations League",
+        "Europe",
+        "UEFA Nations League",
+        70,
+        r"",
+        2018,
+        2026,
+        True,
+        False,
+    ),
+    (
+        849,
+        "Baltic Cup",
+        "Baltic Cup",
+        "Europe",
+        "Regional Tournaments",
+        45,
+        r".",
+        2020,
+        2025,
+        False,
+        False,
+    ),
+    (
+        9,
+        "Copa America",
+        "Copa América",
+        "South America",
+        "Copa America",
+        80,
+        r".",
+        2015,
+        2024,
+        True,
+        False,
+    ),
+    (
+        6,
+        "Africa Cup of Nations",
+        "AFCON",
+        "Africa",
+        "Africa Cup of Nations",
+        80,
+        r".",
+        2015,
+        2025,
+        True,
+        False,
+    ),
+    (
+        36,
+        "Africa Cup of Nations Qualifiers",
+        "AFCON Qualifiers",
+        "Africa",
+        "Africa Cup of Nations Qualifiers",
+        70,
+        r"",
+        2021,
+        2027,
+        True,
+        False,
+    ),
+    (
+        19,
+        "African Nations Championship",
+        "CHAN",
+        "Africa",
+        "Regional Tournaments",
+        45,
+        r".",
+        2014,
+        2024,
+        False,
+        False,
+    ),
+    (
+        1163,
+        "African Nations Championship Qualification",
+        "CHAN Qualification",
+        "Africa",
+        "Continental Championship Qualification",
+        45,
+        r"",
+        2024,
+        2024,
+        False,
+        False,
+    ),
+    (
+        859,
+        "COSAFA Cup",
+        "COSAFA Cup",
+        "Africa",
+        "Regional Tournaments",
+        45,
+        r".",
+        2021,
+        2025,
+        False,
+        False,
+    ),
+    (
+        535,
+        "CECAFA Senior Challenge Cup",
+        "CECAFA Cup",
+        "Africa",
+        "Regional Tournaments",
+        45,
+        r".",
+        2012,
+        2021,
+        False,
+        False,
+    ),
+    (7, "AFC Asian Cup", "Asian Cup", "Asia", "AFC Asian Cup", 80, r".", 2011, 2027, False, False),
+    (
+        35,
+        "AFC Asian Cup Qualification",
+        "Asian Cup Qualification",
+        "Asia",
+        "Continental Championship Qualification",
+        70,
+        r"",
+        2019,
+        2024,
+        False,
+        False,
+    ),
+    (
+        860,
+        "Arab Cup",
+        "Arab Cup",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2021,
+        2025,
+        False,
+        False,
+    ),
+    (
+        25,
+        "Gulf Cup of Nations",
+        "Gulf Cup",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2016,
+        2026,
+        False,
+        False,
+    ),
+    (
+        24,
+        "ASEAN Championship",
+        "ASEAN Championship",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r"",
+        2014,
+        2025,
+        False,
+        False,
+    ),
+    (
+        28,
+        "SAFF Championship",
+        "SAFF Championship",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2013,
+        2023,
+        False,
+        False,
+    ),
+    (
+        23,
+        "EAFF E-1 Football Championship",
+        "EAFF E-1",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2015,
+        2025,
+        False,
+        False,
+    ),
+    (
+        1008,
+        "CAFA Nations Cup",
+        "CAFA Nations Cup",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2023,
+        2025,
+        False,
+        False,
+    ),
+    (
+        807,
+        "AFC Challenge Cup",
+        "AFC Challenge Cup",
+        "Asia",
+        "Regional Tournaments",
+        70,
+        r".",
+        2014,
+        2014,
+        False,
+        False,
+    ),
+    (
+        766,
+        "China Cup",
+        "China Cup",
+        "Asia",
+        "Invitational Tournaments",
+        45,
+        r".",
+        2017,
+        2019,
+        False,
+        False,
+    ),
+    (
+        916,
+        "Kirin Cup",
+        "Kirin Cup",
+        "Asia",
+        "Invitational Tournaments",
+        45,
+        r".",
+        2022,
+        2026,
+        False,
+        False,
+    ),
+    (
+        1038,
+        "King's Cup",
+        "King's Cup",
+        "Asia",
+        "Invitational Tournaments",
+        45,
+        r".",
+        2023,
+        2025,
+        False,
+        False,
+    ),
+    (
+        900,
+        "Tipsport Malta Cup",
+        "Malta Cup",
+        "Europe",
+        "Invitational Tournaments",
+        45,
+        r".",
+        2022,
+        2024,
+        False,
+        False,
+    ),
+    (
+        22,
+        "CONCACAF Gold Cup",
+        "Gold Cup",
+        "North America",
+        "CONCACAF Gold Cup",
+        80,
+        r".",
+        2015,
+        2025,
+        False,
+        False,
+    ),
+    (
+        858,
+        "CONCACAF Gold Cup Qualification",
+        "Gold Cup Qualification",
+        "North America",
+        "Continental Championship Qualification",
+        70,
+        r"",
+        2021,
+        2025,
+        False,
+        False,
+    ),
+    (
+        536,
+        "CONCACAF Nations League",
+        "CONCACAF Nations League",
+        "North America",
+        "CONCACAF Nations League",
+        70,
+        r"",
+        2020,
+        2025,
+        False,
+        False,
+    ),
+    (
+        808,
+        "CONCACAF Nations League Qualification",
+        "CNL Qualification",
+        "North America",
+        "CONCACAF Nations League",
+        70,
+        r"",
+        2018,
+        2018,
+        False,
+        False,
+    ),
+    (
+        804,
+        "Caribbean Cup",
+        "Caribbean Cup",
+        "North America",
+        "Regional Tournaments",
+        70,
+        r".",
+        2010,
+        2016,
+        False,
+        False,
+    ),
+    (
+        805,
+        "Copa Centroamericana",
+        "Copa Centroamericana",
+        "North America",
+        "Regional Tournaments",
+        70,
+        r".",
+        2016,
+        2016,
+        False,
+        False,
+    ),
+    (
+        1207,
+        "CONCACAF Series",
+        "CONCACAF Series",
+        "North America",
+        "International Friendlies",
+        45,
+        r"",
+        2026,
+        2026,
+        False,
+        True,
+    ),
+    (
+        806,
+        "OFC Nations Cup",
+        "OFC Nations Cup",
+        "Oceania",
+        "OFC Nations Cup",
+        80,
+        r".",
+        2016,
+        2024,
+        False,
+        False,
+    ),
+)
+
 
 def _league(row: tuple[int, str, str, int, int, int, bool]) -> ApiCompetition:
     api_id, family, group, tier, first, last, split = row
@@ -383,9 +979,35 @@ def _cup(row: tuple[int, str, str, str, str, str, int, int, bool]) -> ApiCompeti
     )
 
 
+def _national(
+    row: tuple[int, str, str, str, str, int, str, int, int, bool, bool],
+) -> ApiCompetition:
+    api_id, name, short, confed, family, k, neutral, first, last, existing, youth = row
+    return ApiCompetition(
+        api_id=api_id,
+        name=name,
+        country=confed,
+        short_name=short,
+        kind="national",
+        tier=None,
+        family=family,
+        first_season=first,
+        last_season=last,
+        # Tournament years, not split seasons — an AFCON played in January 2024
+        # is the "2023" edition, and a qualifying cycle spans years.
+        split_year=False,
+        neutral_rounds=neutral,
+        national_teams=True,
+        elo_k=float(k),
+        already_modelled=existing,
+        exclude_youth=youth,
+    )
+
+
 API_COMPETITIONS: tuple[ApiCompetition, ...] = (
     *(_league(row) for row in _LEAGUES),
     *(_cup(row) for row in _CUPS),
+    *(_national(row) for row in _NATIONALS),
 )
 
 # Competitions switched on. Empty until data is ingested and the models are
@@ -397,7 +1019,17 @@ BY_NAME: dict[str, ApiCompetition] = {c.name: c for c in API_COMPETITIONS}
 
 
 def enabled() -> list[ApiCompetition]:
-    return [c for c in API_COMPETITIONS if c.api_id in ENABLED_IDS]
+    """Competitions to add to the engine's schema and catalogue.
+
+    Excludes the ones already modelled: they are in the base lists already, and
+    adding them again would give one competition two feature columns.
+    """
+    return [c for c in API_COMPETITIONS if c.api_id in ENABLED_IDS and not c.already_modelled]
+
+
+def enabled_national() -> list[ApiCompetition]:
+    """Enabled national-team competitions, for the shared pool and the Elo K."""
+    return [c for c in enabled() if c.national_teams]
 
 
 def enabled_families() -> list[str]:

@@ -71,6 +71,7 @@ from app.models.team import Team
 from app.services.team_identity import TeamResolver, assign_clubs, similarity, tokens
 from app.utils.config import get_settings
 from ml.api_competitions import API_COMPETITIONS, BY_ID, ApiCompetition
+from scripts.fetch_upcoming_fixtures import EXCLUDED_TEAM_PATTERN
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -129,6 +130,13 @@ def parse_fixture(item: dict, comp: ApiCompetition) -> dict | None:
     if not home.get("name") or not away.get("name"):
         return None
 
+    # Under-age and reserve sides: only for feeds that mix them in with senior
+    # ones (Friendlies). A registered league's reserve sides are real members.
+    if comp.exclude_youth and (
+        EXCLUDED_TEAM_PATTERN.search(home["name"]) or EXCLUDED_TEAM_PATTERN.search(away["name"])
+    ):
+        return None
+
     round_name = (item.get("league") or {}).get("round")
     return {
         "external_id": f"apif-{fixture['id']}",
@@ -155,9 +163,21 @@ def parse_fixture(item: dict, comp: ApiCompetition) -> dict | None:
 def ingest_competition_season(
     session, comp: ApiCompetition, season_year: int, items: list[dict], resolver: TeamResolver
 ) -> dict:
-    """Insert one competition-season's finished matches; returns counts."""
+    """Insert one competition-season's finished matches; returns counts.
+
+    A fixture already held — under this ingest's id, or under a CSV id from an
+    earlier source — is not inserted again. If it went beyond 90 minutes and the
+    stored score is not the 90-minute one, it is *corrected*: the first loader
+    for national teams read the API's headline score, which includes extra time.
+    """
     rows = [r for r in (parse_fixture(item, comp) for item in items) if r is not None]
-    counts = {"fetched": len(items), "finished": len(rows), "inserted": 0, "existing": 0}
+    counts = {
+        "fetched": len(items),
+        "finished": len(rows),
+        "inserted": 0,
+        "existing": 0,
+        "corrected": 0,
+    }
     if not rows:
         return counts
 
@@ -167,10 +187,11 @@ def ingest_competition_season(
         for (eid,) in session.query(Match.external_id).filter(Match.competition == comp.name)
         if eid
     }
-    # The same fixture may already be here under a CSV id.
-    by_pair: dict[tuple[int, int], list[datetime]] = defaultdict(list)
-    for m in session.query(Match).filter(Match.competition == comp.name, Match.season == label):
-        by_pair[(m.home_team_id, m.away_team_id)].append(m.match_date)
+    # Matched by teams and date, across every season of the competition: an older
+    # loader may have filed the same fixture under a different season label.
+    by_pair: dict[tuple[int, int], list[Match]] = defaultdict(list)
+    for m in session.query(Match).filter(Match.competition == comp.name):
+        by_pair[(m.home_team_id, m.away_team_id)].append(m)
 
     for row in rows:
         if row["external_id"] in existing_ids:
@@ -178,8 +199,20 @@ def ingest_competition_season(
             continue
         home = resolver.resolve(row["home_name"], row["home_api_id"], comp.name)
         away = resolver.resolve(row["away_name"], row["away_api_id"], comp.name)
-        if any(abs(d - row["kickoff"]) <= timedelta(days=1) for d in by_pair[(home.id, away.id)]):
+        held = next(
+            (
+                m
+                for m in by_pair[(home.id, away.id)]
+                if abs(m.match_date - row["kickoff"]) <= timedelta(days=1)
+            ),
+            None,
+        )
+        if held is not None:
             counts["existing"] += 1
+            wrong = (held.home_score, held.away_score) != (row["home_score"], row["away_score"])
+            if row["beyond_90"] and held.status == "completed" and wrong:
+                held.home_score, held.away_score = row["home_score"], row["away_score"]
+                counts["corrected"] += 1
             continue
         session.add(
             Match(
@@ -197,7 +230,7 @@ def ingest_competition_season(
                 status="completed",
             )
         )
-        by_pair[(home.id, away.id)].append(row["kickoff"])
+        existing_ids.add(row["external_id"])
         counts["inserted"] += 1
     session.flush()
     return counts

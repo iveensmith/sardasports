@@ -16,7 +16,14 @@ from pathlib import Path
 import pytest
 
 from app.models import Match, Team
-from ml.api_competitions import BY_ID, BY_NAME, enabled_families, family_of
+from ml.api_competitions import (
+    API_COMPETITIONS,
+    BY_ID,
+    BY_NAME,
+    COUNTRY_CODES,
+    enabled_families,
+    family_of,
+)
 from scripts.fetch_api_competitions import (
     TeamResolver,
     apply_team_mapping,
@@ -209,7 +216,7 @@ def test_ingestion_stores_finished_matches_with_the_right_shape(db_session):
     counts = _ingest(db_session)
 
     # Seven fixtures in the sample; the postponed and the awarded are not results.
-    assert counts == {"fetched": 7, "finished": 5, "inserted": 5, "existing": 0}
+    assert counts == {"fetched": 7, "finished": 5, "inserted": 5, "existing": 0, "corrected": 0}
     final = (
         db_session.query(Match)
         .filter(Match.competition == "Spanish Copa del Rey", Match.neutral_venue.is_(True))
@@ -278,10 +285,11 @@ def test_every_registry_entry_is_well_formed():
     assert len(ids) == len(set(ids))
     for comp in BY_ID.values():
         assert comp.first_season <= comp.last_season
-        assert comp.kind in {"league", "cup"}
-        assert (comp.tier is None) == (comp.kind == "cup")
-        # Every nation has a flag; "Europe" is a grouping and deliberately has none.
-        assert (comp.country_code is None) == (comp.country == "Europe")
+        assert comp.kind in {"league", "cup", "national"}
+        assert (comp.tier is None) == (comp.kind != "league")
+        # Every nation has a flag; a confederation ("Europe", "Asia", "World") is a
+        # grouping and deliberately has none.
+        assert (comp.country_code is None) == (comp.country not in COUNTRY_CODES)
     cups = [c for c in BY_ID.values() if c.kind == "cup"]
     assert all(c.neutral_rounds for c in cups), "every cup final is at a neutral venue"
 
@@ -400,3 +408,165 @@ def test_champions_league_season_is_labelled_across_both_years(db_session):
     assert {m.season for m in db_session.query(Match).filter(Match.competition == UCL.name)} == {
         "2024-2025"
     }
+
+
+# --- national-team competitions ---------------------------------------------
+
+WORLD_CUP = BY_ID[1]
+
+
+def _wc(round_name=None, status=None):
+    items = SAMPLE["wc"]
+    if round_name:
+        items = [i for i in items if i["league"]["round"] == round_name]
+    if status:
+        items = [i for i in items if i["fixture"]["status"]["short"] == status]
+    return items[0]
+
+
+def test_the_national_registry_uses_only_the_four_calibrated_elo_weights():
+    """90 / 80 / 70 / 45 are the tiers the first seven were calibrated on. A new
+    competition is assigned to one of them; it does not get a number of its own."""
+    nationals = [c for c in API_COMPETITIONS if c.kind == "national"]
+    assert len(nationals) >= 40
+    assert {c.elo_k for c in nationals} <= {90.0, 80.0, 70.0, 45.0}
+    assert all(c.national_teams and c.elo_k is not None for c in nationals)
+
+
+def test_the_seven_existing_internationals_are_registered_but_never_re_added():
+    """They can be refetched for deeper history, but they already have a feature
+    column and an Elo weight; enabling them must not give them a second."""
+    existing = {c.name for c in API_COMPETITIONS if c.already_modelled}
+    assert existing == {
+        "FIFA World Cup",
+        "UEFA European Championship",
+        "UEFA Nations League",
+        "Copa America",
+        "Africa Cup of Nations",
+        "Africa Cup of Nations Qualifiers",
+        "International Friendlies",
+    }
+    from ml.api_competitions import enabled
+
+    assert not any(c.already_modelled for c in enabled())
+
+
+def test_national_competitions_use_tournament_years_not_split_seasons():
+    assert all(not c.split_year for c in API_COMPETITIONS if c.kind == "national")
+
+
+def test_every_qualifying_group_of_the_world_cup_shares_one_family():
+    names = [c.name for c in API_COMPETITIONS if c.name.startswith("FIFA World Cup Qualification")]
+    assert len(names) == 6
+    assert {family_of(n) for n in names} == {"FIFA World Cup Qualification"}
+
+
+def test_a_single_host_tournament_is_neutral_throughout_and_qualifiers_are_not():
+    assert BY_ID[4].is_neutral("Group Stage - 1")  # Euros
+    assert BY_ID[7].is_neutral("Quarter-finals")  # Asian Cup
+    assert not BY_ID[32].is_neutral("Group A - 1")  # World Cup qualification: home and away
+    assert not BY_ID[5].is_neutral("League A - 1")  # Nations League: home and away
+
+
+def test_a_world_cup_final_is_stored_at_its_90_minute_score_not_its_penalty_score():
+    final = _wc("Final")
+    assert (final["goals"]["home"], final["goals"]["away"]) == (3, 3)  # extra time included
+
+    row = parse_fixture(final, WORLD_CUP)
+
+    assert (row["home_score"], row["away_score"]) == (2, 2)  # Argentina 2-2 France at 90
+    assert row["neutral_venue"] is True
+
+
+def test_a_stored_extra_time_score_is_corrected_to_the_90_minute_score(db_session):
+    """The first loader for national teams read the API's headline score, so the
+    2022 final sits in the database as 3-3 when it was 2-2 at 90 minutes."""
+    home = Team(name="Argentina", league="FIFA World Cup", sport="football")
+    away = Team(name="France", league="FIFA World Cup", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    held = Match(
+        external_id="hash-from-the-csv-loader",
+        match_date=datetime(2022, 12, 18),
+        competition="FIFA World Cup",
+        season="2022",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="completed",
+        home_score=3,
+        away_score=3,
+    )
+    db_session.add(held)
+    db_session.flush()
+
+    counts = ingest_competition_season(
+        db_session, WORLD_CUP, 2022, [_wc("Final")], TeamResolver(db_session)
+    )
+
+    assert counts["existing"] == 1 and counts["inserted"] == 0 and counts["corrected"] == 1
+    assert (held.home_score, held.away_score) == (2, 2)
+    assert db_session.query(Match).filter_by(competition="FIFA World Cup").count() == 1
+
+
+def test_a_match_decided_in_90_minutes_is_never_rewritten(db_session):
+    group = _wc("Group Stage - 1")
+    home = Team(name=group["teams"]["home"]["name"], league="FIFA World Cup", sport="football")
+    away = Team(name=group["teams"]["away"]["name"], league="FIFA World Cup", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    kickoff = datetime.fromisoformat(group["fixture"]["date"]).replace(tzinfo=None)
+    held = Match(
+        external_id="hash",
+        match_date=kickoff,
+        competition="FIFA World Cup",
+        season="2022",
+        home_team_id=home.id,
+        away_team_id=away.id,
+        status="completed",
+        home_score=9,
+        away_score=9,
+    )
+    db_session.add(held)
+    db_session.flush()
+
+    counts = ingest_competition_season(
+        db_session, WORLD_CUP, 2022, [group], TeamResolver(db_session)
+    )
+
+    # Only a match that went beyond 90 minutes is ever corrected; a discrepancy
+    # on an ordinary result is somebody else's problem, not ours to overwrite.
+    assert counts["corrected"] == 0
+    assert (held.home_score, held.away_score) == (9, 9)
+
+
+def test_an_under_age_side_is_dropped_from_a_friendlies_feed():
+    friendlies = BY_ID[10]
+    assert friendlies.exclude_youth
+    senior = parse_fixture(_cup("Round of 16", "FT"), friendlies)
+    assert senior is not None
+
+    youth = json.loads(json.dumps(_cup("Round of 16", "FT")))
+    youth["teams"]["home"]["name"] = "England U21"
+    assert parse_fixture(youth, friendlies) is None
+
+
+def test_a_registered_leagues_reserve_side_is_not_dropped():
+    youth_named = json.loads(json.dumps(_cup("Round of 16", "FT")))
+    youth_named["teams"]["home"]["name"] = "Bayern Munich II"
+    assert parse_fixture(youth_named, BY_ID[80]) is not None  # the 3. Liga
+
+
+def test_the_catalogue_knows_every_confederation():
+    from ml.competition_catalogue import INTERNATIONAL_GROUPS
+
+    confederations = {c.country for c in API_COMPETITIONS if c.kind == "national"}
+    assert confederations <= INTERNATIONAL_GROUPS
+
+
+def test_a_neutral_throughout_tournament_stays_neutral_when_the_feed_names_no_round():
+    """The World Cup is single-host. A fixture with no round name must not lose that."""
+    assert BY_ID[1].is_neutral(None) and BY_ID[1].is_neutral("Group Stage - 1")
+    assert BY_ID[4].is_neutral(None)
+    # A competition that is neutral only in some rounds still needs the round.
+    assert not BY_ID[143].is_neutral(None)
+    assert BY_ID[143].is_neutral("Final")

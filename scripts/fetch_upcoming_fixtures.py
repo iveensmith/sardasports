@@ -175,7 +175,9 @@ def rows_from_fixtures(items: list[dict]) -> tuple[list[dict], int]:
         # Federación. The youth/reserve filter exists for the Friendlies feed,
         # which mixes U17 sides in with senior ones, and does not apply there.
         registered = BY_ID.get(league_id)
-        if registered is None and (
+        # Friendlies-type feeds mix under-age sides in with senior ones, so they
+        # keep the filter even when registered.
+        if (registered is None or registered.exclude_youth) and (
             EXCLUDED_TEAM_PATTERN.search(home) or EXCLUDED_TEAM_PATTERN.search(away)
         ):
             skipped += 1

@@ -31,8 +31,13 @@ WORLD = "World"
 EUROPE = "Europe"
 AFRICA = "Africa"
 SOUTH_AMERICA = "South America"
+ASIA = "Asia"
+NORTH_AMERICA = "North America"
+OCEANIA = "Oceania"
 
-INTERNATIONAL_GROUPS = frozenset({WORLD, EUROPE, AFRICA, SOUTH_AMERICA})
+INTERNATIONAL_GROUPS = frozenset(
+    {WORLD, EUROPE, AFRICA, SOUTH_AMERICA, ASIA, NORTH_AMERICA, OCEANIA}
+)
 
 
 @dataclass(frozen=True)
