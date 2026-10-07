@@ -144,6 +144,12 @@ def board(
 @router.get("/board/dates")
 def board_dates(
     span: int = Query(3, ge=1, le=7, description="Days either side of today."),
+    min_settled: int = Query(
+        1,
+        ge=1,
+        le=100,
+        description="Fewest finished football matches a day needs to count as 'last settled'.",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
     """The date strip: a few days back and forward, with fixture counts.
@@ -169,18 +175,28 @@ def board_dates(
                 "fixtures": total,
             }
         )
-    # The most recent day with a settled result on it. The home page uses it
-    # for the results strip: fixtures are ingested forward but their scores
-    # are not yet fetched back, so "yesterday" is routinely ungraded and a
-    # strip bound to it would simply never appear.
-    last_settled = (
-        db.query(func.max(Match.match_date))
-        .filter(Match.status == "completed", Match.home_score.is_not(None))
-        .scalar()
+    # The most recent day with enough settled results on it. The home page uses
+    # it for the results strip, and "enough" is the point: the newest day with
+    # *any* result is routinely a day with one match on it (the tail of a
+    # weekend, or the first scores to arrive), and a strip bound to that has
+    # nothing to show and disappears. Football only, because only football
+    # matches get a pick to grade.
+    day = func.date(Match.match_date)
+    newest = (
+        db.query(day)
+        .filter(
+            Match.status == "completed",
+            Match.home_score.is_not(None),
+            Match.sport == "football",
+        )
+        .group_by(day)
+        .having(func.count(Match.id) >= min_settled)
+        .order_by(day.desc())
+        .first()
     )
 
     return {
         "today": today.isoformat(),
         "days": days,
-        "last_settled": last_settled.date().isoformat() if last_settled else None,
+        "last_settled": newest[0] if newest else None,
     }

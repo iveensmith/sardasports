@@ -331,11 +331,18 @@ export function getDayBoard(
   return engineFetch<DayBoard>(`/board${suffix}`, { revalidate: 120 });
 }
 
-/** The date strip, with a fixture count per day. */
-export function getBoardDates(span = 3): Promise<BoardDates> {
-  return engineFetch<BoardDates>(`/board/dates?span=${span}`, {
-    revalidate: 600,
-  });
+/**
+ * The date strip, with a fixture count per day.
+ *
+ * `minSettled` is how many finished matches a day needs before it can be
+ * `last_settled`. The default of 1 means "any result at all"; a caller that
+ * needs enough to fill something (the home page's results strip) asks for more.
+ */
+export function getBoardDates(span = 3, minSettled = 1): Promise<BoardDates> {
+  return engineFetch<BoardDates>(
+    `/board/dates?span=${span}&min_settled=${minSettled}`,
+    { revalidate: 600 },
+  );
 }
 
 /**

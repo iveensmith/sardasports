@@ -152,6 +152,17 @@ function BoardSection({
   );
 }
 
+/**
+ * How many finished matches a day needs to carry the results strip.
+ *
+ * The strip itself hides below four settled picks, since a loop that is mostly
+ * gap reads as broken. This is higher on purpose: not every match yields a
+ * graded pick, and a strip of five is thin. Below this the page reaches back to
+ * an earlier day with more — and names that day, so it is never passed off as
+ * last night.
+ */
+const TICKER_MIN_MATCHES = 8;
+
 export default async function HomePage() {
   let yesterday: DayBoard | null = null;
   let today: DayBoard | null = null;
@@ -170,18 +181,21 @@ export default async function HomePage() {
         getDayBoard({ date: isoDay(1) }).catch(() => null),
         getProgress().catch(() => null),
       ]),
-      getBoardDates(3).catch(() => null),
+      getBoardDates(3, TICKER_MIN_MATCHES).catch(() => null),
       getLeagues().catch(() => null),
     ]);
     [yesterday, today, tomorrow, progress] = boards;
     competitionCount = leagues?.competition_count ?? null;
     countryCount = leagues?.country_count ?? null;
 
-    // The strip wants graded picks. Yesterday usually has none yet, so fall
-    // back to the last day that actually settled rather than showing nothing.
+    // The strip wants a day with enough graded picks to fill it. Yesterday is
+    // used only if it has that many: "any result" is not enough, because the
+    // newest day with a result is often one match (the tail of a weekend, or
+    // the first scores to arrive) and a strip built on one match is hidden.
+    // Otherwise fall back to the last day that settled enough.
     const settledDate = dates?.last_settled ?? null;
     settledDay =
-      yesterday && yesterday.counts.finished > 0
+      yesterday && yesterday.counts.finished >= TICKER_MIN_MATCHES
         ? yesterday
         : settledDate
           ? await getDayBoard({ date: settledDate }).catch(() => null)

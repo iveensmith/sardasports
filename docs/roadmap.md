@@ -1937,3 +1937,35 @@ the single highest-value data job in this repo (see the known defects above).
 `tests/test_fetch_international.py` and additions to
 `tests/test_fetch_api_competitions.py` pin all of this using real World Cup 2022
 fixtures.
+
+## The home page's results strip disappeared — fixed
+
+Reported: the scrolling strip of recently settled picks was gone from the home
+page. It is a real regression from the data refresh, not a rendering fault.
+
+**Cause.** The strip is built from one day's board, and hides itself below four
+settled picks (a loop that is mostly gap reads as broken). The page chose that
+day as "yesterday, if anything finished on it, otherwise the newest day with any
+result". Before the refresh the newest settled day was 29 September with 39
+matches. The refresh loaded results up to 6 October, and 6 October had exactly
+one finished match — so the page picked it, found one settled pick, and hid the
+strip, while days with 32 and 22 matches sat two and four days earlier.
+
+**Fix.** `GET /board/dates` takes `min_settled` and returns the most recent day
+with at least that many finished football matches as `last_settled` (default 1,
+the old meaning). The home page asks for 8 and uses yesterday only if it has that
+many. Football only, because only football matches get a pick to grade. The strip
+now reads "Last settled · Oct 4 · 9 of 9 came in": a day that can fill it, named
+rather than passed off as last night. `tests/test_board_dates.py` pins the
+threshold, that it is inclusive, that a day nothing meets gives no day rather
+than a thin one, and that tennis and unfinished matches do not count.
+
+**Two things worth knowing.**
+
+- Rendering that day's board generates a pick for each match that has none, so
+  the page stored 9 backtested predictions the first time it ran. It is the same
+  side effect noted earlier (browsing the site grows the backtested record) and
+  still needs a decision.
+- After a change to a page's data calls, the dev server's `.next` cache kept
+  serving the old render and masked the fix until it was cleared — the same
+  trap recorded in the project notes.
