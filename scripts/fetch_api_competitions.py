@@ -70,6 +70,7 @@ from app.models.match import Match
 from app.models.team import Team
 from app.services.team_identity import TeamResolver, assign_clubs, similarity, tokens
 from app.utils.config import get_settings
+from app.utils.seasons import season_start_year
 from ml.api_competitions import API_COMPETITIONS, BY_ID, ApiCompetition
 from scripts.fetch_upcoming_fixtures import EXCLUDED_TEAM_PATTERN
 
@@ -415,7 +416,7 @@ def main(argv: list[str] | None = None) -> None:
                 raise SystemExit("API_FOOTBALL_KEY is not set.")
             budget = Budget(args.max_requests)
             if args.map_teams:
-                _map_teams(session, settings, budget, wanted)
+                _map_teams(session, settings, budget, wanted, ids)
             else:
                 _fetch_all(
                     session,
@@ -496,27 +497,43 @@ def _fetch_all(session, comp_list, wanted, settings, budget, resolver, refetch) 
             time.sleep(REQUEST_SPACING_SECONDS)
 
 
-def _map_teams(session, settings, budget, wanted) -> None:
-    """Pair each existing league's API roster with ours, one league-season at a time."""
+def _stored_labels(session, competition: str, year: int) -> set[str]:
+    """The season labels a competition holds that begin in `year`."""
+    return {
+        s
+        for (s,) in session.query(Match.season).filter(Match.competition == competition).distinct()
+        if season_start_year(s) == year
+    }
+
+
+def _map_teams(session, settings, budget, wanted, league_ids: set[int] | None = None) -> None:
+    """Pair each existing league's API roster with ours, one league-season at a time.
+
+    `league_ids` restricts it to those leagues. A season we hold no matches for is
+    skipped *before* asking the API, so a request is never spent on a roster there
+    is nothing to pair it with.
+    """
     from scripts.fetch_upcoming_fixtures import LEAGUE_ID_TO_COMPETITION
 
     hi = datetime.now(UTC).year
     lo, hi = wanted if wanted else (hi - 2, hi - 1)
     report: list[tuple[str, str, str, float]] = []
     for league_id, competition in LEAGUE_ID_TO_COMPETITION.items():
+        if league_ids is not None and league_id not in league_ids:
+            continue
         for year in range(lo, hi + 1):
+            labels = _stored_labels(session, competition, year)
+            if not labels:
+                continue
             if not budget.spend():
                 logger.warning("request cap reached")
                 return
             body = api_get("/teams", {"league": league_id, "season": year}, settings)
+            if body.get("errors"):
+                logger.warning("%s %s: skipped — %s", competition, year, body["errors"])
+                time.sleep(REQUEST_SPACING_SECONDS)
+                continue
             clubs = [(t["team"]["id"], t["team"]["name"]) for t in body.get("response", [])]
-            labels = {
-                s
-                for (s,) in session.query(Match.season)
-                .filter(Match.competition == competition)
-                .distinct()
-                if s.startswith(str(year))
-            }
             for label in labels:
                 result = apply_team_mapping(session, competition, label, clubs)
                 logger.info(

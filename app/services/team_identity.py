@@ -246,3 +246,67 @@ def assign_clubs(
         score = 1.0 - cost[index][paired[index]]
         results.append(ClubMatch(api_id, api_name, ours, round(score, 3), score < review_below))
     return results
+
+
+def merge_team(session, duplicate: Team, keeper: Team) -> dict:
+    """Fold a duplicate team row into the club it duplicates, then delete it.
+
+    A club arrives twice when two sources spell its name differently and nothing
+    ties them together: "Flamengo" from the live feed beside "Flamengo RJ" from
+    the history. Everything that pointed at the duplicate — matches, rating
+    history, injuries — is re-pointed at the keeper, the keeper learns the
+    duplicate's API id, and the duplicate row goes.
+
+    Refuses rather than guesses when the two rows carry *different* API ids: that
+    is two different clubs that merely resemble each other. If the duplicate had
+    any completed matches, its rating history was computed for a club that does
+    not exist, so the caller must rebuild Elo afterwards (`needs_elo_rebuild`).
+    """
+    from app.models.elo_history import EloHistory
+    from app.models.injury import Injury
+    from app.models.match import Match
+
+    if duplicate.id == keeper.id:
+        raise ValueError("cannot merge a team into itself")
+    if duplicate.sport != keeper.sport:
+        raise ValueError(f"different sports: {duplicate.sport!r} vs {keeper.sport!r}")
+    if (
+        duplicate.api_football_id is not None
+        and keeper.api_football_id is not None
+        and duplicate.api_football_id != keeper.api_football_id
+    ):
+        raise ValueError(
+            f"{duplicate.name!r} and {keeper.name!r} have different API ids "
+            f"({duplicate.api_football_id} vs {keeper.api_football_id}): different clubs"
+        )
+
+    counts = {}
+    for column in (Match.home_team_id, Match.away_team_id):
+        counts[column.key] = (
+            session.query(Match).filter(column == duplicate.id).update({column: keeper.id})
+        )
+    completed = (
+        session.query(Match)
+        .filter(
+            Match.status == "completed",
+            (Match.home_team_id == keeper.id) | (Match.away_team_id == keeper.id),
+        )
+        .count()
+    )
+    for column in (EloHistory.team_id, EloHistory.opponent_team_id):
+        counts[column.key] = (
+            session.query(EloHistory).filter(column == duplicate.id).update({column: keeper.id})
+        )
+    counts["injuries"] = (
+        session.query(Injury)
+        .filter(Injury.team_id == duplicate.id)
+        .update({Injury.team_id: keeper.id})
+    )
+
+    if keeper.api_football_id is None:
+        keeper.api_football_id = duplicate.api_football_id
+    session.delete(duplicate)
+    session.flush()
+    counts["needs_elo_rebuild"] = counts["team_id"] > 0 or counts["opponent_team_id"] > 0
+    counts["keeper_completed_matches"] = completed
+    return counts

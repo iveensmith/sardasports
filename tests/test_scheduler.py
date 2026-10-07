@@ -41,3 +41,11 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
     finally:
         scheduler_module.stop_scheduler()
         assert scheduler_module._scheduler is None
+
+
+def test_the_suite_is_isolated_from_the_scheduler_setting_in_env():
+    """`.env` may turn the scheduler on for the running app; the tests must not
+    follow it, or any test touching the scheduler would start real jobs."""
+    from app.utils.config import get_settings
+
+    assert get_settings().enable_scheduler is False

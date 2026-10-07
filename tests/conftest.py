@@ -22,6 +22,10 @@ os.environ["REDIS_URL"] = ""  # falsy -> app.utils.cache.Cache becomes a permane
 os.environ["CHROMA_URL"] = ""  # falsy -> rag.retriever uses a local PersistentClient, no network
 os.environ["ANTHROPIC_API_KEY"] = ""  # falsy -> the AI analyst's "not configured" path
 os.environ["API_FOOTBALL_KEY"] = ""  # falsy -> injuries sync stays unreachable in tests
+# A developer turning the scheduler on in `.env` must not change what the tests do:
+# with it on, anything that asks for the scheduler would start real background jobs
+# inside the test process. "false" is an explicit value, so it beats `.env`.
+os.environ["ENABLE_SCHEDULER"] = "false"
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

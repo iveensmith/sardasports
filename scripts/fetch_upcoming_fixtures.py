@@ -277,6 +277,18 @@ def load_rows(session, rows: list[dict]) -> tuple[int, int]:
         existing.add(row["external_id"])
         inserted += 1
     session.flush()
+    if resolver.created:
+        # A created club starts at the default rating, so its fixtures are
+        # coin-flip predictions. Most of the time it is an existing club under a
+        # different spelling that has not been mapped to its API id yet — say so,
+        # by name, rather than let it pass as a new club.
+        logger.warning(
+            "Created %d club(s) that matched nothing already held: %s. Each starts at the "
+            "default rating; if one is an existing club under another spelling, map it with "
+            "`scripts/fetch_api_competitions.py --map-teams --ids <league id>` or merge it.",
+            len(resolver.created),
+            ", ".join(f"{name} (api {api_id})" for name, api_id, _ in resolver.created),
+        )
     return inserted, skipped
 
 

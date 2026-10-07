@@ -2016,3 +2016,56 @@ Not done: the first request counted by the guard on subscription day still wants
 look at real numbers — the caps are worst cases, not measurements. 37 new tests in
 `tests/test_scheduler_budget.py`; the guard's skip cases are seeded with real
 fixtures so they cannot pass for want of anything to do.
+
+## The scheduler turned on — and what its first run found
+
+`ENABLE_SCHEDULER` is now `true` (in `.env`, which is not in git), and the backend
+runs it: nine jobs, registered at startup. The first API job, fixtures, fired at
+16:00 on the dot, looked three days ahead (three requests), and inserted 13 real
+fixtures in modelled competitions. That is the first domestic fixtures the board
+has held since the data went stale.
+
+**It immediately found a real defect, which is what turning it on was for.** Of
+the 9 clubs that run created, all 9 were clubs we already held under another
+spelling — `Flamengo`/`Flamengo RJ`, `Botafogo`/`Botafogo RJ`, `HJK Helsinki`/`HJK`,
+`CFR 1907 Cluj`/`CFR Cluj`, `Drogheda United`/`Drogheda`, `RB Bragantino`/`Bragantino`,
+`Vasco DA Gama`/`Vasco`, `Universitatea Cluj`/`U. Cluj`, `Atletico Paranaense`/
+`Athletico-PR`. A created club starts at the default rating, so each of those
+fixtures would have been a coin-flip prediction on the board. It is exactly the
+failure the club-ID mapping exists to prevent; the mapping had not been run for
+these leagues (the free plan made it a deliberate wait), and the live feed cannot
+tell the spellings apart without it. Fixed in four parts:
+
+1. **Cleaned up.** `merge_team` (tested) folds a duplicate into the club it
+   duplicates — matches, rating history and injuries re-pointed, the keeper learns
+   the API id, the duplicate deleted — and refuses if the two carry *different* API
+   ids (different clubs). The nine duplicates held no Elo history and no
+   predictions, only their own fresh fixtures; each pair was checked by hand
+   (same league, no conflicting id) and dry-run before the merge. Backup taken.
+2. **Mapped the four leagues** involved (Brazil, Finland, Romania, Ireland) from
+   their 2024 rosters, 4 requests: 19 of 20, 12 of 13, 16 of 20 and 11 of 11 clubs
+   now carry API ids, so those leagues' next fixtures resolve by id. Clubs it would
+   not guess at are in `data/processed/team_mapping_review.csv` (Atletico GO is
+   the API's Atletico Goianiense; FC Voluntari and Metaloglobus are not in our data).
+3. **A bug in the mapping tool, found by thinking about this case.** It selected
+   a league's seasons with `label.startswith(str(year))`, which can never match a
+   calendar-year league's stored label (`"2424"` for 2024), so it would have
+   skipped Brazil, Finland and Ireland — precisely these leagues — and spent a
+   request doing it. It now reads labels with `season_start_year`, skips a season
+   it holds no matches for *before* spending a request, and `--ids` restricts it to
+   named leagues.
+4. **No longer silent.** The live loader now logs, by name and API id, every club it
+   creates, with the command that maps it. Before, a duplicate club looked exactly
+   like a new one.
+
+**What this does not fix.** Only those four leagues are mapped. Every other league
+the live feed covers (the European leagues above all, once their fixtures arrive)
+will create duplicates of clubs with abbreviated Football-Data names until it is
+mapped — Athletic Club versus Ath Bilbao is the textbook case. Mapping all of them
+on the free plan is about 45 requests of the remaining day's quota. The instruction
+on record is to run the full mapping the moment the plan is upgraded; until then the
+new warning at least makes each duplicate visible, and `merge_team` removes it.
+
+**Caveat on "on".** The scheduler lives inside the backend process, so it only runs
+while the backend is running, and a missed run is not caught up. If the backend is
+not up at 03:00 the refresh does not happen.

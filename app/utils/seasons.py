@@ -67,3 +67,20 @@ def season_codes_to_refresh(today) -> list[str]:
         previous = european_season_code(today.replace(year=today.year - 1))
         return [current, previous]
     return [current]
+
+
+def season_start_year(label: str) -> int | None:
+    """The year a stored season label begins in, whatever shape it is written in.
+
+    "2024-2025" -> 2024; the old calendar-year spelling "2025-2025" -> 2025; a
+    doubled two-digit year "2525" -> 2025; a bare year "2022" -> 2022. None for
+    anything else. Matching a label against a year with `startswith` cannot work:
+    "2424" is the 2024 season and does not start with "2024".
+    """
+    if len(label) == 9 and label[4] == "-" and label[:4].isdigit() and label[5:].isdigit():
+        return int(label[:4])
+    if len(label) == 4 and label.isdigit():
+        if label[:2] == label[2:]:
+            return 2000 + int(label[:2])
+        return int(label)
+    return None
