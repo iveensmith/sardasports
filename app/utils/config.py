@@ -20,6 +20,12 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite:///./data/uniquepredict.db"
+    # SQLite only. WAL lets readers run while a writer commits, which is what stops a
+    # board request reading while another stores predictions from failing with
+    # "database is locked"; it is a property of the file, so it sticks once set.
+    # The busy timeout is how long a writer waits for another writer before giving up.
+    sqlite_wal: bool = True
+    sqlite_busy_timeout_seconds: float = 30.0
 
     # Cache
     redis_url: str | None = "redis://localhost:6379/0"

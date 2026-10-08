@@ -6,19 +6,22 @@ keeping the `ml/` package itself free of any SQLAlchemy dependency.
 
 from __future__ import annotations
 
+import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import lru_cache
 from pathlib import Path
 from time import monotonic
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Match, ModelVersion, Prediction, PredictionHistory, Team
+from app.models import EloHistory, Match, ModelVersion, Prediction, PredictionHistory, Team
 from app.services.elo_service import get_team_elo_before
 from app.utils.cache import get_cache
 from app.utils.config import get_settings
 from app.utils.logging import get_logger
+from ml.feature_engineering.features import build_team_history_index
 from ml.prediction.predict import (
     CARDS_LINES,
     CORNERS_LINES,
@@ -30,8 +33,8 @@ from ml.prediction.predict import (
     load_xgboost_artifact,
     predict_match,
 )
-from ml.prediction.predict_basketball import TOTAL_POINTS_LINES, predict_game
-from ml.prediction.predict_tennis import TOTAL_GAMES_LINES
+from ml.prediction.predict_basketball import NBA_COMPETITION, TOTAL_POINTS_LINES, predict_game
+from ml.prediction.predict_tennis import TOTAL_GAMES_LINES, build_surface_elo
 from ml.prediction.predict_tennis import predict_match as predict_tennis_match
 from ml.training.train_basketball_totals import (
     model_name_for_line as basketball_total_model_name_for_line,
@@ -261,6 +264,41 @@ def _all_completed_history(
     ]
 
 
+# Pricing a basketball or tennis match replays the sport's whole history into a per-team
+# index (and, for tennis, a surface rating table). That is the expensive part, and a board
+# prices dozens of matches against the same history, so the last one built is kept and
+# reused for as long as the same history is being passed in.
+_SPORT_STATE: dict = {}
+_SPORT_STATE_LOCK = threading.Lock()
+
+
+def _history_key(history) -> tuple:
+    """Identifies a history list well enough to know whether a built index still fits it."""
+    if not history:
+        return (id(history), 0, None, None)
+    return (id(history), len(history), history[0]["match_date"], history[-1]["match_date"])
+
+
+def _indexed_history(history):
+    """The history as a per-team index, built once per distinct history."""
+    key = _history_key(history)
+    with _SPORT_STATE_LOCK:
+        if _SPORT_STATE.get("index_key") != key:
+            _SPORT_STATE["index_key"] = key
+            _SPORT_STATE["index"] = build_team_history_index(history)
+        return _SPORT_STATE["index"]
+
+
+def _tennis_ratings(history):
+    """Overall and per-surface ratings replayed from the history, built once per history."""
+    key = _history_key(history)
+    with _SPORT_STATE_LOCK:
+        if _SPORT_STATE.get("elo_key") != key:
+            _SPORT_STATE["elo_key"] = key
+            _SPORT_STATE["elo"] = build_surface_elo(history)
+        return _SPORT_STATE["elo"]
+
+
 def _predict_basketball(session: Session, match, home_team, away_team, history=None) -> dict:
     """The basketball branch of `predict_for_match`.
 
@@ -287,17 +325,41 @@ def _predict_basketball(session: Session, match, home_team, away_team, history=N
         if model is not None:
             total_models[line] = (model, scaler)
 
+    # Outside the NBA the trained totals do not apply; price totals statistically from
+    # the league's own scoring record (see ml.prediction.predict_basketball).
+    league_totals = None
+    if match.competition != NBA_COMPETITION:
+        count, mean, mean_square = (
+            session.query(
+                func.count(Match.id),
+                func.avg(Match.home_score + Match.away_score),
+                func.avg(
+                    (Match.home_score + Match.away_score) * (Match.home_score + Match.away_score)
+                ),
+            )
+            .filter(
+                Match.sport == "basketball",
+                Match.competition == match.competition,
+                Match.status == "completed",
+                Match.match_date < match.match_date,
+            )
+            .one()
+        )
+        std = 0.0 if not count else max(0.0, float(mean_square) - float(mean) ** 2) ** 0.5
+        league_totals = {"n": count, "mean": float(mean or 0), "std": std}
+
     result = predict_game(
         home_team=home_team.name,
         away_team=away_team.name,
         match_date=match.match_date,
-        history=history,
+        history=_indexed_history(history),
         elo_home=get_team_elo_before(session, home_team.id, match.match_date),
         elo_away=get_team_elo_before(session, away_team.id, match.match_date),
         elo_home_advantage=settings.elo_home_advantage,
         winner_model=winner_model,
         winner_scaler_params=winner_scaler,
         total_models=total_models,
+        league_totals=league_totals,
     )
 
     return {
@@ -318,6 +380,7 @@ def _predict_basketball(session: Session, match, home_team, away_team, history=N
                 "prob_over": m.prob_over,
                 "prob_under": m.prob_under,
                 "model_used": m.model_used,
+                "source": m.source,
             }
             for m in result.total_points_markets
         ],
@@ -325,6 +388,9 @@ def _predict_basketball(session: Session, match, home_team, away_team, history=N
         "confidence_label": result.confidence_label,
         "model_version": model_version.version if model_version else None,
         "winner_model_used": result.winner_model_used,
+        "thin_history": result.thin_history,
+        "ratings_age_days": result.ratings_age_days,
+        "stale_ratings": result.stale_ratings,
         "generated_at": datetime.now(UTC).isoformat(),
     }
 
@@ -357,7 +423,8 @@ def _predict_tennis(session: Session, match, home_player, away_player, history=N
         match_date=match.match_date,
         surface=match.surface,
         best_of=match.best_of,
-        history=history,
+        history=_indexed_history(history),
+        elo=_tennis_ratings(history),
         winner_model=winner_model,
         winner_scaler_params=winner_scaler,
         total_models=total_models,
@@ -392,6 +459,7 @@ def _predict_tennis(session: Session, match, home_player, away_player, history=N
         "confidence_label": result.confidence_label,
         "model_version": model_version.version if model_version else None,
         "winner_model_used": result.winner_model_used,
+        "thin_history": result.thin_history,
         "generated_at": datetime.now(UTC).isoformat(),
     }
 
@@ -430,6 +498,13 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         payload = _predict_tennis(session, match, home_team, away_team, history=history)
         cache.set_json(cache_key, payload, ttl_seconds=CACHE_TTL_SECONDS)
         return payload
+
+    # Once a match has kicked off, what was published is what is served; a
+    # fresh compute would show a number the site never called.
+    published = _published_payload(session, match, home_team, away_team)
+    if published is not None:
+        cache.set_json(cache_key, published, ttl_seconds=CACHE_TTL_SECONDS)
+        return published
 
     settings = get_settings()
     if history is None:
@@ -489,8 +564,9 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         shared=shared,
     )
 
-    _persist_prediction(session, match, result, model_version)
-
+    # Built before the row is stored: committing expires every ORM object in the
+    # session, and reading names and dates back afterwards would be a round trip
+    # per attribute (and one more place a lock could bite).
     payload = {
         "match_id": match.id,
         "home_team": home_team.name,
@@ -526,8 +602,79 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         "explanation": result.explanation,
         "generated_at": datetime.now(UTC).isoformat(),
     }
+    _persist_prediction(session, match, result, model_version)
     cache.set_json(cache_key, payload, ttl_seconds=CACHE_TTL_SECONDS)
     return payload
+
+
+# SQLite allows one writer at a time, and a board stores a prediction per fixture, so
+# several boards loading together used to fight over the write lock: each loser waited
+# out the busy timeout and then lost its prediction. Taking this lock first makes the
+# threads of this process queue in Python instead, where waiting is free; the busy
+# timeout is then only ever spent on a writer from *another* process.
+_WRITE_LOCK = threading.Lock()
+
+
+def _has_kicked_off(match: Match) -> bool:
+    """True once the match is under way or played: its stored call is final.
+
+    `match_date` is naive UTC, like `Prediction.created_at` (the database's own
+    clock), which is what makes "stored before kick-off" a plain comparison.
+    """
+    if match.status == "completed":
+        return True
+    return match.match_date <= datetime.now(UTC).replace(tzinfo=None)
+
+
+def _published_payload(
+    session: Session, match: Match, home_team: Team, away_team: Team
+) -> dict | None:
+    """The prediction as it was published, for a match that has kicked off.
+
+    None when there is no stored row (a played match nobody predicted yet,
+    which then gets a backtest row computed and persisted as before).
+
+    Rebuilt from the row alone, so the fields the row never recorded are left
+    empty rather than recomputed: `estimator_probs`, `model_weights_used`,
+    `explanation`, and whether the BTTS model was used. Recomputing them would
+    describe the engine as it is now, next to numbers it produced earlier.
+    """
+    stored = session.query(Prediction).filter(Prediction.match_id == match.id).one_or_none()
+    if stored is None or not _has_kicked_off(match):
+        return None
+
+    version = (
+        session.get(ModelVersion, stored.model_version_id) if stored.model_version_id else None
+    )
+    generated = stored.updated_at or stored.created_at
+    return {
+        "match_id": match.id,
+        "home_team": home_team.name,
+        "away_team": away_team.name,
+        "match_date": match.match_date.isoformat(),
+        "competition": match.competition,
+        # Stored as 0-1 fractions; the payload speaks percentages.
+        "home_win": round(stored.prob_home * 100, 6),
+        "draw": round(stored.prob_draw * 100, 6),
+        "away_win": round(stored.prob_away * 100, 6),
+        "expected_goals_home": stored.expected_goals_home,
+        "expected_goals_away": stored.expected_goals_away,
+        "top_scorelines": stored.top_scorelines or [],
+        "btts_yes": round(stored.prob_btts_yes * 100, 6),
+        "btts_no": round(stored.prob_btts_no * 100, 6),
+        "goals_markets": stored.goals_markets or [],
+        "ht_goals_markets": stored.ht_goals_markets or [],
+        "corners_markets": stored.corners_markets or [],
+        "cards_markets": stored.cards_markets or [],
+        "confidence": stored.confidence,
+        "confidence_label": stored.confidence_label,
+        "model_version": version.version if version else None,
+        "model_weights_used": {},
+        "estimator_probs": {},
+        "btts_model_used": None,
+        "explanation": None,
+        "generated_at": generated.replace(tzinfo=UTC).isoformat(),
+    }
 
 
 def _persist_prediction(session: Session, match: Match, result, model_version) -> None:
@@ -553,22 +700,49 @@ def _persist_prediction(session: Session, match: Match, result, model_version) -
         model_version_id=model_version.id if model_version else None,
     )
 
-    existing = session.query(Prediction).filter(Prediction.match_id == match.id).one_or_none()
-    if existing is None:
-        session.add(Prediction(match_id=match.id, **common_fields))
-    else:
-        for key, value in common_fields.items():
-            setattr(existing, key, value)
+    # Storing is a side effect of predicting, not the point of it: if it fails the
+    # prediction that was just computed is still correct and is still returned, and
+    # the row is simply stored by the next request. Failing the read because the
+    # bookkeeping could not be written is what turned lock contention into rows
+    # with no prediction.
+    with _WRITE_LOCK:
+        try:
+            existing = (
+                session.query(Prediction).filter(Prediction.match_id == match.id).one_or_none()
+            )
+            if existing is None:
+                session.add(Prediction(match_id=match.id, **common_fields))
+            elif _has_kicked_off(match):
+                # The track record grades this row and calls it live when it was
+                # stored before kick-off. Overwriting it afterwards would leave
+                # `created_at` untouched while changing what was predicted, so a
+                # recompute (a retrain, say) could quietly replace a published call
+                # and still count as one. Once the match is under way the row is
+                # final, and the history table gets no snapshot either: it is a
+                # timeline of what was produced before the game, not of what the
+                # engine says in hindsight.
+                return
+            else:
+                for key, value in common_fields.items():
+                    setattr(existing, key, value)
+                # Stamped explicitly. `onupdate` only fires when a column's value
+                # changed, and a recomputed-but-identical prediction changes none,
+                # which would leave the row looking older than the data it was
+                # just checked against and force a recompute on every view.
+                existing.updated_at = func.now()
 
-    session.add(
-        PredictionHistory(
-            match_id=match.id,
-            actual_home_goals=match.home_score,
-            actual_away_goals=match.away_score,
-            **common_fields,
-        )
-    )
-    session.commit()
+            session.add(
+                PredictionHistory(
+                    match_id=match.id,
+                    actual_home_goals=match.home_score,
+                    actual_away_goals=match.away_score,
+                    **common_fields,
+                )
+            )
+            session.commit()
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not store the prediction for match %s: %s", match.id, exc)
+            session.rollback()
 
 
 def get_prediction_timeline(session: Session, match_id: int) -> list[PredictionHistory]:
@@ -580,7 +754,138 @@ def get_prediction_timeline(session: Session, match_id: int) -> list[PredictionH
     )
 
 
-def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | None]:
+def _inputs_watermark(session: Session, sport: str, cutoff: datetime) -> datetime | None:
+    """The newest moment anything a prediction is computed from changed.
+
+    A stored prediction written after this moment was computed from the data as it
+    still is. The three inputs that can move under it:
+
+    - a completed match before the cut-off was added or corrected (form, Poisson
+      baselines and Elo all read the history before kick-off);
+    - Elo was rebuilt (`EloHistory` is deleted and rewritten, so its newest
+      `created_at` is the rebuild);
+    - a model was registered or retrained.
+
+    Deliberately conservative: it can say "changed" when nothing a particular
+    prediction reads did, which costs one recompute, and never the reverse.
+    """
+    stamps = (
+        session.query(func.max(Match.updated_at))
+        .filter(Match.sport == sport, Match.status == "completed", Match.match_date < cutoff)
+        .scalar(),
+        session.query(func.max(EloHistory.created_at)).scalar(),
+        session.query(func.max(ModelVersion.created_at))
+        .filter(ModelVersion.is_active.is_(True))
+        .scalar(),
+    )
+    return max((stamp for stamp in stamps if stamp is not None), default=None)
+
+
+def _stored_is_current(
+    stored: Prediction,
+    match: Match,
+    watermark: datetime | None,
+    active: ActiveVersion | None,
+) -> bool:
+    """Would recomputing this match today reproduce the stored row?
+
+    The row must come from the model that is active now, be newer than every input
+    change (`_inputs_watermark`), and be newer than the last edit to the fixture
+    itself — its teams, competition or kick-off can change.
+
+    A match that has kicked off is the exception: its stored row is final (see
+    `_persist_prediction`), so it is current whatever has happened since. A result
+    arriving, a retrain or a data refresh must not make it look stale, or every view
+    of a played match would go on recomputing a number that is never written back.
+    """
+    if _has_kicked_off(match):
+        return True
+    if stored.updated_at is None:
+        return False
+    if stored.model_version_id != (active.id if active else None):
+        return False
+    if watermark is not None and stored.updated_at < watermark:
+        return False
+    return not (match.updated_at is not None and stored.updated_at < match.updated_at)
+
+
+def _stored_payload(
+    session: Session, stored: Prediction, match: Match, active: ActiveVersion | None
+) -> dict:
+    """A stored row, back in the shape `predict_for_match` returns.
+
+    Only what was stored is returned. The row has no per-estimator split, model
+    weights or explanation (they are not columns), so those keys are absent rather
+    than guessed: a caller that needs them must not ask for stored predictions.
+    Percentages are stored as 0-1 fractions of values rounded to one decimal place,
+    so scaling back and rounding to one place restores the exact original numbers.
+    """
+    home_team = session.get(Team, match.home_team_id)
+    away_team = session.get(Team, match.away_team_id)
+
+    def pct(fraction: float) -> float:
+        return round(fraction * 100, 1)
+
+    return {
+        "match_id": match.id,
+        "home_team": home_team.name,
+        "away_team": away_team.name,
+        "match_date": match.match_date.isoformat(),
+        "competition": match.competition,
+        "home_win": pct(stored.prob_home),
+        "draw": pct(stored.prob_draw),
+        "away_win": pct(stored.prob_away),
+        "expected_goals_home": stored.expected_goals_home,
+        "expected_goals_away": stored.expected_goals_away,
+        "top_scorelines": stored.top_scorelines or [],
+        "btts_yes": pct(stored.prob_btts_yes),
+        "btts_no": pct(stored.prob_btts_no),
+        "goals_markets": stored.goals_markets or [],
+        "ht_goals_markets": stored.ht_goals_markets or [],
+        "corners_markets": stored.corners_markets or [],
+        "cards_markets": stored.cards_markets or [],
+        "confidence": stored.confidence,
+        "confidence_label": stored.confidence_label,
+        "model_version": active.version if active else None,
+        "generated_at": stored.updated_at.isoformat(),
+    }
+
+
+def _serve_stored(
+    session: Session,
+    group: list[Match],
+    cutoff: datetime,
+    results: dict[int, dict | None],
+) -> list[Match]:
+    """Fill `results` from stored predictions that are still current; return the rest.
+
+    This is the cheap path a board should take almost every time: one query for the
+    rows, three `max()` lookups for the watermark, and no writes. Only fixtures with
+    no row, or a row `_stored_is_current` rejects, go on to be recomputed.
+    """
+    stored_by_match = {
+        row.match_id: row
+        for row in session.query(Prediction).filter(Prediction.match_id.in_([m.id for m in group]))
+    }
+    if not stored_by_match:
+        return group
+
+    watermark = _inputs_watermark(session, group[0].sport, cutoff)
+    active = _active_version(session, MATCH_RESULT_MODEL_NAME)
+
+    pending: list[Match] = []
+    for match in group:
+        stored = stored_by_match.get(match.id)
+        if stored is not None and _stored_is_current(stored, match, watermark, active):
+            results[match.id] = _stored_payload(session, stored, match, active)
+        else:
+            pending.append(match)
+    return pending
+
+
+def predict_for_matches(
+    session: Session, matches: list[Match], *, allow_stored: bool = False
+) -> list[dict | None]:
     """Predict several matches, loading each sport's history exactly once.
 
     `predict_for_match` loads every completed match in the sport to build
@@ -595,6 +900,13 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
     are byte-for-byte what the per-match path produces, just without
     re-reading the table each time.
 
+    With `allow_stored=True` a football fixture whose stored prediction is still
+    current is served from that row instead of being recomputed — see
+    `_stored_is_current` for what "current" means. The payload then carries the
+    headline numbers and markets but not the per-estimator split or explanation
+    (those are not stored), so only callers that read nothing beyond the markets
+    and confidence should opt in. The default keeps the old behaviour.
+
     A fixture the engine cannot price yields None rather than failing the
     batch: one bad row is a gap in a list, not an outage.
     """
@@ -604,11 +916,27 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
 
     results: dict[int, dict | None] = {}
     for (sport, _day), group in by_window.items():
+        # The window must cover every fixture in the group, so use the
+        # earliest kick-off: anything later would leak a same-day result
+        # into a fixture that kicks off before it. It is taken over the whole
+        # group even when only some fixtures still need computing, so a
+        # fixture's prediction does not depend on how many of its neighbours
+        # happened to be stored already.
+        cutoff = min(m.match_date for m in group)
+
+        pending = group
+        if allow_stored and sport == "football":
+            try:
+                pending = _serve_stored(session, group, cutoff, results)
+            except Exception as exc:  # noqa: BLE001
+                # The stored path is an optimisation. If it cannot run, compute.
+                logger.warning("Reading stored predictions failed for %s: %s", _day, exc)
+                session.rollback()
+                pending = [m for m in group if m.id not in results]
+            if not pending:
+                continue
+
         try:
-            # The window must cover every fixture in the group, so use the
-            # earliest kick-off: anything later would leak a same-day result
-            # into a fixture that kicks off before it.
-            cutoff = min(m.match_date for m in group)
             history = _all_completed_history(session, before_date=cutoff, sport=sport)
 
             # The reusable fits depend on (history, competition), not on the
@@ -619,7 +947,7 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
             shared_by_competition: dict[str | None, object] = {}
             if sport == "football":
                 shared_by_competition = build_shared_fits(
-                    history, sorted({m.competition for m in group}, key=str)
+                    history, sorted({m.competition for m in pending}, key=str)
                 )
         except Exception as exc:  # noqa: BLE001
             # A transient failure here (a concurrent writer holding SQLite's
@@ -633,11 +961,11 @@ def predict_for_matches(session: Session, matches: list[Match]) -> list[dict | N
                 "Batch prediction setup failed for %s fixtures on %s: %s", sport, _day, exc
             )
             session.rollback()
-            for match in group:
+            for match in pending:
                 results[match.id] = None
             continue
 
-        for match in group:
+        for match in pending:
             try:
                 results[match.id] = predict_for_match(
                     session,

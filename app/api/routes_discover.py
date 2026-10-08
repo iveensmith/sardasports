@@ -27,6 +27,7 @@ from app.services.slip_service import (
     candidate_legs,
 )
 from app.services.stored_predictions import predict_with_stored_fallback
+from app.utils.coalesce import CoalescingCache
 from ml.competition_catalogue import BY_COMPETITION, competitions_in, countries
 from ml.markets import candidate_calls, rank_calls
 
@@ -46,6 +47,12 @@ router = APIRouter(tags=["discover"])
 # each row, it just does not choose them.
 BANKER_PROBABILITY = 80.0
 
+# `/bankers` and `/slip` both start from the same priced day, and the slip builder is
+# hit repeatedly with different targets. The day is built once and shared; see
+# `routes_board_table.BOARD_CACHE_SECONDS` for why the window is short.
+DAY_CACHE_SECONDS = 30.0
+_day_cache = CoalescingCache(DAY_CACHE_SECONDS)
+
 
 @router.get("/leagues")
 def leagues(db: Session = Depends(get_db)) -> dict:
@@ -58,14 +65,16 @@ def leagues(db: Session = Depends(get_db)) -> dict:
     """
     counts = dict(
         db.query(Match.competition, func.count(Match.id))
-        .filter(Match.status == "completed")
+        .filter(Match.sport == "football", Match.status == "completed")
         .group_by(Match.competition)
         .all()
     )
     upcoming = dict(
         db.query(Match.competition, func.count(Match.id))
         .filter(
-            Match.status == "scheduled", Match.match_date >= datetime.now(UTC).replace(tzinfo=None)
+            Match.sport == "football",
+            Match.status == "scheduled",
+            Match.match_date >= datetime.now(UTC).replace(tzinfo=None),
         )
         .group_by(Match.competition)
         .all()
@@ -117,17 +126,26 @@ def league(slug: str, db: Session = Depends(get_db)) -> dict:
 
 def _day_rows(db: Session, target: date):
     """Board rows for a day, plus the ranked calls behind each."""
+    return _day_cache.get_or_compute(target, lambda: _build_day_rows(db, target))
+
+
+def _build_day_rows(db: Session, target: date):
     start = datetime.combine(target, datetime.min.time())
     matches = (
         db.query(Match)
-        .filter(Match.match_date >= start, Match.match_date < start + timedelta(days=1))
+        .filter(
+            Match.sport == "football",
+            Match.match_date >= start,
+            Match.match_date < start + timedelta(days=1),
+        )
         .order_by(Match.match_date.asc())
         .all()
     )
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
-    predictions = predict_with_stored_fallback(db, matches)
+    # Only markets and confidence are read here, so a current stored prediction will do.
+    predictions = predict_with_stored_fallback(db, matches, allow_stored=True)
 
     rows, ranked_by_match, odds_by_match = [], {}, {}
     for match, prediction in zip(matches, predictions, strict=True):

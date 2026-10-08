@@ -145,6 +145,7 @@ def _fixtures(db: Session, competition: str) -> list[dict]:
     matches = (
         db.query(Match)
         .filter(
+            Match.sport == "football",
             Match.competition == competition,
             Match.status == "scheduled",
             Match.match_date >= now,
@@ -158,7 +159,7 @@ def _fixtures(db: Session, competition: str) -> list[dict]:
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
-    predictions = predict_with_stored_fallback(db, matches)
+    predictions = predict_with_stored_fallback(db, matches, allow_stored=True)
     return [
         build_row(
             match,
@@ -176,6 +177,7 @@ def _latest_results(db: Session, competition: str) -> list[dict]:
     matches = (
         db.query(Match)
         .filter(
+            Match.sport == "football",
             Match.competition == competition,
             Match.status == "completed",
             Match.home_score.is_not(None),
@@ -205,6 +207,7 @@ def build_league(db: Session, meta: CompetitionMeta) -> dict:
     completed = (
         db.query(Match)
         .filter(
+            Match.sport == "football",
             Match.competition == competition,
             Match.status == "completed",
             Match.home_score.is_not(None),

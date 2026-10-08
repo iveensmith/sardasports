@@ -32,6 +32,7 @@ from app.services.base_rates import market_base_rates
 from app.services.board_service import build_row, is_won
 from app.services.recent_results import DEFAULT_LIMIT, MAX_LIMIT, recent_settled
 from app.services.stored_predictions import predict_with_stored_fallback
+from app.utils.coalesce import CoalescingCache
 from ml.competition_catalogue import meta_for
 
 router = APIRouter(tags=["board"])
@@ -40,6 +41,14 @@ router = APIRouter(tags=["board"])
 # hundred fixtures and a reader expects the whole day, not page one of six;
 # the cap exists so a malformed request cannot ask for the entire database.
 MAX_FIXTURES = 400
+
+# A finished board is the same for every reader, so it is built once and shared for
+# this long, and a burst of identical requests (the home page asks for three days at
+# once, and Next prefetches) shares that one build instead of each starting its own.
+# Short, because a score arriving or a price being fetched should reach the page
+# within the time a reader would notice.
+BOARD_CACHE_SECONDS = 30.0
+_board_cache = CoalescingCache(BOARD_CACHE_SECONDS)
 
 
 def _day_bounds(target: date) -> tuple[datetime, datetime]:
@@ -54,12 +63,28 @@ def board(
     ),
     country: str | None = Query(None, description="Filter to one country or confederation."),
     competition: str | None = Query(None),
-    sport: str | None = Query(None),
+    # Football unless another sport is asked for: this is the football board, and the
+    # other sports now have fixtures in the same table.
+    sport: str | None = Query("football"),
     limit: int = Query(MAX_FIXTURES, ge=1, le=MAX_FIXTURES),
     db: Session = Depends(get_db),
 ) -> dict:
     """A day's fixtures, grouped by competition, every market called and graded."""
     target = on_date or datetime.now(UTC).date()
+    return _board_cache.get_or_compute(
+        (target, country, competition, sport, limit),
+        lambda: _build_board(db, target, country, competition, sport, limit),
+    )
+
+
+def _build_board(
+    db: Session,
+    target: date,
+    country: str | None,
+    competition: str | None,
+    sport: str | None,
+    limit: int,
+) -> dict:
     start, end = _day_bounds(target)
 
     query = db.query(Match).filter(Match.match_date >= start, Match.match_date < end)
@@ -89,7 +114,9 @@ def board(
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
     base_rates = market_base_rates(db, "football")
 
-    predictions = predict_with_stored_fallback(db, matches)
+    # The board reads only the markets and the confidence, so a stored prediction that
+    # is still current is as good as a fresh one and costs nothing to serve.
+    predictions = predict_with_stored_fallback(db, matches, allow_stored=True)
     rows = [
         build_row(
             match,
@@ -163,7 +190,11 @@ def board_dates(
     for offset in range(-span, span + 1):
         target = today + timedelta(days=offset)
         start, end = _day_bounds(target)
-        total = db.query(Match).filter(Match.match_date >= start, Match.match_date < end).count()
+        total = (
+            db.query(Match)
+            .filter(Match.sport == "football", Match.match_date >= start, Match.match_date < end)
+            .count()
+        )
         days.append(
             {
                 "date": target.isoformat(),

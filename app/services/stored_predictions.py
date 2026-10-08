@@ -59,13 +59,19 @@ def payload_from_stored(prediction: Prediction) -> dict:
     }
 
 
-def predict_with_stored_fallback(session: Session, matches: list[Match]) -> list[dict | None]:
+def predict_with_stored_fallback(
+    session: Session, matches: list[Match], allow_stored: bool = False
+) -> list[dict | None]:
     """`predict_for_matches`, except a failed row falls back to its stored one.
 
     A fixture with no stored prediction and no live one stays None, which the
     board shows as unpredicted. Football only: the stored columns are football's.
     """
-    results = predict_for_matches(session, matches)
+    results = (
+        predict_for_matches(session, matches, allow_stored=True)
+        if allow_stored
+        else predict_for_matches(session, matches)
+    )
     missing = [
         m.id for m, r in zip(matches, results, strict=True) if r is None and m.sport == "football"
     ]

@@ -299,7 +299,8 @@ class PredictionOut(BaseModel):
     # independent estimator before blending. Absent for a model that is not
     # trained yet, rather than zero-filled.
     estimator_probs: dict = {}
-    btts_model_used: bool
+    # None for a prediction served from its stored row, which never recorded it.
+    btts_model_used: bool | None = None
     explanation: list[FeatureImpactOut] | None = None
     # Every market's call, ranked by how far the model sits above that
     # selection's own base rate. Absent for sports with no base-rate table.

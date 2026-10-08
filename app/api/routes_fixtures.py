@@ -25,7 +25,7 @@ def get_fixtures_today(
 
     matches = (
         db.query(Match)
-        .filter(Match.match_date >= start, Match.match_date < end)
+        .filter(Match.sport == "football", Match.match_date >= start, Match.match_date < end)
         .order_by(Match.match_date.asc())
         .all()
     )

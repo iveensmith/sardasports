@@ -63,3 +63,5 @@ web/node_modules/
 web/.next/
 web/out/
 web/.env*.local
+*.db-wal
+*.db-shm

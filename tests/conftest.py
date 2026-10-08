@@ -33,7 +33,8 @@ from fastapi.testclient import TestClient  # noqa: E402
 import app.models  # noqa: E402, F401 - registers all models on Base.metadata
 from app.database.base import Base  # noqa: E402
 from app.database.session import SessionLocal, get_engine  # noqa: E402
-from app.main import app  # noqa: E402
+from app.main import _request_log, app  # noqa: E402
+from app.utils.coalesce import clear_all_caches  # noqa: E402
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -45,6 +46,24 @@ def _test_database():
     engine.dispose()
     if TEST_DB_PATH.exists():
         TEST_DB_PATH.unlink()
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """The limiter keeps a per-IP request log for the life of the process, and every
+    TestClient request comes from the same address, so a test that sends a burst of
+    requests would otherwise be answered with 429s earned by the tests before it."""
+    _request_log.clear()
+    yield
+
+
+@pytest.fixture(autouse=True)
+def _clear_response_caches():
+    """The board and slip routes keep a finished day for a few seconds. Test data
+    reuses ids and dates, so a result cached by one test would answer the next."""
+    clear_all_caches()
+    yield
+    clear_all_caches()
 
 
 @pytest.fixture(autouse=True)

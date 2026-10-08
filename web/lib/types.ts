@@ -180,7 +180,7 @@ export interface FootballPrediction {
   confidence_label: ConfidenceLabel;
   model_version: string | null;
   model_weights_used: Record<string, number>;
-  btts_model_used: boolean;
+  btts_model_used: boolean | null;
   explanation: FeatureImpact[] | null;
   /**
    * Calls across every market, ranked by lift over each selection's base
