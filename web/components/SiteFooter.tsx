@@ -40,6 +40,10 @@ const COMPANY_LINKS = [
 const GUIDE_LINKS = [
   { href: "/over-2-5-goals-predictions-today", label: "Over 2.5 goals today" },
   {
+    href: "/best-football-prediction-site",
+    label: "Choosing a prediction site",
+  },
+  {
     href: "/both-teams-to-score-predictions-today",
     label: "Both teams to score today",
   },

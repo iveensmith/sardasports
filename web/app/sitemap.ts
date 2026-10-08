@@ -54,6 +54,11 @@ const FIXED: Array<{
   { path: "/leagues", changeFrequency: "daily", priority: 0.7 },
   { path: "/progress", changeFrequency: "daily", priority: 0.7 },
   { path: "/how-it-works", changeFrequency: "monthly", priority: 0.5 },
+  {
+    path: "/best-football-prediction-site",
+    changeFrequency: "monthly",
+    priority: 0.7,
+  },
   { path: "/leaderboard", changeFrequency: "weekly", priority: 0.4 },
   { path: "/about", changeFrequency: "monthly", priority: 0.4 },
   { path: "/contact", changeFrequency: "yearly", priority: 0.3 },

@@ -33,6 +33,7 @@ import { AboutTheEngine } from "@/components/home/AboutTheEngine";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { TopLeagues } from "@/components/home/TopLeagues";
 import { Faq } from "@/components/home/Faq";
+import { GoodSite } from "@/components/home/GoodSite";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 180;
@@ -40,7 +41,7 @@ export const revalidate = 180;
 export const metadata = pageMetadata({
   title: "Football Predictions Today: Free AI Tips, Every Pick Graded",
   description:
-    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. Every pick is graded against the final score on a public record.",
+    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. A prediction site that grades every pick against the final score, in public.",
   path: "/",
   absoluteTitle: true,
 });
@@ -285,6 +286,8 @@ export default async function HomePage() {
         />
 
         <HowItWorks />
+
+        <GoodSite />
 
         <Faq
           live={hasLive ? progress!.live.record : null}

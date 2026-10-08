@@ -48,21 +48,37 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Free AI football predictions for today's matches: 1X2, over 2.5, both teams to score and correct score. Every pick is graded against the final score on a public record.",
+    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. A prediction site that grades every pick against the final score, in public.",
   applicationName: SITE_NAME,
   category: "sports",
   // Not a ranking factor for Google, which ignores it; kept for the engines
   // that still read it. The words that rank are in titles, headings and copy.
   keywords: [
+    // The main phrases
     "football predictions",
     "football predictions today",
-    "football betting tips",
+    "football prediction site",
     "AI football predictions",
+    "AI prediction site",
+    "free football predictions",
+    "football betting tips",
+    "football tips today",
+    "soccer predictions",
+    // The comparison searches: people looking for the "best" site want criteria
+    "best AI prediction site",
+    "best football prediction site",
+    "best prediction site",
+    "most accurate football predictions",
+    "football prediction accuracy",
+    "football prediction track record",
+    // The markets
     "over 2.5 goals predictions",
     "both teams to score predictions",
+    "BTTS predictions",
     "correct score predictions",
     "banker tips today",
     "accumulator builder",
+    "bet slip generator",
   ],
   openGraph: {
     type: "website",
