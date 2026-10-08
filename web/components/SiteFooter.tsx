@@ -18,6 +18,7 @@
  */
 
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { EngineError, getLeagues, getTopTeams } from "@/lib/api";
 
 const SITE_LINKS = [
@@ -94,8 +95,8 @@ export async function SiteFooter() {
       <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
           <div>
-            <Link href="/" className="text-[17px] font-bold tracking-[-0.02em]">
-              SARDA<span className="text-[var(--color-gold)]">SPORTS</span>
+            <Link href="/" className="inline-block" aria-label="SARDASPORTS">
+              <Logo className="h-10" />
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
               The best AI prediction site for football. Free picks are published

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { Logo } from "@/components/Logo";
 import { organizationLd, websiteLd } from "@/lib/seo";
 import { IS_LIVE_SITE, SITE_NAME, SITE_URL } from "@/lib/site";
 import { Red_Hat_Display, Red_Hat_Text } from "next/font/google";
@@ -146,12 +147,9 @@ export default function RootLayout({
       <body className="min-h-dvh antialiased">
         <JsonLd data={[organizationLd(), websiteLd()]} />
         <header className="sticky top-0 z-50 border-b border-[var(--color-line)] bg-[var(--color-base)]/85 backdrop-blur-md">
-          <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-8">
-            <Link
-              href="/"
-              className="text-[17px] font-bold tracking-[-0.02em] whitespace-nowrap"
-            >
-              SARDA<span className="text-[var(--color-gold)]">SPORTS</span>
+          <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-4 lg:gap-8">
+            <Link href="/" className="shrink-0" aria-label={SITE_NAME}>
+              <Logo priority />
             </Link>
             <div className="hidden flex-1 items-center gap-6 text-[14px] lg:flex">
               {NAV.map((item) => (
