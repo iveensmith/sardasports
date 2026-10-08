@@ -2387,3 +2387,243 @@ lives in one constant for the web app, `SITE_NAME` in `web/lib/site.ts`, and in 
 Also fixed on the way: `test_team_badges` demanded flags for the clubs on the board, which are
 initials by design, so it passed or failed on whether the week's fixtures included internationals.
 It now checks national-team fixtures only.
+
+## Basketball and tennis on the site
+
+The engine has priced NBA games and ATP/WTA matches for a while (see "Multi-sport" above), and
+match pages for them worked, but nothing on the site led to them: no navigation, no sport pages,
+no mention on the home page, nothing in the sitemap. This pass made them visible.
+
+**What was built.**
+- `GET /sports` and `GET /sports/{sport}` (`app/services/sport_service.py`, `app/api/routes_sports.py`):
+  per sport, how many finished matches are on record and the date they run to, upcoming fixtures
+  (whatever is really scheduled), the highest-rated competitors, the latest results with what the
+  engine says about each, the competitions covered, and every model's accuracy beside the baseline it
+  recorded. Cached for an hour, with the last good answer served if a recompute fails. A scheduler
+  job (`sports_pages_warm`) keeps it warm, because pricing the latest tennis matches loads the whole
+  history and takes about 15 seconds cold.
+- Website: a sport switcher (Football / Basketball / Tennis) under the header on every page,
+  `/basketball` and `/tennis` pages (`web/components/sport/`), a "Basketball and tennis predictions
+  too" section on the home page, footer links, sitemap entries, a home FAQ answer, an About section,
+  a How-it-works stage, and keyword-led titles and descriptions. Match pages for these sports now go
+  "Back to tennis" and light the right tab, and show monogram badges instead of "?".
+
+**What the pages say, and why.** They state the date the data ends and that no fixtures are loaded.
+Today that is 16 Nov 2025 for tennis and 23 Jun 2025 for basketball. The "latest results" table is
+labelled as reconstructed (the engine's output now, using only earlier results), not as published
+picks, and the football record is never blended with them. The model table says "No measurable
+edge" when the gap to the baseline is under two standard errors, which is how the tennis winner
+model (+0.4 points on 13,734 matches) is reported: no better than picking the higher-rated player.
+
+**Not done at the time of that pass (most of it is done in the section below).**
+- *Live boards for today.* There is no fixture feed: tennis-data.co.uk publishes results and odds
+  only, and the basketball plan serves past seasons. Fixtures need a source (a paid API-Basketball
+  plan for the NBA; a schedule source for tennis, which is still unresolved).
+- *Fresher data.* Both are months old. Tennis 2026 results can be fetched with
+  `scripts/fetch_tennis.py --years 2026`, but `scripts/load_to_db.py` then has to rebuild Elo for
+  every sport (it deletes and replays all of `elo_history`), which is slow and contends with the
+  running engine, so it was not run unattended. After that the tennis models should be retrained.
+- *A public record for these sports.* None exists: picks were never stored before kick-off. Once
+  fixtures flow, store them the way football's are and grade them.
+- *Per-player and per-team pages, league pages for the NBA, and a "today" board.* Each needs the
+  fixture feed first.
+
+## Basketball and tennis: every league, live, graded
+
+The first pass made the two sports visible but static: results months old, no fixtures, the NBA
+only. This pass made them live and wide.
+
+**Basketball, every league the provider lists.** `ml/basketball_leagues.json` is the provider's own
+list of 428 leagues (names, countries, women's competitions; league names shared by several
+countries become "LNB (France)", "LNB (Chile)"). Two feeds fill the database
+(`app/services/basketball_feed.py`):
+- the *date feed*: `/games?date=D` for yesterday, today and tomorrow returns every league's games
+  (80 to 140 a day) in one request. This is what makes a daily board possible on the free plan, and a
+  league appears the day the provider starts listing it. Runs every 4 hours (3 requests);
+- the *history backfill*: one request per league-season, 2022 to 2024 (all the free plan serves),
+  best-known leagues first (`PRIORITY_IDS`), 551 league-seasons planned. It runs daily at 02:30
+  with whatever quota the feed leaves (it keeps 25 back). 51 were fetched on 8 Oct 2026: 29,348 games,
+  so the database now holds 36,064 finished games across 82 competitions and 1,660 teams.
+The provider's limits shape this: 100 requests a day and **10 a minute** (requests are paced 6.5 s apart,
+and a rate-limit answer waits a minute once). `/status` is asked first and nothing is spent if it
+cannot be read.
+
+**Models and measurement.** Winner: one LightGBM model over every league, retrained on 36k games:
+66.1% on 7,012 held-out games against 57.1% for always picking the home side (NBA 66.0% against
+54.7%; the page shows NBA and every other league separately). Totals: the three NBA models are
+unchanged (their lines are NBA lines, and the trainer now filters to the NBA, which it did not need
+to before). Every other league uses a normal distribution around the expected total with that
+league's own running spread (`predict_basketball`, measured by
+`ml/training/eval_basketball_statistical_totals.py`): 61.1% right at each league's average line
+against 50.9% for the more common side, on 8,988 games across 20 competitions never used to fit it,
+with calibration within a point or two at every band and still +2 to +3 points at lines six points
+either side. That row is registered like a model (`statistical_basketball_totals`) so the page
+shows it beside the others.
+
+**Two kinds of "not enough".** A side with fewer than 6 prior games, or none for 800 days, is **not
+priced** (a default rating is not evidence; without this an unknown team came out 79.5% to win).
+A side whose newest game is over 300 days old is priced with its win probability pulled 20% towards
+a coin flip and flagged ("ratings 16 months old"). The free plan cannot serve the 2025-26 season, so
+today this affects most leagues. The pull factor (0.8) is a conservative choice, not a fitted one;
+the record will show whether it is right.
+
+**Tennis: the ATP and WTA tours, live.** tennis-data.co.uk 2026 was loaded (4,305 matches), the
+current year's workbook is re-read daily, and ESPN's public scoreboard
+(`app/services/tennis_feed.py`) adds fixtures and fresh results for the tournaments in progress,
+qualifying included, every 30 minutes. **ESPN's feed is unofficial and unlicensed**: it can change
+or vanish, and the owner should decide whether that is acceptable. The module is the only place
+that knows about it. Singles only; retirements, walkovers and cancelled matches are left out
+(as in the workbooks); names are matched to the history by surname and first initial; the
+surface and the tournament name come from the history of the same tournament
+(`ml/tennis_tournaments.json`), and an unknown tournament gets no surface rather than a guess.
+When the workbook publishes a match ESPN already holds, that row is updated in place (so nothing is
+counted twice and stored predictions keep pointing at it). `matches.tournament` is new
+(migration `e0f1a2b3c4d5`) so a day groups by tournament. The tennis models were retrained: winner
+64.8% against 64.5% for the higher-rated player (no measurable edge, as before); totals 59.8% and
+65.1% against 55.2% and 55.8% on the 21.5 and 23.5 lines (clear edges).
+**Not covered, and no free source found:** Challenger and ITF events, doubles. ESPN has no other tennis
+feed (checked), and tennis-data has only the main tours.
+
+**Stored in advance, graded.** `sport_predictions` (migration `d9e0f1a2b3c4`) holds one row per
+match with percentages named `_pct`. `store_upcoming` writes predictions for the next 36 hours,
+refreshes them while the match is more than 3 hours away and the row is over 6 hours old, then
+leaves them alone; a side with too little history is never stored. `GET /sports/{sport}/board`
+serves a day grouped by league or tournament with each prediction labelled stored, calculated or
+reconstructed; `GET /sports/{sport}/record` grades the stored ones, live apart from reconstructed.
+The record starts today, so it is small.
+
+**Ratings.** `rebuild_elo_history` can now replay a single sport (the football replay takes minutes),
+and it no longer writes the last sport's rating over every competitor's `teams.elo_rating`.
+`app/services/elo_sync.py` continues from the last rating for new results and replays the sport only
+when a result is older than ratings already written. The top-rated lists are now ranked within a
+competition, because an ATP rating and a WTA rating, or an NBA rating and a Greek league rating, come
+from different pools and were being compared.
+
+**Speed.** Pricing tennis replayed the whole history into a rating table for every match (4 minutes
+for 26 matches). The history index and the rating table are now built once per history and reused;
+a board takes seconds. The pages are also warmed by the scheduler.
+
+**Also done.** Terms of use page (a plain-language draft that names no country or company and needs
+a qualified read). The share image uses the logo. SQLite write-ahead logging (`SQLITE_WAL`) and a
+longer busy timeout, and then the whole of the DB-pool and freeze-at-kick-off work, were applied from
+their worktrees with the owner's go-ahead (the sections below are those tasks' own write-ups). The
+two overlapped in `prediction_service.py`: the freeze task's `_stored_payload` was renamed
+`_published_payload` (a name clash), and the pool task's test that a result stamps the actual score on
+the history was changed to the freeze rule (nothing reads that score, and a published prediction must
+not be recomputed once the match has started). `_stored_is_current` also treats a kicked-off match's
+row as current whatever happened since, or every view of a played match would recompute a number that
+is never written back; the tests that needed a recompute now use tomorrow's fixtures.
+
+**Still open.** Basketball: the remaining ~500 league-seasons arrive at about 50 a day; the 2025-26 season
+and a higher request limit need a paid plan. Tennis: Challenger/ITF need a licensed feed.
+
+## Serving a day's board cheaply and safely under concurrent requests
+
+**The problem.** Every `/board` request recomputed every prediction (0.5–1.3 s per
+fixture; a 32-match day ~16 s) and wrote a `Prediction` and a `PredictionHistory` row per
+fixture. The home page asks for yesterday/today/tomorrow at once and Next prefetches, so
+several boards ran side by side: the thread pool piled up, threads fought for SQLite's one
+write lock (`database is locked`, each costing the 5 s busy timeout and then returning no
+prediction for that fixture), connections ran out (`QueuePool limit … reached`), and
+abandoned requests kept running after the browser gave up, so the backlog outlived the
+burst. Reproduced on a copy of the live database with the unchanged code: 9 concurrent
+requests (3 dates × 3), **none finished in 180 s**.
+
+**What changed — no prediction says anything different** (verified, below).
+
+1. **Stored predictions are served when still current** (`predict_for_matches(...,
+   allow_stored=True)`). A football fixture's `Prediction` row is used instead of a
+   recompute when all of these hold: its `model_version_id` is the active match-result
+   model; it is not older than the newest of (a completed match before the cut-off
+   changing, `EloHistory` being rebuilt, any active model being registered); and it is not
+   older than the fixture's own last edit. The rule errs towards recomputing: an odds
+   refresh or a stats fetch (both touch `matches.updated_at`) costs one recompute per
+   fixture, never a stale number. A result arriving also forces one recompute, which is
+   what stamps the actual score onto the prediction history, so that behaviour survives.
+   Opt-in, default unchanged: the stored row has no per-estimator split, weights or
+   explanation, so a payload from it simply lacks those keys (nothing is invented).
+   `/board`, `/bankers`, `/slip` and a league page's fixtures opt in; `/predictions/today`
+   (which reads the estimator split) and `/predict/{id}` keep recomputing.
+2. **Writes are serialised and cannot lose a prediction.** `_persist_prediction` now takes a
+   process-wide lock (including the "does a row exist?" check — unserialised, two requests
+   both saw "no row" and the second hit `UNIQUE constraint failed: predictions.match_id`,
+   a second failure mode the logs did not show), stamps `updated_at` explicitly (`onupdate`
+   does not fire for an identical recomputation, which would leave a row forever "older"
+   than the fixture), and if the write still fails it logs and returns the computed
+   prediction instead of `None`. Serving a stored row writes nothing.
+3. **SQLite runs in WAL mode with a 30 s busy timeout** (`SQLITE_WAL`,
+   `SQLITE_BUSY_TIMEOUT_SECONDS`), so readers no longer block on a committing writer. WAL is
+   a property of the file and persists once set; the backend converts the database on its
+   first connection after the restart. **Backups:** copy the database with the backend
+   stopped (a clean shutdown checkpoints and removes the `-wal`/`-shm` files) or with
+   SQLite's backup API; copying only the `.db` of a running backend can miss recent writes.
+4. **Identical requests share one computation** (`app/utils/coalesce.py`). `/board` and the
+   `/bankers`/`/slip` day cache the finished payload for 30 s, concurrent identical requests
+   wait for the one that is computing (waiters hold no database connection), at most two
+   computations run at once, a failure is never cached and does not fail the waiters, and
+   callers get deep copies. Abandoned requests now finish into the cache instead of
+   repeating. The test suite clears these caches between tests.
+
+**Verified live** (the worktree's code on port 8001 against a copy made with SQLite's backup
+API; the real backend on :8000 was not touched):
+
+| | original code | new code |
+|---|---|---|
+| 9 concurrent `/board` (3 dates × 3), cold | none finished in 180 s | all 200, 21 s wall, every fixture predicted |
+| same, within the 30 s cache | — | 0.7 s |
+| same, cache expired (stored rows served) | ~10–22 s per date, alone | 1.3 s |
+| `database is locked` / `QueuePool` / `IntegrityError` in the log | — | 0 / 0 / 0 |
+
+All three boards, `/bankers` and `/slip` were byte-identical to what the original code
+produces one request at a time. 28 new tests in `tests/test_board_serving.py` (removing the
+write lock makes the concurrency ones fail on the unique constraint).
+
+**Not decided here.** Whether viewing a board should stop storing predictions for
+already-played matches at all is still the owner's call; storing behaviour is unchanged,
+only made safe. Note the stored-row path means repeated views no longer append a
+`PredictionHistory` row each time (they used to, which made that table grow per page view);
+a row is appended when a prediction is actually recomputed.
+
+**Still open.** `market_base_rates` rescans ~118k matches on every uncached board (~0.5 s),
+the floor under a cached-or-stored board. A same-day fixture's prediction depends slightly
+on which fixtures share its batch (the history cut-off is the batch's earliest kick-off —
+pre-existing), and a stored row keeps whichever batch wrote it. `/markets/{kind}` (in the
+owner's uncommitted tree, not in this branch) calls `predict_for_matches` and reads only
+`goals_markets` and `top_scorelines`, so it can pass `allow_stored=True` and wrap its day in
+a `CoalescingCache` the same way.
+
+## A prediction stored before kick-off is now immutable
+
+**Why.** The track record (`progress_service._grade_all`, and `market_page_service._record`)
+calls a prediction *live* when `Prediction.created_at < Match.match_date`. But
+`_persist_prediction` overwrote every field of an existing row on each recompute while
+leaving `created_at` alone, so a retrain, or any board/match-page view after the match,
+could replace a published call and it would still count as live.
+
+**What changed** (`app/services/prediction_service.py`):
+- `_has_kicked_off(match)`: `status == "completed"` or `match_date <= now` (naive UTC, the
+  same clock as `created_at`). Kick-off is a time, not only a status, because the fixture
+  feed can lag.
+- `_persist_prediction` no longer touches an existing row once the match has kicked off,
+  and appends no `PredictionHistory` snapshot either. Before kick-off it upserts as
+  before. A played match with no stored row still gets a backtest row (its `created_at`
+  is after `match_date`, so it stays a backtest).
+- `predict_for_match` serves the **stored** row for a started match instead of
+  recomputing (`_stored_payload`). This is also cheaper: no history load, no model loads.
+  The row never recorded `estimator_probs`, `model_weights_used`, `explanation` or whether
+  the BTTS model was used, so those come back empty/`None` rather than re-derived from
+  today's engine. `btts_model_used` is therefore `bool | None` in the schema and TS type.
+  The first call that creates a backtest row still returns the full fresh payload.
+
+**Other writers.** `Prediction(` is constructed only in `_persist_prediction`; scripts and
+the scheduler write only `prediction_history.actual_*` (`ml/monitoring/evaluation.py`).
+The history table is not the track record, but `ml/monitoring/calibration.py` does score
+it, so a hindsight snapshot there would have double-counted a played match; none is
+written any more.
+
+**Not fixed.** Two simultaneous first requests for the same played match can both see no
+row and race on the unique `match_id`. That predates this change. Rows already
+overwritten before this fix cannot be recovered; their `created_at` is still before
+kick-off, so they still read as live.
+
+Tests: `tests/test_prediction_immutability.py`.

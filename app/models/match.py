@@ -107,6 +107,11 @@ class Match(Base):
     # a men's Slam like a regular-tour match.
     best_of: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Tennis only: the tournament this match belongs to ("Shanghai Masters"), so a day's
+    # matches can be grouped by event. Null for history loaded before it was kept and for
+    # every other sport.
+    tournament: Mapped[str | None] = mapped_column(String(120), nullable=True)
+
     # Bookmaker closing odds (decimal), where the source data provides them —
     # used only for Step-5 "value detection" (comparing model vs. market
     # implied probability). Never used as a training feature: including

@@ -162,6 +162,36 @@ export default async function AboutPage() {
           </p>
         </Section>
 
+        <Section title="Basketball and tennis">
+          <p>
+            The same engine also prices basketball and tennis, on their own
+            pages for{" "}
+            <Link href="/basketball" className={linkClass}>
+              basketball
+            </Link>{" "}
+            and{" "}
+            <Link href="/tennis" className={linkClass}>
+              tennis
+            </Link>
+            . Basketball covers the NBA, the EuroLeague and dozens of other
+            leagues around the world, women&rsquo;s competitions included;
+            tennis covers every ATP and WTA match. Their predictions are stored
+            before the match and graded, and counted in a record of their own,
+            kept apart from football&rsquo;s because the two are different
+            sports with different amounts of history behind them.
+          </p>
+          <p>
+            They are reported more cautiously than football, for honest reasons.
+            The records are young, so the samples are small. Basketball history
+            is loaded league by league within the data provider&rsquo;s request
+            limit and the latest full season is not yet available, so some
+            ratings are months old and are marked as such. A side with too
+            little history is not priced at all. And where a model adds nothing,
+            as the tennis match-winner model currently does over simply picking
+            the higher-rated player, the page says so.
+          </p>
+        </Section>
+
         <Section title="Where the data comes from">
           <p>
             Historical results come from the public{" "}
@@ -182,6 +212,16 @@ export default async function AboutPage() {
               target="_blank"
             >
               API-Football
+            </a>
+            . Basketball results come from API-Basketball and tennis results
+            from{" "}
+            <a
+              href="http://www.tennis-data.co.uk"
+              className={linkClass}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              tennis-data.co.uk
             </a>
             . SARDASPORTS does not own this data and does not claim to; the
             predictions, ratings and the graded record built from it are the

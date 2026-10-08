@@ -222,7 +222,7 @@ def _safe_float(value) -> float | None:
     return float(value)
 
 
-def rebuild_elo_history(session, settings) -> None:
+def rebuild_elo_history(session, settings, sports: set[str] | None = None) -> None:
     """Replay every completed match chronologically to rebuild Elo state.
 
     One engine **per sport**, not one shared engine. The engine keys its
@@ -233,16 +233,24 @@ def rebuild_elo_history(session, settings) -> None:
     reintroduce. Ratings also aren't comparable across sports (an Elo of
     1700 means different things in each), so there is nothing to gain from
     a shared pool even when names don't collide.
-    """
-    session.query(EloHistory).delete()
 
-    matches = (
-        session.query(Match)
-        .filter(Match.status == "completed")
-        .order_by(Match.match_date.asc(), Match.id.asc())
-        .all()
-    )
-    team_by_id = {t.id: t for t in session.query(Team).all()}
+    `sports` limits the replay to those sports (and leaves every other sport's
+    history untouched). Replaying football costs minutes, so a job that has only
+    just added basketball or tennis results should not pay for it.
+    """
+    match_query = session.query(Match).filter(Match.status == "completed")
+    team_query = session.query(Team)
+    if sports:
+        match_query = match_query.filter(Match.sport.in_(sports))
+        team_query = team_query.filter(Team.sport.in_(sports))
+        session.query(EloHistory).filter(
+            EloHistory.match_id.in_(session.query(Match.id).filter(Match.sport.in_(sports)))
+        ).delete(synchronize_session=False)
+    else:
+        session.query(EloHistory).delete()
+
+    matches = match_query.order_by(Match.match_date.asc(), Match.id.asc()).all()
+    team_by_id = {t.id: t for t in team_query.all()}
 
     engines: dict[str, EloEngine] = {}
 
@@ -299,8 +307,12 @@ def rebuild_elo_history(session, settings) -> None:
             )
         )
 
+    # Each competitor is rated by its own sport's engine. (This used to read the one
+    # engine left over from the loop, so every sport but the last-played one was
+    # written back as the default 1500.)
     for team in team_by_id.values():
-        team.elo_rating = engine.get_rating(team.name)
+        if team.sport in engines:
+            team.elo_rating = engines[team.sport].get_rating(team.name)
 
     session.flush()
     logger.info(

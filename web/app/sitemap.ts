@@ -50,6 +50,8 @@ const FIXED: Array<{
     changeFrequency: "hourly",
     priority: 0.7,
   },
+  { path: "/basketball", changeFrequency: "daily", priority: 0.7 },
+  { path: "/tennis", changeFrequency: "daily", priority: 0.7 },
   { path: "/slip", changeFrequency: "daily", priority: 0.7 },
   { path: "/leagues", changeFrequency: "daily", priority: 0.7 },
   { path: "/progress", changeFrequency: "daily", priority: 0.7 },
@@ -63,6 +65,7 @@ const FIXED: Array<{
   { path: "/about", changeFrequency: "monthly", priority: 0.4 },
   { path: "/contact", changeFrequency: "yearly", priority: 0.3 },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.2 },
+  { path: "/terms", changeFrequency: "yearly", priority: 0.2 },
 ];
 
 function dated(lastmod: string | null): Pick<Entry, "lastModified"> {

@@ -8,8 +8,8 @@
  * roughly 68% → 78% → 97% opacity down the frame; this uses the same shape in
  * this site's own base colour.
  *
- * Full viewport height, again matching the reference: `min-h-[calc(100svh-4rem)]`
- * accounts for the sticky header above it (`h-16`) so hero-plus-header fills
+ * Full viewport height, again matching the reference: `min-h-[calc(100svh-6.5rem)]`
+ * accounts for the sticky header above it (`h-16` plus the 2.5rem sport tabs) so hero-plus-header fills
  * exactly one screen on load, the same way their negative-margin-under-a-
  * transparent-header trick does without needing a transparent header here.
  *
@@ -52,7 +52,7 @@ export function Hero({
   fixturesToday: number;
 }) {
   return (
-    <section className="relative isolate flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center overflow-hidden">
+    <section className="relative isolate flex min-h-[calc(100svh-6.5rem)] flex-col items-center justify-center overflow-hidden">
       {/* The backlight, full-bleed. A CSS gradient rather than part of the
           SVG so it always spans the viewport — inside the SVG it was bound to
           the figure's own box and left the sides of a wide screen unlit. */}

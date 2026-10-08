@@ -89,7 +89,20 @@ def train(min_matches: int = 100, test_fraction: float = 0.2) -> dict:
     # worth anything. Recorded alongside accuracy rather than left implicit.
     home_win_base_rate = float(y_test.mean())
 
+    # The same model across very different competitions: report the NBA and everything
+    # else separately, each against its own always-pick-home baseline.
+    is_nba = (test_df["competition"] == "NBA").to_numpy()
+    groups = {}
+    for label, mask in (("nba", is_nba), ("other_leagues", ~is_nba)):
+        if mask.sum() >= 50:
+            groups[label] = {
+                "accuracy": round(float(accuracy_score(y_test[mask], y_pred[mask])), 4),
+                "home_win_base_rate": round(float(y_test[mask].mean()), 4),
+                "num_test_samples": int(mask.sum()),
+            }
+
     metrics = {
+        "by_group": groups,
         "accuracy": round(float(accuracy_score(y_test, y_pred)), 4),
         "log_loss": round(float(log_loss(y_test, y_pred_proba)), 4),
         "home_win_base_rate": round(home_win_base_rate, 4),

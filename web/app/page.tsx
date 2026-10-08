@@ -21,6 +21,7 @@ import {
   getLeagues,
   getProgress,
   getRecentSettled,
+  getSportsSummary,
 } from "@/lib/api";
 import { allRows, type DayBoard } from "@/lib/board";
 import type { RecentSettled } from "@/lib/api";
@@ -34,14 +35,15 @@ import { HowItWorks } from "@/components/home/HowItWorks";
 import { TopLeagues } from "@/components/home/TopLeagues";
 import { Faq } from "@/components/home/Faq";
 import { GoodSite } from "@/components/home/GoodSite";
+import { MoreSports } from "@/components/home/MoreSports";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 180;
 
 export const metadata = pageMetadata({
-  title: "Best AI Prediction Site: Free Football Predictions Today",
+  title: "Best AI Prediction Site: Football, Basketball & Tennis",
   description:
-    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
+    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, graded in public. Plus basketball and tennis predictions.",
   path: "/",
   absoluteTitle: true,
 });
@@ -194,14 +196,21 @@ export default async function HomePage() {
 
   // Each section stands on its own request, so one failing leaves the others up.
   // Only today's board is worth an error banner: it is the page's main content.
-  const [yesterdayBoard, todayResult, tomorrowBoard, record, leaguesData] =
-    await Promise.all([
-      getDayBoard({ date: isoDay(-1) }).catch(() => null),
-      settle(getDayBoard({})),
-      getDayBoard({ date: isoDay(1) }).catch(() => null),
-      getProgress().catch(() => null),
-      getLeagues().catch(() => null),
-    ]);
+  const [
+    yesterdayBoard,
+    todayResult,
+    tomorrowBoard,
+    record,
+    leaguesData,
+    sportsData,
+  ] = await Promise.all([
+    getDayBoard({ date: isoDay(-1) }).catch(() => null),
+    settle(getDayBoard({})),
+    getDayBoard({ date: isoDay(1) }).catch(() => null),
+    getProgress().catch(() => null),
+    getLeagues().catch(() => null),
+    getSportsSummary().catch(() => null),
+  ]);
   yesterday = yesterdayBoard;
   today = todayResult.value;
   error = todayResult.error;
@@ -276,6 +285,8 @@ export default async function HomePage() {
         />
 
         <TopLeagues countries={leagueCountries} />
+
+        <MoreSports sports={sportsData?.sports ?? null} />
 
         <AboutTheEngine
           gradedPicks={progress?.overall.settled ?? 0}

@@ -101,6 +101,10 @@ export function Faq({
     },
     { q: "Which competitions are covered?", a: coverageAnswer },
     {
+      q: "Do you cover basketball and tennis?",
+      a: "Yes, on their own pages. Basketball covers the NBA, the EuroLeague and dozens of other leagues, with game winners and total points; tennis covers every ATP and WTA match, with match winners and total games. Their predictions are stored before the match and graded in a record of their own, kept apart from football's. They are younger than the football record, so the samples are small, and each page shows how every model measures against the simple rule it has to beat, including where it does not.",
+    },
+    {
       q: "Does a high win rate mean I will make money?",
       a: "No. A win rate says how often picks land, not whether the price paid for them was good. A short price on a near-certainty is usually priced about right already, so winning often can still lose money.",
     },

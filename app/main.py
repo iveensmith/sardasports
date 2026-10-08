@@ -33,6 +33,7 @@ from app.api import (
     routes_retrain,
     routes_roi,
     routes_seo,
+    routes_sports,
     routes_standings,
     routes_team,
     routes_value,
@@ -98,6 +99,7 @@ app.include_router(routes_board_table.router)
 app.include_router(routes_progress.router)
 app.include_router(routes_discover.router)
 app.include_router(routes_markets.router)
+app.include_router(routes_sports.router)
 app.include_router(routes_seo.router)
 app.include_router(routes_contact.router)
 app.include_router(routes_leaderboard.router)

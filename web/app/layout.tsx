@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Logo } from "@/components/Logo";
+import { SportTabs } from "@/components/sport/SportTabs";
 import { organizationLd, websiteLd } from "@/lib/seo";
 import { IS_LIVE_SITE, SITE_NAME, SITE_URL } from "@/lib/site";
 import { Red_Hat_Display, Red_Hat_Text } from "next/font/google";
@@ -45,11 +46,11 @@ export const metadata: Metadata = {
   // Every canonical URL and share link on the site resolves against this.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Best AI Prediction Site: Free Football Predictions Today",
+    default: "Best AI Prediction Site: Football, Basketball & Tennis",
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
+    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public. Basketball and tennis predictions too.",
   applicationName: SITE_NAME,
   category: "sports",
   // Not a ranking factor for Google, which ignores it; kept for the engines
@@ -80,15 +81,23 @@ export const metadata: Metadata = {
     "banker tips today",
     "accumulator builder",
     "bet slip generator",
+    // The other sports
+    "basketball predictions",
+    "NBA predictions",
+    "tennis predictions",
+    "ATP predictions",
+    "WTA predictions",
+    "AI tennis predictions",
+    "AI basketball predictions",
   ],
   openGraph: {
     type: "website",
     siteName: SITE_NAME,
     locale: "en_GB",
     url: "/",
-    title: "Best AI Prediction Site: Free Football Predictions Today",
+    title: "Best AI Prediction Site: Football, Basketball & Tennis",
     description:
-      "The best AI prediction site for football: free predictions for today's matches, with every pick graded against the final score on a public record.",
+      "The best AI prediction site for football: free predictions for today's matches, with every pick graded against the final score on a public record. Plus basketball and tennis.",
   },
   twitter: { card: "summary_large_image" },
   // Until a real public address is configured this is a local or staging copy
@@ -167,6 +176,7 @@ export default function RootLayout({
               <MobileNav items={NAV} />
             </div>
           </nav>
+          <SportTabs />
         </header>
 
         <main>{children}</main>

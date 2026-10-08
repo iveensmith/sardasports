@@ -36,6 +36,10 @@ TOTAL_GAMES_LINES = [19.5, 21.5, 23.5]
 
 DEDICATED_MODEL_WEIGHT = 0.6
 
+# A player with fewer recent matches than this on record (a qualifier, a debut) has a
+# default rating and empty form: nothing there to base a prediction on.
+MIN_PRIOR_MATCHES = 5
+
 
 @dataclass
 class MarketLine:
@@ -62,6 +66,8 @@ class TennisPrediction:
     elo_surface_away: float = 0.0
     confidence: float = 0.0
     confidence_label: str = "Low"
+    # True when a player has too little recent history to be priced; no picks are stored.
+    thin_history: bool = False
 
 
 def build_surface_elo(history: list[dict]) -> SurfaceElo:
@@ -184,4 +190,8 @@ def predict_match(
         elo_surface_away=round(features["elo_surface_away"], 1),
         confidence=confidence,
         confidence_label=_confidence_label(confidence),
+        thin_history=(
+            features["home_matches_played"] < MIN_PRIOR_MATCHES
+            or features["away_matches_played"] < MIN_PRIOR_MATCHES
+        ),
     )

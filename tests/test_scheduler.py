@@ -35,6 +35,10 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "weekly_retrain",
             "monthly_archive",
             "results_strip_canary",
+            "sports_pages_warm",
+            "basketball_feed",
+            "basketball_backfill",
+            "tennis_feed",
         }
 
         # Calling start again while already running is a no-op, not a second scheduler.

@@ -31,6 +31,8 @@ target the same phrase. Competing with yourself splits the ranking signal.
 | League tips | [league] predictions, [league] tips | `/leagues/[slug]` | 43 competitions. |
 | Team form | [team] predictions, [team] form | `/teams/[slug]` | 843 active teams; thin ones are not indexed. |
 | Comparison ("best") | best AI prediction site, best football prediction site, best prediction site | Home title tag, description, hero, home section "The best AI prediction site for football", home FAQ, footer, `/best-football-prediction-site` | **Owner's decision: the site states that it is the best AI prediction site.** Every statement of it is paired with grounds a visitor can verify (the 8-point checklist and the self-assessment, including a "where it falls short" section), so it reads as a position, not an empty boast. No competitor is named. If any ground stops being true, change the ground; do not drop the verifiability. |
+| Basketball | basketball predictions, NBA predictions | `/basketball` | Own page, model table with baselines, FAQ. Honest about the data ending in 2025. |
+| Tennis | tennis predictions, ATP predictions, WTA predictions | `/tennis` | Same structure. The title and copy never claim a track record the sport does not have. |
 | Free / accuracy | free football predictions, most accurate football predictions | home FAQ, `/best-football-prediction-site` FAQ | Answered honestly: free is not the test, verifiability is. |
 | Trust | football prediction accuracy, are football predictions accurate | `/progress` | The page most competitors cannot build, because it needs a real record. |
 | How it works | how AI football predictions work | `/how-it-works` | Also feeds the FAQ rich-result markup. |

@@ -61,6 +61,13 @@ const STAGES: Array<{ title: string; body: string[] }> = [
       "Nothing is removed after the fact. A losing pick stays on the record exactly as it was called, and the whole record is on the track-record page, downloadable, with live and reconstructed calls counted apart.",
     ],
   },
+  {
+    title: "Basketball and tennis",
+    body: [
+      "The engine prices basketball (the NBA, the EuroLeague and dozens of other leagues) and ATP and WTA tennis with the same discipline and different mathematics. Neither sport has a draw, so there is no Poisson goal model: each gets a rating system, a boosted model for the winner and, for totals, either a trained model (NBA points, tennis games) or a statistical estimate around the expected total (other basketball leagues). Tennis keeps a separate rating for each surface, because clay ability is not grass ability.",
+      "They are graded the same way: a prediction is stored before the match and settled against the result, in a record of its own for each sport, with live and reconstructed predictions counted apart. A side with too little history is not priced, and ratings that are months out of date are pulled towards a coin flip and labelled.",
+    ],
+  },
 ];
 
 const FAQS: Array<{ q: string; a: string }> = [

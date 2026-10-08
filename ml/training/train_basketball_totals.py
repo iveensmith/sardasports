@@ -41,6 +41,9 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 
+NBA_COMPETITION = "NBA"
+
+
 def model_name_for_line(line: float) -> str:
     """`225.5` -> `"lightgbm_basketball_total_225_5"` — keep in sync with
     `ml.prediction.predict_basketball.TOTAL_POINTS_LINES`."""
@@ -55,6 +58,10 @@ def train(line: float, min_matches: int = 100, test_fraction: float = 0.2) -> di
     frame = build_feature_frame(matches, settings)
     frame = frame[frame["home_avg_points_scored"] > 0]
     frame = frame[frame["away_avg_points_scored"] > 0]
+    # The fixed lines (215.5 / 225.5 / 235.5) are NBA lines. Other leagues score very
+    # differently (about 160 a game in the EuroLeague), so their games would turn every
+    # one of these into a near-certain "under". Other leagues get lines of their own.
+    frame = frame[frame["competition"] == NBA_COMPETITION].copy()
     frame["label"] = (frame["total_points"] > line).astype(int)
     logger.info(
         "%d games usable; %.1f%% went over %s",

@@ -1,0 +1,598 @@
+{
+"ABN AMRO World Tennis Tournament": {
+"surface": "Hard",
+"location": "Rotterdam"
+},
+"ASB Classic": {
+"surface": "Hard",
+"location": "Auckland"
+},
+"ATX Open": {
+"surface": "Hard",
+"location": "Austin"
+},
+"Abierto Mexicano": {
+"surface": "Hard",
+"location": "Acapulco"
+},
+"Abierto Zapopan": {
+"surface": "Hard",
+"location": "Guadalajara"
+},
+"Abu Dhabi WTA Women's Tennis Open": {
+"surface": "Hard",
+"location": "Abu Dhabi"
+},
+"Adelaide International": {
+"surface": "Hard",
+"location": "Adelaide"
+},
+"Adelaide International 1": {
+"surface": "Hard",
+"location": "Adelaide"
+},
+"Adelaide International 2": {
+"surface": "Hard",
+"location": "Adelaide"
+},
+"Almaty Open": {
+"surface": "Hard",
+"location": "Almaty"
+},
+"Argentina Open": {
+"surface": "Clay",
+"location": "Buenos Aires"
+},
+"Astana Open": {
+"surface": "Hard",
+"location": "Nur-Sultan"
+},
+"Athens Open": {
+"surface": "Hard",
+"location": "Athens"
+},
+"Atlanta Open": {
+"surface": "Hard",
+"location": "Atlanta"
+},
+"Australian Open": {
+"surface": "Hard",
+"location": "Melbourne"
+},
+"BMW Open": {
+"surface": "Clay",
+"location": "Munich"
+},
+"BNP Paribas Masters": {
+"surface": "Hard",
+"location": "Paris"
+},
+"BNP Paribas Open": {
+"surface": "Hard",
+"location": "Indian Wells"
+},
+"Bad Homburg Open": {
+"surface": "Grass",
+"location": "Bad Homburg"
+},
+"Barcelona Open": {
+"surface": "Clay",
+"location": "Barcelona"
+},
+"Belgrade Open": {
+"surface": "Hard",
+"location": "Belgrade"
+},
+"Bett1Open": {
+"surface": "Grass",
+"location": "Berlin"
+},
+"Brisbane International": {
+"surface": "Hard",
+"location": "Brisbane"
+},
+"Budapest Open": {
+"surface": "Clay",
+"location": "Budapest"
+},
+"Canadian Open": {
+"surface": "Hard",
+"location": "Toronto"
+},
+"Championnats de Granby": {
+"surface": "Hard",
+"location": "Granby"
+},
+"Charleston Open": {
+"surface": "Clay",
+"location": "Charleston"
+},
+"Chengdu Open": {
+"surface": "Hard",
+"location": "Chengdu"
+},
+"Chennai Open": {
+"surface": "Hard",
+"location": "Chennai"
+},
+"Chile Open": {
+"surface": "Clay",
+"location": "Santiago"
+},
+"China Open": {
+"surface": "Hard",
+"location": "Beijing"
+},
+"Citi Open": {
+"surface": "Hard",
+"location": "Washington"
+},
+"Copa Colsanitas": {
+"surface": "Clay",
+"location": "Bogota"
+},
+"Cordoba Open": {
+"surface": "Clay",
+"location": "Cordoba"
+},
+"Croatia Open": {
+"surface": "Clay",
+"location": "Umag"
+},
+"Dallas Open": {
+"surface": "Hard",
+"location": "Dallas"
+},
+"Delray Beach Open": {
+"surface": "Hard",
+"location": "Delray Beach"
+},
+"Dubai Duty Free Tennis Championships": {
+"surface": "Hard",
+"location": "Dubai"
+},
+"Dubai Tennis Championships": {
+"surface": "Hard",
+"location": "Dubai"
+},
+"Eastbourne International": {
+"surface": "Grass",
+"location": "Eastbourne"
+},
+"Eastbourne Open": {
+"surface": "Grass",
+"location": "Eastbourne"
+},
+"Estoril Open": {
+"surface": "Clay",
+"location": "Estoril"
+},
+"European Open": {
+"surface": "Clay",
+"location": "Hamburg"
+},
+"Firenze Open": {
+"surface": "Hard",
+"location": "Florence"
+},
+"French Open": {
+"surface": "Clay",
+"location": "Paris"
+},
+"Generali Open": {
+"surface": "Clay",
+"location": "Kitzbuhel"
+},
+"Geneva Open": {
+"surface": "Clay",
+"location": "Geneva"
+},
+"German Open": {
+"surface": "Grass",
+"location": "Berlin"
+},
+"Gijon Open": {
+"surface": "Hard",
+"location": "Gijon"
+},
+"Grand Prix Hassan II": {
+"surface": "Clay",
+"location": "Marrakech"
+},
+"Grand Prix SAR Lalla Meryem": {
+"surface": "Clay",
+"location": "Rabat"
+},
+"Guadalajara Open": {
+"surface": "Hard",
+"location": "Guadalajara"
+},
+"Guangzhou Open": {
+"surface": "Hard",
+"location": "Guangzhou"
+},
+"Hall of Fame Championships": {
+"surface": "Grass",
+"location": "Newport"
+},
+"Halle Open": {
+"surface": "Grass",
+"location": "Halle"
+},
+"Hamburg European Open": {
+"surface": "Clay",
+"location": "Hamburg"
+},
+"Hamburg Open": {
+"surface": "Clay",
+"location": "Hamburg"
+},
+"Hangzhou Open": {
+"surface": "Hard",
+"location": "Hangzhou"
+},
+"Hellenic Championship": {
+"surface": "Hard",
+"location": "Athens"
+},
+"Hobart International": {
+"surface": "Hard",
+"location": "Hobart"
+},
+"Hong Kong Tennis Open": {
+"surface": "Hard",
+"location": "Hong Kong"
+},
+"Iasi Open": {
+"surface": "Clay",
+"location": "Iasi"
+},
+"Internationaux de Strasbourg": {
+"surface": "Clay",
+"location": "Strasbourg"
+},
+"Internazionali BNL d'Italia": {
+"surface": "Clay",
+"location": "Rome"
+},
+"Internazionali Femminili di Palermo": {
+"surface": "Clay",
+"location": "Palermo"
+},
+"Istanbul Cup": {
+"surface": "Clay",
+"location": "Istanbul"
+},
+"Japan Open": {
+"surface": "Hard",
+"location": "Osaka"
+},
+"Japan Open Tennis Championships": {
+"surface": "Hard",
+"location": "Tokyo"
+},
+"Jasmin Open": {
+"surface": "Hard",
+"location": "Monastir"
+},
+"Jiangxi Open": {
+"surface": "Hard",
+"location": "Jiujiang"
+},
+"Jiangxi Tennis Open": {
+"surface": "Hard",
+"location": "Nanchang"
+},
+"Korea Open": {
+"surface": "Hard",
+"location": "Seoul"
+},
+"Ladies Linz Open": {
+"surface": "Hard",
+"location": "Linz"
+},
+"Ladies Open Lausanne": {
+"surface": "Clay",
+"location": "Lausanne"
+},
+"Ladies Trophy": {
+"surface": "Hard",
+"location": "St. Petersburg"
+},
+"Los Cabos Open": {
+"surface": "Hard",
+"location": "Los Cabos"
+},
+"Lyon Open": {
+"surface": "Clay",
+"location": "Lyon"
+},
+"Maharashtra Open": {
+"surface": "Hard",
+"location": "Pune"
+},
+"Mallorca Championships": {
+"surface": "Grass",
+"location": "Mallorca"
+},
+"Masters Cup": {
+"surface": "Hard",
+"location": "Turin"
+},
+"Melbourne Summer Set": {
+"surface": "Hard",
+"location": "Melbourne"
+},
+"Melbourne Summer Set 1": {
+"surface": "Hard",
+"location": "Melbourne"
+},
+"Melbourne Summer Set 2": {
+"surface": "Hard",
+"location": "Melbourne"
+},
+"Memphis Classic": {
+"surface": "Hard",
+"location": "Memphis"
+},
+"Mercedes Cup": {
+"surface": "Grass",
+"location": "Stuttgart"
+},
+"Merida Open": {
+"surface": "Hard",
+"location": "Merida"
+},
+"Miami Open": {
+"surface": "Hard",
+"location": "Miami"
+},
+"Millennium Estoril Open": {
+"surface": "Clay",
+"location": "Estoril"
+},
+"Monte Carlo Masters": {
+"surface": "Clay",
+"location": "Monte Carlo"
+},
+"Monterrey Open": {
+"surface": "Hard",
+"location": "Monterrey"
+},
+"Morocco Open": {
+"surface": "Clay",
+"location": "Rabat"
+},
+"Mubadala Silicon Valley Classic": {
+"surface": "Hard",
+"location": "San Jose"
+},
+"Mutua Madrid Open": {
+"surface": "Clay",
+"location": "Madrid"
+},
+"Napoli Cup": {
+"surface": "Hard",
+"location": "Napoli"
+},
+"Ningbo Open": {
+"surface": "Hard",
+"location": "Ningbo"
+},
+"Nordea Open": {
+"surface": "Clay",
+"location": "Bastad"
+},
+"Nordic Open": {
+"surface": "Hard",
+"location": "Stockholm"
+},
+"Nottingham Open": {
+"surface": "Grass",
+"location": "Nottingham"
+},
+"Open 13": {
+"surface": "Hard",
+"location": "Marseille"
+},
+"Open Sud de France": {
+"surface": "Hard",
+"location": "Montpellier"
+},
+"Open de Moselle": {
+"surface": "Hard",
+"location": "Metz"
+},
+"Open de Rouen": {
+"surface": "Clay",
+"location": "Rouen"
+},
+"Ostrava Open": {
+"surface": "Hard",
+"location": "Ostrava"
+},
+"Parma Ladies Open": {
+"surface": "Clay",
+"location": "Parma"
+},
+"Poland Open": {
+"surface": "Clay",
+"location": "Warsaw"
+},
+"Porsche Tennis Grand Prix": {
+"surface": "Clay",
+"location": "Stuttgart"
+},
+"Prague Open": {
+"surface": "Hard",
+"location": "Prague"
+},
+"Qatar Exxon Mobil Open": {
+"surface": "Hard",
+"location": "Doha"
+},
+"Qatar Open": {
+"surface": "Hard",
+"location": "Doha"
+},
+"Queen's Club Championships": {
+"surface": "Grass",
+"location": "Queens Club"
+},
+"Rakuten Japan Open Tennis Championships": {
+"surface": "Hard",
+"location": "Tokyo"
+},
+"Rio Open": {
+"surface": "Clay",
+"location": "Rio de Janeiro"
+},
+"Rosmalen Grass Court Championships": {
+"surface": "Grass",
+"location": "'s-Hertogenbosch"
+},
+"Rothesay Classic": {
+"surface": "Grass",
+"location": "Birmingham"
+},
+"Rothesay International": {
+"surface": "Grass",
+"location": "Eastbourne"
+},
+"SP Open": {
+"surface": "Hard",
+"location": "Sao Paulo"
+},
+"San Diego Open": {
+"surface": "Hard",
+"location": "San Diego"
+},
+"Serbia Open": {
+"surface": "Clay",
+"location": "Belgrade"
+},
+"Shanghai Masters": {
+"surface": "Hard",
+"location": "Shanghai"
+},
+"Singapore Open": {
+"surface": "Hard",
+"location": "Singapore"
+},
+"Slovenia Open": {
+"surface": "Hard",
+"location": "Portoroz"
+},
+"Sofia Open": {
+"surface": "Hard",
+"location": "Sofia"
+},
+"Srpska Open": {
+"surface": "Clay",
+"location": "Banja Luka"
+},
+"Stockholm Open": {
+"surface": "Hard",
+"location": "Stockholm"
+},
+"Stuttgart Open": {
+"surface": "Grass",
+"location": "Stuttgart"
+},
+"Suisse Open Gstaad": {
+"surface": "Clay",
+"location": "Gstaad"
+},
+"Swiss Indoors": {
+"surface": "Hard",
+"location": "Basel"
+},
+"Sydney Tennis Classic": {
+"surface": "Hard",
+"location": "Sydney"
+},
+"Tallinn Open": {
+"surface": "Hard",
+"location": "Tallinn"
+},
+"Tel Aviv Open": {
+"surface": "Hard",
+"location": "Tel Aviv"
+},
+"Tennis in the Land": {
+"surface": "Hard",
+"location": "Cleveland"
+},
+"Thailand Open": {
+"surface": "Hard",
+"location": "Hua Hin"
+},
+"Thailand Open 2": {
+"surface": "Hard",
+"location": "Hua Hin"
+},
+"Tiriac Open": {
+"surface": "Clay",
+"location": "Bucharest"
+},
+"Toray Pan Pacific Open Tennis Tournament": {
+"surface": "Hard",
+"location": "Tokyo"
+},
+"Transylvania Open": {
+"surface": "Hard",
+"location": "Cluj-Napoca"
+},
+"U.S. Men's Clay Court Championships": {
+"surface": "Clay",
+"location": "Houston"
+},
+"U.S.Men's Clay Court Championships": {
+"surface": "Clay",
+"location": "Houston"
+},
+"US Open": {
+"surface": "Hard",
+"location": "New York"
+},
+"Vienna Open": {
+"surface": "Hard",
+"location": "Vienna"
+},
+"WTA Elite Trophy": {
+"surface": "Hard",
+"location": "Zhuhai"
+},
+"WTA Finals": {
+"surface": "Hard",
+"location": "Riyadh"
+},
+"Western & Southern Financial Group Masters": {
+"surface": "Hard",
+"location": "Cincinnati"
+},
+"Western & Southern Financial Group Women's Open": {
+"surface": "Hard",
+"location": "Cincinnati"
+},
+"Wimbledon": {
+"surface": "Grass",
+"location": "London"
+},
+"Winston-Salem Open at Wake Forest University": {
+"surface": "Hard",
+"location": "Winston-Salem"
+},
+"Wuhan Open": {
+"surface": "Hard",
+"location": "Wuhan"
+},
+"Zhengzhou Open": {
+"surface": "Hard",
+"location": "Zhengzhou"
+},
+"Zhuhai Championships": {
+"surface": "Hard",
+"location": "Zhuhai"
+}
+}

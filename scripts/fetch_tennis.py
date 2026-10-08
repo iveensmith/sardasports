@@ -52,10 +52,12 @@ import hashlib
 import io
 import logging
 import time
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
 import requests
+from sqlalchemy import or_
 
 from app.database.session import SessionLocal
 from app.models.match import Match
@@ -119,13 +121,22 @@ def _float_or_none(value) -> float | None:
     return None if pd.isna(value) else float(value)
 
 
-def fetch_year(tour: str, year: int, timeout: int = 90) -> pd.DataFrame | None:
-    """Download one tour-year workbook, cached to disk so a re-load is free."""
+def fetch_year(
+    tour: str, year: int, timeout: int = 90, max_age_hours: float | None = None
+) -> pd.DataFrame | None:
+    """Download one tour-year workbook, cached to disk so a re-load is free.
+
+    A finished year never changes, so its cached file is used as is. The current year
+    keeps growing, so pass `max_age_hours` to fetch it again once the cached copy is
+    older than that.
+    """
     suffix = TOURS[tour]
     RAW_DIR.mkdir(parents=True, exist_ok=True)
     cached = RAW_DIR / f"{tour}_{year}.xlsx"
     if cached.exists():
-        return pd.read_excel(cached)
+        age_hours = (time.time() - cached.stat().st_mtime) / 3600
+        if max_age_hours is None or age_hours < max_age_hours:
+            return pd.read_excel(cached)
 
     for ext in ("xlsx", "xls"):
         url = f"{BASE_URL}/{year}{suffix}/{year}.{ext}"
@@ -176,6 +187,9 @@ def rows_from_frame(df: pd.DataFrame, tour: str, year: int) -> list[dict]:
         rows.append(
             {
                 "external_id": f"tennis-{tour}-{year}-{index}",
+                "tournament": (
+                    None if pd.isna(row.get("Tournament")) else str(row["Tournament"]).strip()
+                ),
                 "match_date": pd.to_datetime(date).to_pydatetime(),
                 "competition": tour,
                 "season": str(year),
@@ -208,6 +222,55 @@ def _get_or_create_player(session, cache: dict, name: str, tour: str) -> Team:
     return player
 
 
+ESPN_PREFIX = "espn-tennis-"
+SAME_MATCH_DAYS = 4
+
+
+def _adopt_espn_row(session, row: dict, home: Team, away: Team) -> bool:
+    """If ESPN already holds this match, make that row the tennis-data one, in place.
+
+    The ESPN feed puts fixtures and fresh results in before this source publishes them.
+    When the same match arrives here (same two players within a few days), the existing
+    row is updated with the fuller record (surface, set-by-set games, odds) and given
+    this source's id, rather than a second row being added. Keeping the row keeps its
+    id, so anything stored against the match still points at it.
+    """
+    window = timedelta(days=SAME_MATCH_DAYS)
+    existing = (
+        session.query(Match)
+        .filter(
+            Match.sport == SPORT,
+            Match.external_id.like(f"{ESPN_PREFIX}%"),
+            Match.match_date >= row["match_date"] - window,
+            Match.match_date <= row["match_date"] + window,
+            or_(
+                (Match.home_team_id == home.id) & (Match.away_team_id == away.id),
+                (Match.home_team_id == away.id) & (Match.away_team_id == home.id),
+            ),
+        )
+        .first()
+    )
+    if existing is None:
+        return False
+    same_orientation = existing.home_team_id == home.id
+    existing.external_id = row["external_id"]
+    existing.match_date = row["match_date"]
+    existing.season = row["season"]
+    existing.surface = row["surface"] or existing.surface
+    existing.best_of = row["best_of"] or existing.best_of
+    existing.tournament = row.get("tournament") or existing.tournament
+    existing.status = "completed"
+    if same_orientation:
+        existing.home_score, existing.away_score = row["home_score"], row["away_score"]
+        existing.home_games, existing.away_games = row["home_games"], row["away_games"]
+        existing.odds_home_win, existing.odds_away_win = row["odds_home_win"], row["odds_away_win"]
+    else:
+        existing.home_score, existing.away_score = row["away_score"], row["home_score"]
+        existing.home_games, existing.away_games = row["away_games"], row["home_games"]
+        existing.odds_home_win, existing.odds_away_win = row["odds_away_win"], row["odds_home_win"]
+    return True
+
+
 def load_rows(session, rows: list[dict]) -> int:
     existing = {
         e for (e,) in session.query(Match.external_id).filter(Match.sport == SPORT).all() if e
@@ -219,6 +282,9 @@ def load_rows(session, rows: list[dict]) -> int:
             continue
         home = _get_or_create_player(session, cache, row["home_team"], row["competition"])
         away = _get_or_create_player(session, cache, row["away_team"], row["competition"])
+        if _adopt_espn_row(session, row, home, away):
+            existing.add(row["external_id"])
+            continue
         session.add(
             Match(
                 external_id=row["external_id"],
@@ -228,6 +294,7 @@ def load_rows(session, rows: list[dict]) -> int:
                 season=row["season"],
                 surface=row["surface"],
                 best_of=row["best_of"],
+                tournament=row.get("tournament"),
                 # Tennis has no home advantage: the slots are an arbitrary
                 # ordering this script assigned, not a venue. Marking every
                 # match neutral is what stops the Elo home-advantage offset
@@ -247,6 +314,46 @@ def load_rows(session, rows: list[dict]) -> int:
         )
         existing.add(row["external_id"])
         inserted += 1
+    return inserted
+
+
+def backfill_tournaments(session, years: list[int]) -> int:
+    """Fill in the tournament name on matches loaded before it was kept (cached files only)."""
+    updated = 0
+    for tour in TOURS:
+        for year in years:
+            cached = RAW_DIR / f"{tour}_{year}.xlsx"
+            if not cached.exists():
+                continue
+            for row in rows_from_frame(pd.read_excel(cached), tour, year):
+                if not row.get("tournament"):
+                    continue
+                updated += (
+                    session.query(Match)
+                    .filter(
+                        Match.external_id == row["external_id"],
+                        Match.tournament.is_(None),
+                    )
+                    .update({Match.tournament: row["tournament"]}, synchronize_session=False)
+                )
+    session.commit()
+    return updated
+
+
+def refresh_current_year(session, max_age_hours: float = 20.0) -> int:
+    """Re-read this year's workbooks if they are stale, and load any new matches.
+
+    The scheduler calls this daily. The files are small (about 400 KB each). Returns the
+    number of matches inserted or adopted from the other feed.
+    """
+    year = datetime.now(UTC).year
+    rows: list[dict] = []
+    for tour in TOURS:
+        frame = fetch_year(tour, year, max_age_hours=max_age_hours)
+        if frame is not None:
+            rows.extend(rows_from_frame(frame, tour, year))
+    inserted = load_rows(session, rows)
+    session.commit()
     return inserted
 
 

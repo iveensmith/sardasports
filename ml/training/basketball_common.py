@@ -98,6 +98,7 @@ def build_feature_frame(matches: list[dict], settings) -> pd.DataFrame:
         )
         features["match_date"] = m["match_date"]
         features["match_id"] = m["match_id"]
+        features["competition"] = m["competition"]
         features["home_score"] = m["home_score"]
         features["away_score"] = m["away_score"]
         features["total_points"] = m["home_score"] + m["away_score"]

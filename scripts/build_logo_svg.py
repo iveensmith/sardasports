@@ -1,3 +1,4 @@
+# ruff: noqa: E501 (the SVG templates below are long lines of markup)
 """Build the SARDASPORTS logo SVGs in web/public.
 
 The wordmark is converted from Arial Black to outlines (so the SVG needs no font),
@@ -99,7 +100,10 @@ def _pentagon(cx, cy, r, rot):
     import math
 
     return [
-        (cx + r * math.cos(math.radians(rot + 72 * i)), cy + r * math.sin(math.radians(rot + 72 * i)))
+        (
+            cx + r * math.cos(math.radians(rot + 72 * i)),
+            cy + r * math.sin(math.radians(rot + 72 * i)),
+        )
         for i in range(5)
     ]
 
@@ -109,9 +113,15 @@ def _poly(points):
 
 
 _CENTRE = _pentagon(0, 0, 14, -90)
-_EDGE = [_pentagon(46 * __import__("math").cos(__import__("math").radians(-90 + 72 * k)),
-                   46 * __import__("math").sin(__import__("math").radians(-90 + 72 * k)), 15, 90 + 72 * k)
-         for k in range(5)]
+_EDGE = [
+    _pentagon(
+        46 * __import__("math").cos(__import__("math").radians(-90 + 72 * k)),
+        46 * __import__("math").sin(__import__("math").radians(-90 + 72 * k)),
+        15,
+        90 + 72 * k,
+    )
+    for k in range(5)
+]
 SOCCER_PATCHES = _poly(_CENTRE) + "".join(_poly(e) for e in _EDGE)
 SOCCER_SEAMS = "".join(
     f"M{_CENTRE[k][0]:.1f} {_CENTRE[k][1]:.1f} L{_EDGE[k][(k + 2) % 5][0]:.1f} {_EDGE[k][(k + 2) % 5][1]:.1f}"
@@ -182,8 +192,10 @@ def ring_path(rx, ry, steps=72):
         thick = 0.045 + 0.2 * (1 + math.cos(t - math.radians(150))) / 2
         outer.append((rx * math.cos(t), ry * math.sin(t)))
         inner.append((rx * (1 - thick) * math.cos(t), ry * (1 - thick * 1.5) * math.sin(t)))
+
     def poly(points):
         return "M" + " L".join(f"{x:.2f} {y:.2f}" for x, y in points) + " Z"
+
     return poly(outer) + poly(inner[::-1])
 
 

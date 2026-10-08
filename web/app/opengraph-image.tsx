@@ -5,13 +5,22 @@
  * go stale or claim anything the record does not back.
  */
 
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { ImageResponse } from "next/og";
 
-export const alt = "SARDASPORTS: football predictions, every one graded";
+export const alt =
+  "SARDASPORTS: football, basketball and tennis predictions, every one graded";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-export default function OpengraphImage() {
+export default async function OpengraphImage() {
+  // The logo is the same SVG the site header uses, inlined as a data URI.
+  const logo = await readFile(
+    path.join(process.cwd(), "public", "sardasports-logo-horizontal.svg"),
+  );
+  const logoSrc = `data:image/svg+xml;base64,${logo.toString("base64")}`;
+
   return new ImageResponse(
     <div
       style={{
@@ -27,9 +36,9 @@ export default function OpengraphImage() {
         fontFamily: "sans-serif",
       }}
     >
-      <div style={{ display: "flex", fontSize: 44, fontWeight: 800 }}>
-        <span>SARDA</span>
-        <span style={{ color: "#e3bc45" }}>SPORTS</span>
+      <div style={{ display: "flex" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={logoSrc} width={522} height={72} alt="SARDASPORTS" />
       </div>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
@@ -64,8 +73,7 @@ export default function OpengraphImage() {
             color: "#a3b0c0",
           }}
         >
-          Free AI picks for 1X2, over 2.5, BTTS and correct score, on a public
-          record.
+          Free AI picks for football, basketball and tennis, on a public record.
         </div>
       </div>
     </div>,

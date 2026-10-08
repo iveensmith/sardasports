@@ -44,6 +44,8 @@ import { H2HPanel } from "@/components/match/H2HPanel";
 import { RecentMatchesPanel } from "@/components/match/RecentMatchesPanel";
 import { MatchTabs, type MatchTab } from "@/components/match/MatchTabs";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { ActiveSport } from "@/components/sport/ActiveSport";
+import { SPORT_LABELS, SPORT_PATHS, monogramBadge } from "@/lib/sports";
 import {
   breadcrumbLd,
   matchPath,
@@ -389,8 +391,16 @@ export default async function MatchPage({
   // Badges are football-only for now — basketball and tennis carry no
   // `home_badge`/`away_badge` fields, so this degrades to no crest rather
   // than a type error or a fabricated flag.
-  const homeBadge = isFootball(prediction) ? prediction.home_badge : null;
-  const awayBadge = isFootball(prediction) ? prediction.away_badge : null;
+  const homeBadge = isFootball(prediction)
+    ? prediction.home_badge
+    : monogramBadge(home);
+  const awayBadge = isFootball(prediction)
+    ? prediction.away_badge
+    : monogramBadge(away);
+  // Where "back" goes depends on the sport: a tennis match belongs to the tennis
+  // page, not to the football board.
+  const sectionPath = SPORT_PATHS[prediction.sport];
+  const sectionLabel = SPORT_LABELS[prediction.sport];
 
   // Every other tab is its own further engine call, made only when a reader
   // has actually asked for that tab rather than on every visit to the page.
@@ -417,7 +427,12 @@ export default async function MatchPage({
         data={[
           breadcrumbLd([
             { name: "Home", path: "/" },
-            { name: "Matches", path: "/matches" },
+            {
+              name: isFootball(prediction)
+                ? "Matches"
+                : `${sectionLabel} predictions`,
+              path: sectionPath,
+            },
             {
               name: `${home} vs ${away}`,
               path: matchPath(home, away, matchId),
@@ -438,11 +453,14 @@ export default async function MatchPage({
             : []),
         ]}
       />
+      <ActiveSport sport={prediction.sport} />
       <Link
-        href="/matches"
+        href={sectionPath}
         className="text-[14px] text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
       >
-        Back to matches
+        {isFootball(prediction)
+          ? "Back to matches"
+          : `Back to ${sectionLabel.toLowerCase()}`}
       </Link>
 
       <h1 className="mt-4 text-[clamp(1.4rem,3vw,1.9rem)] leading-tight font-bold tracking-[-0.02em]">

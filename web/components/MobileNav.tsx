@@ -90,7 +90,7 @@ export function MobileNav({
       // descendant — this panel's top/bottom would resolve against the
       // header's own 64px box instead of the viewport, collapsing it to
       // zero height. Escaping to `document.body` sidesteps that entirely.
-      className="fixed inset-x-0 top-16 bottom-0 z-40 overflow-y-auto bg-[var(--color-base)]"
+      className="fixed inset-x-0 top-[calc(4rem+2.5rem+1px)] bottom-0 z-40 overflow-y-auto bg-[var(--color-base)]"
       role="dialog"
       aria-modal="true"
     >

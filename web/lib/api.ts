@@ -16,6 +16,13 @@ import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
 import { recallRecent, rememberRecent } from "./recentFallback";
 import type { MarketKind, MarketPageData } from "./markets";
 import type { Progress } from "./progress";
+import type {
+  OtherSportKey,
+  SportBoard,
+  SportOverview,
+  SportRecord,
+  SportsSummary,
+} from "./sports";
 import type { TeamPageData } from "./teams";
 import type {
   Call,
@@ -70,20 +77,52 @@ async function engineFetch<T>(
   { revalidate = 60, signal, timeoutMs = ENGINE_TIMEOUT_MS }: FetchOptions = {},
 ): Promise<T> {
   const url = `${ENGINE_URL}${path}`;
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      next: { revalidate },
-      signal: signal ?? AbortSignal.timeout(timeoutMs),
-      headers: { accept: "application/json" },
-    });
-  } catch (cause) {
-    // A connection failure is the common local case (engine not running),
-    // and "fetch failed" alone sends people hunting in the wrong place.
-    throw new EngineError(
-      `Could not reach the prediction engine at ${ENGINE_URL}. Is it running?`,
-      503,
-      path,
+
+  // One retry for a failure that is usually momentary: the engine restarting, or a
+  // burst that briefly used up its database connections (it answers 500 or 503 and is
+  // fine a second later). A timeout is not retried, because a second wait that long
+  // would only make the page slower; neither is a 4xx, which will not change.
+  let response: Response | null = null;
+  let failure: EngineError | null = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      response = await fetch(url, {
+        next: { revalidate },
+        signal: signal ?? AbortSignal.timeout(timeoutMs),
+        headers: { accept: "application/json" },
+      });
+    } catch (cause) {
+      // A connection failure is the common local case (engine not running),
+      // and "fetch failed" alone sends people hunting in the wrong place.
+      const timedOut = cause instanceof Error && cause.name === "TimeoutError";
+      failure = new EngineError(
+        timedOut
+          ? `The prediction engine did not answer in time at ${ENGINE_URL}.`
+          : `Could not reach the prediction engine at ${ENGINE_URL}. Is it running?`,
+        503,
+        path,
+      );
+      response = null;
+      if (timedOut) break;
+      continue;
+    }
+    if (response.ok || ![500, 502, 503, 504].includes(response.status)) break;
+    // A retryable status: read what the engine said, keep it, and go round again.
+    let detail = response.statusText;
+    try {
+      const body = (await response.json()) as { detail?: string };
+      if (body?.detail) detail = body.detail;
+    } catch {
+      // Body was not JSON; the status text stands.
+    }
+    failure = new EngineError(detail, response.status, path);
+    response = null;
+  }
+
+  if (response === null) {
+    throw (
+      failure ?? new EngineError("The prediction engine failed.", 503, path)
     );
   }
 
@@ -252,6 +291,43 @@ export function getMarketPage(
 ): Promise<MarketPageData> {
   const query = date ? `?on_date=${encodeURIComponent(date)}` : "";
   return engineFetch<MarketPageData>(`/markets/${kind}${query}`, {
+    revalidate: 300,
+  });
+}
+
+/** Per-sport status for the home page cards and the header. */
+export function getSportsSummary(): Promise<SportsSummary> {
+  return engineFetch<SportsSummary>("/sports", { revalidate: 600 });
+}
+
+/**
+ * Everything one non-football sport page shows. The first request after the
+ * engine has been idle is slow for tennis (it loads the sport's whole history to
+ * price the latest results), so the engine caches it for an hour and this reads
+ * it with a long timeout rather than failing a visitor.
+ */
+export function getSportOverview(sport: OtherSportKey): Promise<SportOverview> {
+  return engineFetch<SportOverview>(`/sports/${sport}`, {
+    revalidate: 600,
+    timeoutMs: 90_000,
+  });
+}
+
+/** One day's matches in a sport, grouped by competition, with predictions. */
+export function getSportBoard(
+  sport: OtherSportKey,
+  date?: string,
+): Promise<SportBoard> {
+  const query = date ? `?on_date=${encodeURIComponent(date)}` : "";
+  return engineFetch<SportBoard>(`/sports/${sport}/board${query}`, {
+    revalidate: 120,
+    timeoutMs: 90_000,
+  });
+}
+
+/** Graded predictions stored before the match, apart from reconstructed ones. */
+export function getSportRecord(sport: OtherSportKey): Promise<SportRecord> {
+  return engineFetch<SportRecord>(`/sports/${sport}/record`, {
     revalidate: 300,
   });
 }

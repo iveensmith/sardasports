@@ -109,7 +109,7 @@ export function organizationLd(): JsonLdNode {
     name: SITE_NAME,
     url: absoluteUrl("/"),
     description:
-      "A football prediction engine that grades every pick against the final score and publishes the full record, wins and losses.",
+      "A prediction engine for football, basketball and tennis that grades every football pick against the final score and publishes the full record, wins and losses.",
   };
 }
 

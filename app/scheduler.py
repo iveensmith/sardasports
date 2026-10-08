@@ -478,6 +478,120 @@ def strip_canary_job() -> None:
         session.close()
 
 
+# Basketball quota held back for the day's date-window runs when backfilling history.
+BASKETBALL_FEED_RESERVE = 25
+
+
+def basketball_feed_job() -> None:
+    """Every few hours: today's basketball games across every league, then ratings and picks.
+
+    One date-window request set (yesterday, today, tomorrow) brings in every league's
+    fixtures and results. It spends the basketball quota (a handful of requests), so it
+    asks the provider what is left first and spends nothing if that cannot be read.
+    Then the ratings are brought up to date and the next day and a half of fixtures are
+    priced and stored, so a pick exists before the game starts.
+    """
+    from app.services import basketball_feed
+    from app.services.elo_sync import sync_elo
+    from app.services.sport_predictions import store_upcoming
+
+    session = SessionLocal()
+    try:
+        result = basketball_feed.sync_date_window(session)
+        logger.info("basketball feed: %s", result)
+        sync_elo(session, "basketball")
+        logger.info("basketball picks: %s", store_upcoming(session, sports=("basketball",)))
+    except Exception:  # noqa: BLE001 - one bad run must not stop the scheduler
+        logger.exception("basketball feed failed")
+        session.rollback()
+    finally:
+        session.close()
+
+
+def basketball_backfill_job() -> None:
+    """Once a day: fetch more basketball history with whatever quota the feed leaves.
+
+    A league's ratings come from its past seasons, one request per league-season, and
+    there are hundreds of them. This works through them best-known leagues first, keeping
+    enough quota back for the day's date-window requests. When nothing is left to fetch
+    it does nothing.
+    """
+    from app.services import basketball_feed
+    from app.services.elo_sync import sync_elo
+
+    session = SessionLocal()
+    try:
+        left = basketball_feed.requests_left(get_settings())
+        if left is None:
+            return
+        # Keep the rest of the day's date-window runs (about 3 requests each) funded.
+        spare = left - BASKETBALL_FEED_RESERVE
+        if spare <= 0:
+            return
+        result = basketball_feed.backfill(session, max_requests=spare)
+        logger.info("basketball backfill: %s", result)
+        if result.get("inserted"):
+            sync_elo(session, "basketball")
+    except Exception:  # noqa: BLE001
+        logger.exception("basketball backfill failed")
+        session.rollback()
+    finally:
+        session.close()
+
+
+def tennis_feed_job() -> None:
+    """Every half hour: tennis fixtures and results, then ratings and picks.
+
+    The scoreboard feed needs no quota. The historical workbook for the current year is
+    re-read when its cached copy is a day old, and adopts any match the scoreboard
+    already held. Ratings are updated for the new results and the next day and a half
+    of fixtures are priced and stored.
+    """
+    from app.services import tennis_feed
+    from app.services.elo_sync import sync_elo
+    from app.services.sport_predictions import store_upcoming
+    from scripts.fetch_tennis import refresh_current_year
+
+    session = SessionLocal()
+    try:
+        try:
+            refresh_current_year(session)
+        except Exception:  # noqa: BLE001 - the workbook host being down must not block the feed
+            logger.exception("tennis workbook refresh failed")
+            session.rollback()
+        logger.info("tennis feed: %s", tennis_feed.sync(session))
+        sync_elo(session, "tennis")
+        logger.info("tennis picks: %s", store_upcoming(session, sports=("tennis",)))
+    except Exception:  # noqa: BLE001
+        logger.exception("tennis feed failed")
+        session.rollback()
+    finally:
+        session.close()
+
+
+def sports_warm_job() -> None:
+    """Keep the basketball and tennis pages' data warm so no visitor pays for a cold read.
+
+    Pricing the latest tennis matches loads the sport's whole history, which takes
+    several seconds, and the result is cached for an hour. Left to a visitor (or a
+    crawler), the first request after each expiry would wait that long. This reads each
+    sport again whenever its cached answer has expired, and is a cheap no-op otherwise.
+    It uses no API quota. A failure is logged and the next run tries again.
+    """
+    from app.services.sport_service import sport_overview, sports_summary
+
+    session = SessionLocal()
+    try:
+        sports_summary(session)
+        for sport in ("basketball", "tennis"):
+            try:
+                sport_overview(session, sport)
+            except Exception:  # noqa: BLE001 - one sport failing must not skip the other
+                logger.exception("sports warm-up: could not refresh %s", sport)
+    finally:
+        session.close()
+
+
 def start_scheduler() -> BackgroundScheduler | None:
     """Start the background scheduler if enabled. Idempotent — calling twice is a no-op."""
     global _scheduler
@@ -531,6 +645,40 @@ def start_scheduler() -> BackgroundScheduler | None:
         IntervalTrigger(minutes=5),
         id="results_strip_canary",
         next_run_time=datetime.now(),
+        coalesce=True,
+        max_instances=1,
+    )
+    # Warm the basketball and tennis pages shortly after start and then keep them warm
+    # (see `sports_warm_job`). The delay keeps it out of the way of startup itself.
+    scheduler.add_job(
+        sports_warm_job,
+        IntervalTrigger(minutes=20),
+        id="sports_pages_warm",
+        next_run_time=datetime.now() + timedelta(seconds=45),
+        coalesce=True,
+        max_instances=1,
+    )
+    # Basketball and tennis: live fixtures, results, ratings and stored picks.
+    scheduler.add_job(
+        basketball_feed_job,
+        IntervalTrigger(hours=4),
+        id="basketball_feed",
+        next_run_time=datetime.now() + timedelta(seconds=90),
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        basketball_backfill_job,
+        CronTrigger(hour=2, minute=30),
+        id="basketball_backfill",
+        coalesce=True,
+        max_instances=1,
+    )
+    scheduler.add_job(
+        tennis_feed_job,
+        IntervalTrigger(minutes=30),
+        id="tennis_feed",
+        next_run_time=datetime.now() + timedelta(seconds=120),
         coalesce=True,
         max_instances=1,
     )

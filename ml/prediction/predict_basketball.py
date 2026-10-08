@@ -25,6 +25,7 @@ Three differences drive everything here:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -32,7 +33,7 @@ import numpy as np
 
 from ml.elo.engine import EloEngine
 from ml.feature_engineering.basketball import FEATURE_COLUMNS, build_game_features
-from ml.feature_engineering.features import TeamHistoryIndex
+from ml.feature_engineering.features import TeamHistoryIndex, _team_matches_before
 
 # The offered total-points lines. Chosen from the ingested NBA distribution
 # (mean 227.3, median 227), not guessed: 225.5 splits it almost exactly in
@@ -40,6 +41,31 @@ from ml.feature_engineering.features import TeamHistoryIndex
 # one line either side. Keep in sync with
 # ml.training.train_basketball_totals.model_name_for_line.
 TOTAL_POINTS_LINES = [215.5, 225.5, 235.5]
+
+# The trained totals models are for the NBA, whose games average about 227 points. Every
+# other league scores differently (about 160 in the EuroLeague, about 165 in the WNBA),
+# so its totals are priced statistically instead: a normal distribution around the
+# expected total (the blend of what each side scores and what the other concedes), with
+# the league's own spread. Measured on games the method never saw, across 21 non-NBA
+# competitions, its calls at the league's average line were right 61% of the time
+# against 51% for always picking the more common side, and its probabilities were
+# calibrated within a point or two at every confidence band, including at lines 6
+# points either side. Offered as three lines, five points apart, around the expectation.
+NBA_COMPETITION = "NBA"
+STATISTICAL_LINE_STEP = 5.0
+# The spread to use for a league with too little history to measure its own.
+DEFAULT_TOTAL_SPREAD = 18.5
+MIN_LEAGUE_GAMES_FOR_SPREAD = 30
+MIN_SPREAD = 12.0
+
+# A side with fewer prior games than this has no basis for a prediction: its ratings and
+# averages are defaults, not evidence. A side whose newest game is very old has little
+# more. Between those, ratings that are merely out of date are used, pulled towards a
+# coin flip in proportion to how old they are, and flagged so the page can say so.
+MIN_PRIOR_GAMES = 6
+UNUSABLE_AFTER_DAYS = 800
+STALE_AFTER_DAYS = 300
+STALE_SHRINK = 0.8
 
 # How much the trained model is trusted against the Elo-implied baseline for
 # the winner market, matching the football stack's DEDICATED_MODEL_WEIGHT so
@@ -53,6 +79,8 @@ class MarketLine:
     prob_over: float | None
     prob_under: float | None
     model_used: bool
+    # "model" for a trained model, "statistical" for the normal-distribution estimate.
+    source: str = "model"
 
 
 @dataclass
@@ -68,6 +96,12 @@ class BasketballPrediction:
     winner_model_used: bool = False
     confidence: float = 0.0
     confidence_label: str = "Low"
+    # True when one side has too little recent history to be priced; no picks are stored.
+    thin_history: bool = False
+    # Days since the older of the two sides' last games, and whether that is old enough
+    # that the winner probability was pulled towards 50%.
+    ratings_age_days: int | None = None
+    stale_ratings: bool = False
 
 
 def _apply_scaler(values: list[float], scaler_params: dict | None) -> np.ndarray:
@@ -100,6 +134,7 @@ def predict_game(
     winner_model=None,
     winner_scaler_params: dict | None = None,
     total_models: dict[float, tuple] | None = None,
+    league_totals: dict | None = None,
 ) -> BasketballPrediction:
     """Full basketball prediction for one game, from prior games only."""
     features = build_game_features(
@@ -139,8 +174,48 @@ def predict_game(
     exp_away = _expected(features["away_avg_points_scored"], features["home_avg_points_conceded"])
     expected_total = exp_home + exp_away
 
+    thin = False
+    age_days = 0
+    for team in (home_team, away_team):
+        prior = _team_matches_before(team, history, match_date)
+        if not prior:
+            thin = True
+            continue
+        age = (match_date - prior[-1]["match_date"]).days
+        age_days = max(age_days, age)
+        if len(prior) < MIN_PRIOR_GAMES or age > UNUSABLE_AFTER_DAYS:
+            thin = True
+    stale = age_days > STALE_AFTER_DAYS and not thin
+    if stale:
+        home_win = 0.5 + (home_win - 0.5) * STALE_SHRINK
+
     markets = []
-    for line in TOTAL_POINTS_LINES:
+    if league_totals is not None:
+        # Statistical totals for a league the trained models do not cover.
+        if not thin and expected_total > 0:
+            spread = (
+                max(MIN_SPREAD, float(league_totals["std"]))
+                if league_totals.get("n", 0) >= MIN_LEAGUE_GAMES_FOR_SPREAD
+                else DEFAULT_TOTAL_SPREAD
+            )
+            centre = math.floor(expected_total) + 0.5
+            for line in (
+                centre - STATISTICAL_LINE_STEP,
+                centre,
+                centre + STATISTICAL_LINE_STEP,
+            ):
+                z = (line - expected_total) / spread
+                over = min(max(0.5 * math.erfc(z / math.sqrt(2)), 0.01), 0.99)
+                markets.append(
+                    MarketLine(
+                        line=line,
+                        prob_over=round(over * 100, 1),
+                        prob_under=round((1 - over) * 100, 1),
+                        model_used=False,
+                        source="statistical",
+                    )
+                )
+    for line in [] if league_totals is not None else TOTAL_POINTS_LINES:
         entry = (total_models or {}).get(line)
         if entry is None:
             # No statistical fallback exists for this market (no Poisson
@@ -177,4 +252,7 @@ def predict_game(
         winner_model_used=winner_model_used,
         confidence=confidence,
         confidence_label=_confidence_label(confidence),
+        thin_history=thin,
+        ratings_age_days=age_days if not thin else None,
+        stale_ratings=stale,
     )

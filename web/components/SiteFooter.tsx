@@ -35,10 +35,13 @@ const COMPANY_LINKS = [
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
   { href: "/privacy", label: "Privacy policy" },
+  { href: "/terms", label: "Terms of use" },
   { href: "/about#responsible-gambling", label: "Responsible gambling" },
 ];
 
 const GUIDE_LINKS = [
+  { href: "/basketball", label: "Basketball predictions" },
+  { href: "/tennis", label: "Tennis predictions" },
   { href: "/over-2-5-goals-predictions-today", label: "Over 2.5 goals today" },
   {
     href: "/best-football-prediction-site",
@@ -99,9 +102,10 @@ export async function SiteFooter() {
               <Logo className="h-10" />
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-              The best AI prediction site for football. Free picks are published
-              every day with no account needed, and every pick is graded against
-              the final score, wins and losses both, on the public record.
+              The best AI prediction site for football, with basketball and
+              tennis too. Free picks are published every day with no account
+              needed, and every football pick is graded against the final score,
+              wins and losses both, on the public record.
             </p>
           </div>
 
