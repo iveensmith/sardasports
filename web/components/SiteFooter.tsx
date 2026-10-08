@@ -41,7 +41,7 @@ const GUIDE_LINKS = [
   { href: "/over-2-5-goals-predictions-today", label: "Over 2.5 goals today" },
   {
     href: "/best-football-prediction-site",
-    label: "Choosing a prediction site",
+    label: "Best AI prediction site",
   },
   {
     href: "/both-teams-to-score-predictions-today",
@@ -98,7 +98,7 @@ export async function SiteFooter() {
               Unique<span className="text-[var(--color-gold)]">Predict</span>
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
-              A calibrated football prediction engine. Free picks are published
+              The best AI prediction site for football. Free picks are published
               every day with no account needed, and every pick is graded against
               the final score, wins and losses both, on the public record.
             </p>

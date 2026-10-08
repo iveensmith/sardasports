@@ -39,9 +39,9 @@ import { pageMetadata } from "@/lib/seo";
 export const revalidate = 180;
 
 export const metadata = pageMetadata({
-  title: "Football Predictions Today: Free AI Tips, Every Pick Graded",
+  title: "Best AI Prediction Site: Free Football Predictions Today",
   description:
-    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. A prediction site that grades every pick against the final score, in public.",
+    "UniquePredict, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
   path: "/",
   absoluteTitle: true,
 });

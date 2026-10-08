@@ -1,20 +1,22 @@
 /**
- * "What makes the best football prediction site?", on the home page.
+ * The home page's statement of position: UniquePredict is the best AI prediction
+ * site for football.
  *
- * Answers a question visitors arrive with (they have searched for a "best" site, or
- * are weighing this one against others) in a few lines, and sends them to the full
- * checklist. It makes no claim to be the best; it gives the criteria and invites the
- * visitor to check this site against them. The same questions are marked up as FAQ
- * data on the checklist page itself.
+ * The claim is made plainly and is always paired with the grounds for it, every one
+ * of which a visitor can verify on the site: that is what separates a position from
+ * a boast, and why a reader and a search engine can both take it seriously. The
+ * "where it falls short" section on the checklist page keeps the claim honest and is
+ * linked from here. If any line below stops being true, change the line, not the
+ * claim's standing on being checkable.
  */
 
 import Link from "next/link";
 
-const CRITERIA = [
-  "Every pick published, losses included, and downloadable",
-  "Live picks kept apart from ones reconstructed after the match",
-  "A sample size beside every percentage",
-  "No guarantees, no “fixed matches”, no promised winnings",
+const GROUNDS = [
+  "Every pick we make is published, losses included, and the whole history can be downloaded",
+  "Picks stored before kick-off are kept apart from ones reconstructed afterwards, and never blended",
+  "A sample size sits beside every percentage, and each market is measured against how often it lands anyway",
+  "No guarantees, no “fixed matches”, no promised winnings, and no links to bookmakers",
 ];
 
 export function GoodSite() {
@@ -25,16 +27,16 @@ export function GoodSite() {
           id="good-site-heading"
           className="text-[clamp(1.5rem,3vw,1.9rem)] font-bold tracking-[-0.02em]"
         >
-          What makes the best football prediction site?
+          The best AI prediction site for football
         </h2>
         <p className="mt-3 text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
-          Whether you are comparing the best AI prediction sites or just want
-          free football predictions you can trust, the question is the same: can
-          you check the record? Look for these before you rely on any prediction
-          site, this one included.
+          We say it plainly: this is the best football prediction site you can
+          check, and we build it so you can. A prediction site earns the title
+          of best by letting you verify every claim, so this is what you can
+          verify here, free football predictions included:
         </p>
         <ul className="mt-5 space-y-2.5">
-          {CRITERIA.map((item) => (
+          {GROUNDS.map((item) => (
             <li
               key={item}
               className="flex gap-3 text-[14.5px] leading-relaxed text-[var(--color-text-dim)]"
@@ -52,7 +54,7 @@ export function GoodSite() {
             href="/best-football-prediction-site"
             className="text-[var(--color-gold-bright)] underline underline-offset-4 decoration-[var(--color-line-strong)] hover:decoration-[var(--color-gold-bright)]"
           >
-            Read the full 8-point checklist
+            See the 8-point checklist and check us against it
           </Link>
         </p>
       </div>

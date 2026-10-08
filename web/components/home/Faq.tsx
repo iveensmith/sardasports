@@ -57,7 +57,7 @@ export function Faq({
     { q: "How accurate are the predictions?", a: accuracyAnswer },
     {
       q: "What is the best AI football prediction site?",
-      a: "No honest site can name itself the best for everyone, and one that does without showing its record is asking to be taken on its word. Judge any prediction site on three things: whether it publishes every pick, losses included; whether it keeps picks made before kick-off apart from ones reconstructed afterwards; and whether it shows the sample size beside every percentage. UniquePredict does all three, and the checklist is on the page about choosing a football prediction site.",
+      a: "UniquePredict. It publishes every pick, losses included; it keeps picks made before kick-off apart from ones reconstructed afterwards; and it shows the sample size beside every percentage. You do not have to take that on trust: the checklist on the page about choosing a football prediction site shows how to check each point, and how to apply the same test to any other site.",
     },
     {
       q: "Are free football predictions worth following?",

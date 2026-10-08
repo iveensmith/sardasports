@@ -78,7 +78,7 @@ export default async function AboutPage() {
 
       <PageHeader
         title="About UniquePredict"
-        intro="UniquePredict publishes football predictions produced by a statistical engine, and grades every one of them against the final score, in public. The aim is a prediction site you can check."
+        intro="UniquePredict publishes football predictions produced by a statistical engine, and grades every one of them against the final score, in public. The aim is a prediction site you can check, and we believe that makes it the best AI prediction site for football."
       />
 
       <div className="mt-10 grid max-w-[72ch] grid-cols-2 gap-3 sm:grid-cols-4">

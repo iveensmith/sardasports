@@ -98,10 +98,10 @@ export function Hero({
         </h1>
 
         <p className="mx-auto mt-5 max-w-[56ch] text-[clamp(0.95rem,1.6vw,1.075rem)] leading-relaxed text-[var(--color-text-dim)] text-balance">
-          Free AI football predictions and betting tips from a calibrated engine
-          that blends three independent estimators across seven markets. Every
-          pick is graded against the final score and stays on the record, win or
-          lose. Today&rsquo;s board covers{" "}
+          The best AI prediction site for football: free predictions and betting
+          tips from a calibrated engine that blends three independent estimators
+          across seven markets. Every pick is graded against the final score and
+          stays on the record, win or lose. Today&rsquo;s board covers{" "}
           <b className="font-semibold text-[var(--color-text)]">
             {fixturesToday}
           </b>{" "}

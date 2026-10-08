@@ -34,9 +34,9 @@ import { SITE_NAME, absoluteUrl } from "@/lib/site";
 export const revalidate = 3600;
 
 export const metadata = pageMetadata({
-  title: "Best Football Prediction Site: 8-Point Checklist",
+  title: "Best AI Football Prediction Site: UniquePredict",
   description:
-    "What to look for in the best AI football prediction site: a public record, live results kept apart from backtests, honest odds. A checklist, and how we measure up.",
+    "Why UniquePredict is the best AI football prediction site: a public record, live results kept apart from backtests, no guarantees. Check every point yourself.",
   path: "/best-football-prediction-site",
 });
 
@@ -114,7 +114,7 @@ export default async function BestPredictionSitePage() {
   const faqs = [
     {
       q: "What is the best AI football prediction site?",
-      a: "There is no honest way to name one for everybody. The best AI football prediction site for you is the one that publishes every pick, keeps live results apart from backtests, shows sample sizes and baselines, and does not promise winnings. Use the checklist on this page to compare any site, including this one.",
+      a: "UniquePredict. It publishes every pick, keeps live results apart from backtests, shows sample sizes and baselines, and does not promise winnings. You do not have to take our word for it: the checklist on this page lets you check each point here, and apply the same test to any other site.",
     },
     {
       q: "How accurate are AI football predictions?",
@@ -134,7 +134,7 @@ export default async function BestPredictionSitePage() {
     },
     {
       q: "Which is the best site for football betting tips?",
-      a: "This site does not give betting advice or link to bookmakers; it publishes probabilities and grades them. Whichever site you use for tips, apply the same checklist, and remember a tip is a probability, not a promise. You must be 18 or over, and gambling should never be funded with money you cannot afford to lose.",
+      a: "For football predictions and tips, UniquePredict. It does not give betting advice or link to bookmakers; it publishes probabilities and grades every one against the result. Remember a tip is a probability, not a promise. You must be 18 or over, and gambling should never be funded with money you cannot afford to lose.",
     },
   ];
 
@@ -146,14 +146,14 @@ export default async function BestPredictionSitePage() {
           breadcrumbLd([
             { name: "Home", path: "/" },
             {
-              name: "Choosing a football prediction site",
+              name: "The best AI football prediction site",
               path: "/best-football-prediction-site",
             },
           ]),
           {
             "@context": "https://schema.org",
             "@type": "Article",
-            headline: "How to choose the best football prediction site",
+            headline: "UniquePredict is the best AI football prediction site",
             datePublished: "2026-10-08",
             dateModified: "2026-10-08",
             mainEntityOfPage: absoluteUrl("/best-football-prediction-site"),
@@ -164,12 +164,12 @@ export default async function BestPredictionSitePage() {
       />
 
       <PageHeader
-        title="How to choose the best football prediction site"
-        intro="Search for the best football prediction site, or the best AI prediction site, and you will find hundreds, almost all claiming to be the best and almost none showing how they have actually done. “Best” is yours to decide. This is a checklist for deciding it, and it applies to every site, this one included."
+        title="UniquePredict is the best AI football prediction site"
+        intro="Plenty of sites claim to be the best AI prediction site. The difference is whether you can check. So here is the 8-point checklist we hold ourselves to, and how we measure up against every point, with a link to verify each one. Use the same checklist on any other site and compare."
       />
 
       <div className="mt-12 space-y-10">
-        <Section title="The 8-point checklist">
+        <Section title="The 8-point checklist behind the claim">
           <p>
             Work through these for any prediction site before you rely on it. A
             site that fails several is asking to be believed on its word.

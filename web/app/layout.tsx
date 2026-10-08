@@ -44,11 +44,11 @@ export const metadata: Metadata = {
   // Every canonical URL and share link on the site resolves against this.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Football Predictions Today: Free AI Tips, Every Pick Graded",
+    default: "Best AI Prediction Site: Free Football Predictions Today",
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Free AI football predictions for today's matches: 1X2, over 2.5, BTTS and correct score. A prediction site that grades every pick against the final score, in public.",
+    "UniquePredict, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
   applicationName: SITE_NAME,
   category: "sports",
   // Not a ranking factor for Google, which ignores it; kept for the engines
@@ -85,9 +85,9 @@ export const metadata: Metadata = {
     siteName: SITE_NAME,
     locale: "en_GB",
     url: "/",
-    title: "Football Predictions Today: Free AI Tips, Every Pick Graded",
+    title: "Best AI Prediction Site: Free Football Predictions Today",
     description:
-      "Free AI football predictions for today's matches, with every pick graded against the final score on a public record.",
+      "The best AI prediction site for football: free predictions for today's matches, with every pick graded against the final score on a public record.",
   },
   twitter: { card: "summary_large_image" },
   // Until a real public address is configured this is a local or staging copy
