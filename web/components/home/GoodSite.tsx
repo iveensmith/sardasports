@@ -1,5 +1,5 @@
 /**
- * The home page's statement of position: UniquePredict is the best AI prediction
+ * The home page's statement of position: SARDASPORTS is the best AI prediction
  * site for football.
  *
  * The claim is made plainly and is always paired with the grounds for it, every one

@@ -135,7 +135,7 @@ def get_standings(session: Session, competition: str, season: str | None = None)
 
 
 def retrieve_knowledge(session: Session, query: str) -> dict:
-    """Semantic search over UniquePredict's football-analytics knowledge base
+    """Semantic search over SARDASPORTS's football-analytics knowledge base
     (methodology explanations, not live match data — use the other tools for that)."""
     from rag.retriever import query_knowledge_base
 
@@ -196,7 +196,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "get_model_prediction",
         "description": (
-            "Get UniquePredict's current ensemble prediction (probabilities, expected goals, "
+            "Get SARDASPORTS's current ensemble prediction (probabilities, expected goals, "
             "correct score, confidence) for a match by its match_id."
         ),
         "input_schema": {
@@ -248,7 +248,7 @@ TOOL_DEFINITIONS = [
     {
         "name": "retrieve_knowledge",
         "description": (
-            "Semantic search over UniquePredict's football-analytics knowledge base (how "
+            "Semantic search over SARDASPORTS's football-analytics knowledge base (how "
             "Elo/Poisson/calibration/value-detection work, home advantage, injury-impact "
             "research). Use this for methodology/background questions, not for live match data."
         ),

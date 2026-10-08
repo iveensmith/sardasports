@@ -337,7 +337,7 @@ export function MarketPage({
       </section>
 
       <nav
-        aria-label="More from UniquePredict"
+        aria-label="More from SARDASPORTS"
         className="mt-10 flex flex-wrap gap-x-5 gap-y-2 text-[13px]"
       >
         <Link className="hover:text-[var(--color-gold-bright)]" href="/matches">

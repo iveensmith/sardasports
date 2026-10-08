@@ -37,7 +37,7 @@ export default async function ContactPage() {
           {
             "@context": "https://schema.org",
             "@type": "ContactPage",
-            name: "Contact UniquePredict",
+            name: "Contact SARDASPORTS",
             url: absoluteUrl("/contact"),
           },
           breadcrumbLd([

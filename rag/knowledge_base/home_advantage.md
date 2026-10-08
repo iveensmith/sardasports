@@ -15,7 +15,7 @@ larger for mid-table and smaller clubs than for the very biggest teams, whose
 quality gap over most opponents already dominates the result regardless of
 venue.
 
-In UniquePredict, home advantage is represented in two independent places:
+In SARDASPORTS, home advantage is represented in two independent places:
 as a fixed points bonus added to the home team's effective Elo rating before
 computing win probability, and as a multiplier on expected goals in the
 Poisson model (so the home side's expected goals are scaled up and the away

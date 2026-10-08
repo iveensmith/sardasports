@@ -60,7 +60,7 @@ def render_calibration_chart(report, out_path: Path) -> None:
             ax.set_axis_off()
 
     fig.suptitle(
-        f"UniquePredict calibration report — {report.num_predictions} evaluated predictions, "
+        f"SARDASPORTS calibration report — {report.num_predictions} evaluated predictions, "
         f"Brier score {report.brier_score}"
     )
     fig.tight_layout()

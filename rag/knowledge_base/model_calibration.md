@@ -17,7 +17,7 @@ for every outcome in a three-way market gives a Brier score around 0.67. A
 well-calibrated, reasonably skillful match-result model typically lands
 somewhere between 0.20 and 0.25.
 
-UniquePredict tracks this in `ml.monitoring.calibration`, which buckets past
+SARDASPORTS tracks this in `ml.monitoring.calibration`, which buckets past
 predictions by the probability assigned to their predicted outcome and
 compares each bucket's average confidence against how often predictions in
 that bucket were actually correct — the closer those two numbers are for

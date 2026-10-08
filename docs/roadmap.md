@@ -2368,3 +2368,22 @@ checks the engine endpoint and that the rendered home page actually contains the
 boards; it exits non-zero on failure so it can gate a deploy. **Run it after any change to the home page,
 the engine's board routes or the database.** It was verified by killing the engine, wiping the website's
 cache and restarting the website: the strip stayed.
+
+## Renamed to SARDASPORTS
+
+The site's name changed from UniquePredict to **SARDASPORTS** (owner's decision; the spelling was
+confirmed against the GitHub repository `sardasports`). Everything a visitor or crawler sees was
+renamed: the two-tone logo (white SARDA, gold SPORTS), page titles and descriptions, the share
+image, structured data, the About, Contact and Privacy text, the FAQ, the footer, CSV download
+filenames, the FastAPI title, the dashboard, the AI analyst's name and the knowledge-base text.
+
+**Deliberately not renamed**, because doing so would break an existing database or setup for no
+visible gain: the database file `data/uniquepredict.db`, the test database, the Docker/Postgres
+credentials, the Python package name in `pyproject.toml`, the web server's temp-file name, and the
+Wikipedia user-agent string. Older entries in this file keep the old name as history. The brand now
+lives in one constant for the web app, `SITE_NAME` in `web/lib/site.ts`, and in the logo markup in
+`web/app/layout.tsx`, `web/components/SiteFooter.tsx` and `web/app/opengraph-image.tsx`.
+
+Also fixed on the way: `test_team_badges` demanded flags for the clubs on the board, which are
+initials by design, so it passed or failed on whether the week's fixtures included internationals.
+It now checks national-team fixtures only.

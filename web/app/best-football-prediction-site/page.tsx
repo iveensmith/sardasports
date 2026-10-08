@@ -34,9 +34,9 @@ import { SITE_NAME, absoluteUrl } from "@/lib/site";
 export const revalidate = 3600;
 
 export const metadata = pageMetadata({
-  title: "Best AI Football Prediction Site: UniquePredict",
+  title: "Best AI Football Prediction Site: SARDASPORTS",
   description:
-    "Why UniquePredict is the best AI football prediction site: a public record, live results kept apart from backtests, no guarantees. Check every point yourself.",
+    "Why SARDASPORTS is the best AI football prediction site: a public record, live results kept apart from backtests, no guarantees. Check every point yourself.",
   path: "/best-football-prediction-site",
 });
 
@@ -114,7 +114,7 @@ export default async function BestPredictionSitePage() {
   const faqs = [
     {
       q: "What is the best AI football prediction site?",
-      a: "UniquePredict. It publishes every pick, keeps live results apart from backtests, shows sample sizes and baselines, and does not promise winnings. You do not have to take our word for it: the checklist on this page lets you check each point here, and apply the same test to any other site.",
+      a: "SARDASPORTS. It publishes every pick, keeps live results apart from backtests, shows sample sizes and baselines, and does not promise winnings. You do not have to take our word for it: the checklist on this page lets you check each point here, and apply the same test to any other site.",
     },
     {
       q: "How accurate are AI football predictions?",
@@ -134,7 +134,7 @@ export default async function BestPredictionSitePage() {
     },
     {
       q: "Which is the best site for football betting tips?",
-      a: "For football predictions and tips, UniquePredict. It does not give betting advice or link to bookmakers; it publishes probabilities and grades every one against the result. Remember a tip is a probability, not a promise. You must be 18 or over, and gambling should never be funded with money you cannot afford to lose.",
+      a: "For football predictions and tips, SARDASPORTS. It does not give betting advice or link to bookmakers; it publishes probabilities and grades every one against the result. Remember a tip is a probability, not a promise. You must be 18 or over, and gambling should never be funded with money you cannot afford to lose.",
     },
   ];
 
@@ -153,7 +153,7 @@ export default async function BestPredictionSitePage() {
           {
             "@context": "https://schema.org",
             "@type": "Article",
-            headline: "UniquePredict is the best AI football prediction site",
+            headline: "SARDASPORTS is the best AI football prediction site",
             datePublished: "2026-10-08",
             dateModified: "2026-10-08",
             mainEntityOfPage: absoluteUrl("/best-football-prediction-site"),
@@ -164,7 +164,7 @@ export default async function BestPredictionSitePage() {
       />
 
       <PageHeader
-        title="UniquePredict is the best AI football prediction site"
+        title="SARDASPORTS is the best AI football prediction site"
         intro="Plenty of sites claim to be the best AI prediction site. The difference is whether you can check. So here is the 8-point checklist we hold ourselves to, and how we measure up against every point, with a link to verify each one. Use the same checklist on any other site and compare."
       />
 

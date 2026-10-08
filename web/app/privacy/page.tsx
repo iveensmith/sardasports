@@ -33,7 +33,7 @@ import { CONTACT_EMAIL, OPERATOR_NAME } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Privacy Policy",
   description:
-    "What UniquePredict collects, what it does not, and what is stored in your browser: no accounts, no cookies, no advertising and no analytics.",
+    "What SARDASPORTS collects, what it does not, and what is stored in your browser: no accounts, no cookies, no advertising and no analytics.",
   path: "/privacy",
 });
 
@@ -65,7 +65,7 @@ export default function PrivacyPage() {
 
       <PageHeader
         title="Privacy policy"
-        intro={`This page explains what happens to your information when you use UniquePredict. Last updated ${LAST_UPDATED}.`}
+        intro={`This page explains what happens to your information when you use SARDASPORTS. Last updated ${LAST_UPDATED}.`}
       />
 
       <nav
@@ -110,13 +110,12 @@ export default function PrivacyPage() {
           <p>
             {OPERATOR_NAME ? (
               <>
-                UniquePredict is operated by <Strong>{OPERATOR_NAME}</Strong>,
-                who is responsible for the information described on this
-                page.{" "}
+                SARDASPORTS is operated by <Strong>{OPERATOR_NAME}</Strong>, who
+                is responsible for the information described on this page.{" "}
               </>
             ) : (
               <>
-                The operator of UniquePredict is responsible for the information
+                The operator of SARDASPORTS is responsible for the information
                 described on this page.{" "}
               </>
             )}

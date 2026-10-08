@@ -32,9 +32,9 @@ import { OPERATOR_NAME, absoluteUrl } from "@/lib/site";
 export const revalidate = 3600;
 
 export const metadata = pageMetadata({
-  title: "About UniquePredict: Football Predictions, Graded in Public",
+  title: "About SARDASPORTS: Football Predictions, Graded in Public",
   description:
-    "UniquePredict publishes football predictions from a statistical engine and grades every one against the final score, wins and losses both, on a public record.",
+    "SARDASPORTS publishes football predictions from a statistical engine and grades every one against the final score, wins and losses both, on a public record.",
   path: "/about",
 });
 
@@ -65,7 +65,7 @@ export default async function AboutPage() {
           {
             "@context": "https://schema.org",
             "@type": "AboutPage",
-            name: "About UniquePredict",
+            name: "About SARDASPORTS",
             url: absoluteUrl("/about"),
             about: { "@id": absoluteUrl("/#organization") },
           },
@@ -77,8 +77,8 @@ export default async function AboutPage() {
       />
 
       <PageHeader
-        title="About UniquePredict"
-        intro="UniquePredict publishes football predictions produced by a statistical engine, and grades every one of them against the final score, in public. The aim is a prediction site you can check, and we believe that makes it the best AI prediction site for football."
+        title="About SARDASPORTS"
+        intro="SARDASPORTS publishes football predictions produced by a statistical engine, and grades every one of them against the final score, in public. The aim is a prediction site you can check, and we believe that makes it the best AI prediction site for football."
       />
 
       <div className="mt-10 grid max-w-[72ch] grid-cols-2 gap-3 sm:grid-cols-4">
@@ -183,7 +183,7 @@ export default async function AboutPage() {
             >
               API-Football
             </a>
-            . UniquePredict does not own this data and does not claim to; the
+            . SARDASPORTS does not own this data and does not claim to; the
             predictions, ratings and the graded record built from it are the
             site&rsquo;s own work.
           </p>
@@ -233,7 +233,7 @@ export default async function AboutPage() {
 
         <Section id="responsible-gambling" title="Responsible gambling">
           <p>
-            UniquePredict is for people aged 18 and over and is for information
+            SARDASPORTS is for people aged 18 and over and is for information
             only. Football is unpredictable and no model changes that: a pick
             the engine rates at 70% is expected to lose three times in ten.
             Never stake money you cannot afford to lose, and do not use betting
@@ -267,7 +267,7 @@ export default async function AboutPage() {
           <p>
             {OPERATOR_NAME ? (
               <>
-                UniquePredict is operated by <Strong>{OPERATOR_NAME}</Strong>
+                SARDASPORTS is operated by <Strong>{OPERATOR_NAME}</Strong>
                 .{" "}
               </>
             ) : null}

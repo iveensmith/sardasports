@@ -9,7 +9,7 @@
  * is slow to forget.
  */
 
-export const SITE_NAME = "UniquePredict";
+export const SITE_NAME = "SARDASPORTS";
 
 const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
 

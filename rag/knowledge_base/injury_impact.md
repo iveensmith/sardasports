@@ -14,7 +14,7 @@ many matches) or player-level statistical models that can be summed and
 compared with and without a given lineup — both are substantially more data-
 intensive than team-level modeling.
 
-UniquePredict does not currently ingest an injury data source (see the
+SARDASPORTS does not currently ingest an injury data source (see the
 project roadmap), so its predictions reflect team-level historical form,
 Elo, and goal-scoring tendencies only — they do not yet adjust for a specific
 missing player. Where the AI analyst agent's `get_injuries` tool is called

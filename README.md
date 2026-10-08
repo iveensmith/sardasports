@@ -1,4 +1,4 @@
-# UniquePredict
+# SARDASPORTS
 
 An AI-powered sports prediction engine — football (club **and**
 international), basketball and tennis, sharing one multi-sport pipeline. Predicts Home/Draw/Away, correct

@@ -41,7 +41,7 @@ export const revalidate = 180;
 export const metadata = pageMetadata({
   title: "Best AI Prediction Site: Free Football Predictions Today",
   description:
-    "UniquePredict, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
+    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
   path: "/",
   absoluteTitle: true,
 });

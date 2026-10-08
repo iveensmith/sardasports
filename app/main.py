@@ -54,7 +54,7 @@ async def lifespan(_app: FastAPI):
 
 
 app = FastAPI(
-    title="UniquePredict",
+    title="SARDASPORTS",
     description="AI-powered football prediction engine — Elo + Poisson + XGBoost ensemble.",
     version="0.1.0",
     lifespan=lifespan,

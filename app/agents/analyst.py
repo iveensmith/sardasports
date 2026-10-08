@@ -31,7 +31,7 @@ logger = get_logger(__name__)
 
 MAX_TOOL_ITERATIONS = 6
 
-SYSTEM_PROMPT = """You are UniquePredict's football analyst. You explain match predictions \
+SYSTEM_PROMPT = """You are SARDASPORTS's football analyst. You explain match predictions \
 using ONLY data returned by your tools — you must never invent a statistic, a form result, \
 an Elo rating, or an injury that no tool call returned. If get_injuries reports \
 available=false for a team, say plainly that no injury data has been synced for it; do not \

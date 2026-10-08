@@ -48,7 +48,7 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "UniquePredict, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
+    "SARDASPORTS, the best AI prediction site for football: free predictions for today's matches, every pick graded against the final score in public.",
   applicationName: SITE_NAME,
   category: "sports",
   // Not a ranking factor for Google, which ignores it; kept for the engines
@@ -151,7 +151,7 @@ export default function RootLayout({
               href="/"
               className="text-[17px] font-bold tracking-[-0.02em] whitespace-nowrap"
             >
-              Unique<span className="text-[var(--color-gold)]">Predict</span>
+              SARDA<span className="text-[var(--color-gold)]">SPORTS</span>
             </Link>
             <div className="hidden flex-1 items-center gap-6 text-[14px] lg:flex">
               {NAV.map((item) => (

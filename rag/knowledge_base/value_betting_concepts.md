@@ -7,7 +7,7 @@ across all outcomes of a market (home win, draw, away win) will always come
 out above 100%; that excess is the bookmaker's margin, often called the
 "overround" or "vig." To get a fair comparison against a model's own
 probabilities, the raw implied probabilities need to be divided by their sum
-so they add up to exactly 100% — UniquePredict does this in
+so they add up to exactly 100% — SARDASPORTS does this in
 `ml.monitoring.value_detection` before comparing anything.
 
 "Value" in this context means a percentage-point gap between a model's
@@ -20,6 +20,6 @@ it is not a profit guarantee. Markets are frequently more accurate than any
 single model, especially for well-traded top-league matches where sharp
 money has already pushed prices toward efficiency.
 
-Because of this, UniquePredict's value-detection output always reports the
+Because of this, SARDASPORTS's value-detection output always reports the
 edge as a plain number alongside a disclaimer, and the AI analyst agent is
 instructed never to describe a detected edge as a betting recommendation.

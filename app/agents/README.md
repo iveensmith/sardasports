@@ -1,6 +1,6 @@
 # AI Analyst Agent
 
-An LLM tool-calling agent that narrates UniquePredict's predictions in
+An LLM tool-calling agent that narrates SARDASPORTS's predictions in
 prose, backed entirely by real tool calls — implemented in Phase 2,
 live-verified with a real `ANTHROPIC_API_KEY` (see `docs/roadmap.md`).
 
@@ -51,7 +51,7 @@ Real output (Southampton vs Arsenal):
 ```json
 {
   "match_id": 1133,
-  "analysis": "UniquePredict rates this heavily in Arsenal's favor, giving the Gunners an 82.8% win probability against just 7.1% for Southampton (10.1% draw)... The gap is driven largely by the massive Elo disparity (Arsenal 1724 vs Southampton 1243.7), reinforced by form: Southampton have won none of their last 10 (0.3 pts/game, conceding 18 goals), while Arsenal are unbeaten in 9 of their last 10 with 1.9 pts/game...",
+  "analysis": "SARDASPORTS rates this heavily in Arsenal's favor, giving the Gunners an 82.8% win probability against just 7.1% for Southampton (10.1% draw)... The gap is driven largely by the massive Elo disparity (Arsenal 1724 vs Southampton 1243.7), reinforced by form: Southampton have won none of their last 10 (0.3 pts/game, conceding 18 goals), while Arsenal are unbeaten in 9 of their last 10 with 1.9 pts/game...",
   "tool_calls": [
     {"tool": "get_model_prediction", "input": {"match_id": 1133}, "result": {"...": "..."}},
     {"tool": "get_team_form", "input": {"team": "Southampton"}, "result": {"...": "..."}},

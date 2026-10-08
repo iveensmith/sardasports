@@ -95,7 +95,7 @@ export async function SiteFooter() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
           <div>
             <Link href="/" className="text-[17px] font-bold tracking-[-0.02em]">
-              Unique<span className="text-[var(--color-gold)]">Predict</span>
+              SARDA<span className="text-[var(--color-gold)]">SPORTS</span>
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
               The best AI prediction site for football. Free picks are published
@@ -184,9 +184,7 @@ export async function SiteFooter() {
             unavailable rather than estimated. Predictions describe probability,
             not certainty, and nothing here links out to a bookmaker.
           </p>
-          <p className="mt-3">
-            &copy; {new Date().getFullYear()} UniquePredict
-          </p>
+          <p className="mt-3">&copy; {new Date().getFullYear()} SARDASPORTS</p>
         </div>
       </div>
     </footer>

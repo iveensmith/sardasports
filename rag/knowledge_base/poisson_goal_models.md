@@ -18,7 +18,7 @@ This scoreline matrix is unusually versatile: summing the diagonal gives the
 draw probability, summing everything below the diagonal gives the home-win
 probability, and the matrix directly answers questions like "P(both teams
 score)" or "P(more than 2.5 total goals)" without needing separate models.
-UniquePredict uses exactly this property — its Poisson model derives the
+SARDASPORTS uses exactly this property — its Poisson model derives the
 correct-score, over/under, and BTTS baselines, which dedicated machine
 learning models are then blended with once enough training data exists.
 

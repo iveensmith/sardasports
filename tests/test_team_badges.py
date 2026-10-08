@@ -137,31 +137,48 @@ def test_no_two_nations_share_a_code_by_accident():
         seen[code] = name
 
 
-def test_the_teams_actually_on_our_board_are_covered():
+def test_the_national_teams_actually_on_our_board_are_covered():
     """A coverage check against the real database rather than a fixture.
 
-    Skips when there is no database — this runs against the developer's
-    ingested data and is a warning about the catalogue drifting, not a unit
-    test of the lookup.
+    Skips when there is no database or no scheduled national-team fixtures: this runs
+    against the developer's ingested data and is a warning about the flag catalogue
+    drifting, not a unit test of the lookup.
+
+    It looks at national-team fixtures only. The catalogue maps *countries* to flags;
+    clubs have no licensed crest and are shown as initials by design, so counting them
+    would make the test pass or fail on whether the week's fixtures happen to include
+    internationals, which says nothing about the catalogue.
     """
+    from ml.competitions import INTERNATIONAL_COMPETITIONS
+
     db = Path(__file__).resolve().parent.parent / "data" / "uniquepredict.db"
     if not db.exists():
         pytest.skip("no ingested database in this environment")
 
+    competitions = sorted(INTERNATIONAL_COMPETITIONS)
+    marks = ",".join("?" * len(competitions))
     connection = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
     try:
-        names = [row[0] for row in connection.execute("""SELECT DISTINCT t.name FROM teams t
+        names = [
+            row[0]
+            for row in connection.execute(
+                f"""SELECT DISTINCT t.name FROM teams t
                    WHERE t.id IN (
-                     SELECT home_team_id FROM matches WHERE status='scheduled'
+                     SELECT home_team_id FROM matches
+                       WHERE status='scheduled' AND competition IN ({marks})
                      UNION
-                     SELECT away_team_id FROM matches WHERE status='scheduled')""")]
+                     SELECT away_team_id FROM matches
+                       WHERE status='scheduled' AND competition IN ({marks}))""",
+                competitions + competitions,
+            )
+        ]
     finally:
         connection.close()
 
     if not names:
-        pytest.skip("no scheduled fixtures ingested")
+        pytest.skip("no scheduled national-team fixtures ingested")
 
     unresolved = [n for n in names if badge_for(n).kind == "monogram"]
-    # Clubs legitimately fall through; a board that is mostly unresolved
-    # means the catalogue has drifted from what the feed is sending.
+    # A few national sides may legitimately fall through; a board that is mostly
+    # unresolved means the catalogue has drifted from what the feed is sending.
     assert len(unresolved) / len(names) < 0.5, f"mostly unresolved: {unresolved[:10]}"

@@ -7,7 +7,7 @@
 
 import { ImageResponse } from "next/og";
 
-export const alt = "UniquePredict: football predictions, every one graded";
+export const alt = "SARDASPORTS: football predictions, every one graded";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -28,8 +28,8 @@ export default function OpengraphImage() {
       }}
     >
       <div style={{ display: "flex", fontSize: 44, fontWeight: 800 }}>
-        <span>Unique</span>
-        <span style={{ color: "#e3bc45" }}>Predict</span>
+        <span>SARDA</span>
+        <span style={{ color: "#e3bc45" }}>SPORTS</span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column" }}>
