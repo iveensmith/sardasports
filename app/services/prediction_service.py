@@ -18,6 +18,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models import EloHistory, Match, ModelVersion, Prediction, PredictionHistory, Team
+from app.services.count_calibration import calibrate_payload
 from app.services.elo_service import get_team_elo_before
 from app.utils.cache import get_cache
 from app.utils.coalesce import CoalescingCache
@@ -679,7 +680,9 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
         "explanation": result.explanation,
         "generated_at": datetime.now(UTC).isoformat(),
     }
+    # Stored as the engine produced it; calibrated only on the way out (see count_calibration).
     _persist_prediction(session, match, result, model_version)
+    calibrate_payload(payload)
     cache.set_json(cache_key, payload, ttl_seconds=CACHE_TTL_SECONDS)
     return payload
 
@@ -724,34 +727,36 @@ def _published_payload(
         session.get(ModelVersion, stored.model_version_id) if stored.model_version_id else None
     )
     generated = stored.updated_at or stored.created_at
-    return {
-        "match_id": match.id,
-        "home_team": home_team.name,
-        "away_team": away_team.name,
-        "match_date": match.match_date.isoformat(),
-        "competition": match.competition,
-        # Stored as 0-1 fractions; the payload speaks percentages.
-        "home_win": round(stored.prob_home * 100, 6),
-        "draw": round(stored.prob_draw * 100, 6),
-        "away_win": round(stored.prob_away * 100, 6),
-        "expected_goals_home": stored.expected_goals_home,
-        "expected_goals_away": stored.expected_goals_away,
-        "top_scorelines": stored.top_scorelines or [],
-        "btts_yes": round(stored.prob_btts_yes * 100, 6),
-        "btts_no": round(stored.prob_btts_no * 100, 6),
-        "goals_markets": stored.goals_markets or [],
-        "ht_goals_markets": stored.ht_goals_markets or [],
-        "corners_markets": stored.corners_markets or [],
-        "cards_markets": stored.cards_markets or [],
-        "confidence": stored.confidence,
-        "confidence_label": stored.confidence_label,
-        "model_version": version.version if version else None,
-        "model_weights_used": {},
-        "estimator_probs": {},
-        "btts_model_used": None,
-        "explanation": None,
-        "generated_at": generated.replace(tzinfo=UTC).isoformat(),
-    }
+    return calibrate_payload(
+        {
+            "match_id": match.id,
+            "home_team": home_team.name,
+            "away_team": away_team.name,
+            "match_date": match.match_date.isoformat(),
+            "competition": match.competition,
+            # Stored as 0-1 fractions; the payload speaks percentages.
+            "home_win": round(stored.prob_home * 100, 6),
+            "draw": round(stored.prob_draw * 100, 6),
+            "away_win": round(stored.prob_away * 100, 6),
+            "expected_goals_home": stored.expected_goals_home,
+            "expected_goals_away": stored.expected_goals_away,
+            "top_scorelines": stored.top_scorelines or [],
+            "btts_yes": round(stored.prob_btts_yes * 100, 6),
+            "btts_no": round(stored.prob_btts_no * 100, 6),
+            "goals_markets": stored.goals_markets or [],
+            "ht_goals_markets": stored.ht_goals_markets or [],
+            "corners_markets": stored.corners_markets or [],
+            "cards_markets": stored.cards_markets or [],
+            "confidence": stored.confidence,
+            "confidence_label": stored.confidence_label,
+            "model_version": version.version if version else None,
+            "model_weights_used": {},
+            "estimator_probs": {},
+            "btts_model_used": None,
+            "explanation": None,
+            "generated_at": generated.replace(tzinfo=UTC).isoformat(),
+        }
+    )
 
 
 def _persist_prediction(session: Session, match: Match, result, model_version) -> None:
@@ -903,29 +908,31 @@ def _stored_payload(
     def pct(fraction: float) -> float:
         return round(fraction * 100, 1)
 
-    return {
-        "match_id": match.id,
-        "home_team": home_team.name,
-        "away_team": away_team.name,
-        "match_date": match.match_date.isoformat(),
-        "competition": match.competition,
-        "home_win": pct(stored.prob_home),
-        "draw": pct(stored.prob_draw),
-        "away_win": pct(stored.prob_away),
-        "expected_goals_home": stored.expected_goals_home,
-        "expected_goals_away": stored.expected_goals_away,
-        "top_scorelines": stored.top_scorelines or [],
-        "btts_yes": pct(stored.prob_btts_yes),
-        "btts_no": pct(stored.prob_btts_no),
-        "goals_markets": stored.goals_markets or [],
-        "ht_goals_markets": stored.ht_goals_markets or [],
-        "corners_markets": stored.corners_markets or [],
-        "cards_markets": stored.cards_markets or [],
-        "confidence": stored.confidence,
-        "confidence_label": stored.confidence_label,
-        "model_version": active.version if active else None,
-        "generated_at": stored.updated_at.isoformat(),
-    }
+    return calibrate_payload(
+        {
+            "match_id": match.id,
+            "home_team": home_team.name,
+            "away_team": away_team.name,
+            "match_date": match.match_date.isoformat(),
+            "competition": match.competition,
+            "home_win": pct(stored.prob_home),
+            "draw": pct(stored.prob_draw),
+            "away_win": pct(stored.prob_away),
+            "expected_goals_home": stored.expected_goals_home,
+            "expected_goals_away": stored.expected_goals_away,
+            "top_scorelines": stored.top_scorelines or [],
+            "btts_yes": pct(stored.prob_btts_yes),
+            "btts_no": pct(stored.prob_btts_no),
+            "goals_markets": stored.goals_markets or [],
+            "ht_goals_markets": stored.ht_goals_markets or [],
+            "corners_markets": stored.corners_markets or [],
+            "cards_markets": stored.cards_markets or [],
+            "confidence": stored.confidence,
+            "confidence_label": stored.confidence_label,
+            "model_version": active.version if active else None,
+            "generated_at": stored.updated_at.isoformat(),
+        }
+    )
 
 
 def _serve_stored(

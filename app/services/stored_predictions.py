@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models.match import Match
 from app.models.prediction import Prediction
+from app.services.count_calibration import calibrate_payload
 from app.services.prediction_service import predict_for_matches
 
 
@@ -41,22 +42,24 @@ def payload_from_stored(prediction: Prediction) -> dict:
     Carries what the board and the market pages read. It does not carry the
     per-estimator breakdown or the explanation, which are not stored.
     """
-    return {
-        "home_win": _percent(prediction.prob_home),
-        "draw": _percent(prediction.prob_draw),
-        "away_win": _percent(prediction.prob_away),
-        "btts_yes": _percent(prediction.prob_btts_yes),
-        "btts_no": _percent(prediction.prob_btts_no),
-        "goals_markets": prediction.goals_markets or [],
-        "ht_goals_markets": prediction.ht_goals_markets or [],
-        "corners_markets": prediction.corners_markets or [],
-        "cards_markets": prediction.cards_markets or [],
-        "top_scorelines": prediction.top_scorelines or [],
-        "expected_goals_home": prediction.expected_goals_home,
-        "expected_goals_away": prediction.expected_goals_away,
-        "confidence": prediction.confidence,
-        "confidence_label": prediction.confidence_label,
-    }
+    return calibrate_payload(
+        {
+            "home_win": _percent(prediction.prob_home),
+            "draw": _percent(prediction.prob_draw),
+            "away_win": _percent(prediction.prob_away),
+            "btts_yes": _percent(prediction.prob_btts_yes),
+            "btts_no": _percent(prediction.prob_btts_no),
+            "goals_markets": prediction.goals_markets or [],
+            "ht_goals_markets": prediction.ht_goals_markets or [],
+            "corners_markets": prediction.corners_markets or [],
+            "cards_markets": prediction.cards_markets or [],
+            "top_scorelines": prediction.top_scorelines or [],
+            "expected_goals_home": prediction.expected_goals_home,
+            "expected_goals_away": prediction.expected_goals_away,
+            "confidence": prediction.confidence,
+            "confidence_label": prediction.confidence_label,
+        }
+    )
 
 
 def predict_with_stored_fallback(

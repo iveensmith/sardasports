@@ -237,6 +237,15 @@ DOUBLE_CHANCE_MIN_HEADLINE_LIFT = 20.0
 # probability to win the headline. Asking these two markets for a larger claimed lift is the
 # same rule as for double chance: it keeps the likeliest call that has really earned its
 # place, and lets a market that has earned more of the claim it makes lead instead.
+#
+# Corner probabilities are now recalibrated when read (`app/services/count_calibration.py`),
+# which removed most of the overstatement, so this bar no longer has to carry the whole
+# correction. It stays for two measured reasons (`scripts/measure_headline_mix.py`, 2,119
+# graded predictions): lowering the corner bar to 5 to 7.5 adds headlines that came in only
+# about 30% to 50% of the time (the share that hit falls from 68% to 61%), and card headlines
+# win about 73% of the time at any bar, so their bar of 8 is not about accuracy: it keeps
+# cards at roughly one headline in seven instead of one in four, so that other markets can
+# lead too.
 MARKET_MIN_HEADLINE_LIFT = {CORNERS: 10.0, CARDS: 8.0}
 
 # Selections that never lead a row whatever their probability.
