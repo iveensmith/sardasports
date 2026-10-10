@@ -45,6 +45,7 @@ from app.models.prediction import Prediction
 from app.services.base_rates import market_base_rates
 from app.services.settlement import Outcome, Record, result_from_match, settle_key
 from app.services.stored_predictions import payload_from_stored
+from app.utils.coalesce import CoalescingCache
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
 
 # How many days of daily results the "recent form" chart covers.
@@ -68,7 +69,19 @@ class _Graded:
     live: bool
 
 
+# Grading every stored prediction takes about four seconds, and the track record, every league
+# page and every market page each used to do it afresh. A crawler visiting forty league pages
+# therefore spent three minutes grading the same rows forty times. The graded list is read-only
+# and changes only when a match finishes or a prediction is stored, so it is kept for two
+# minutes and shared (simultaneous callers wait for one grading rather than each doing it).
+_GRADED = CoalescingCache(300, max_entries=1, max_concurrent=1, copy_results=False)
+
+
 def _grade_all(session: Session) -> list[_Graded]:
+    return _GRADED.get_or_compute("all", lambda: _grade_all_uncached(session))
+
+
+def _grade_all_uncached(session: Session) -> list[_Graded]:
     """Regenerate and settle every stored prediction on a played fixture."""
     base_rates = market_base_rates(session, "football")
     rows = (

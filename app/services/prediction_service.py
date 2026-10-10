@@ -6,6 +6,7 @@ keeping the `ml/` package itself free of any SQLAlchemy dependency.
 
 from __future__ import annotations
 
+import bisect
 import threading
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -19,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.models import EloHistory, Match, ModelVersion, Prediction, PredictionHistory, Team
 from app.services.elo_service import get_team_elo_before
 from app.utils.cache import get_cache
+from app.utils.coalesce import CoalescingCache
 from app.utils.config import get_settings
 from app.utils.logging import get_logger
 from ml.feature_engineering.features import build_team_history_index
@@ -27,6 +29,7 @@ from ml.prediction.predict import (
     CORNERS_LINES,
     GOALS_LINES,
     HT_GOALS_LINES,
+    build_shared_fit,
     build_shared_fits,
     load_lightgbm_artifact,
     load_sklearn_pickle_artifact,
@@ -183,10 +186,10 @@ def _get_active_model_uncached(session: Session, model_name: str, loader):
     return model, scaler_params, version
 
 
-def _all_completed_history(
-    session: Session, before_date: datetime, sport: str = "football"
-) -> list[dict]:
-    """Prior completed matches **in one sport**, ascending by date.
+def _load_full_history(session: Session, sport: str) -> tuple[list[datetime], list[dict]]:
+    """Every completed match **in one sport**, ascending by date, with its dates alone.
+
+    Loaded once and kept briefly; `_all_completed_history` cuts windows from it.
 
     The sport filter is load-bearing, not tidiness. This history is what the
     Poisson baselines are fitted on and what the form features are computed
@@ -222,14 +225,13 @@ def _all_completed_history(
         .filter(
             Match.sport == sport,
             Match.status == "completed",
-            Match.match_date < before_date,
         )
         .order_by(Match.match_date.asc())
         .all()
     )
     id_to_name = dict(session.query(Team.id, Team.name).all())
 
-    return [
+    rows_out = [
         {
             "home_team": id_to_name[m.home_team_id],
             "away_team": id_to_name[m.away_team_id],
@@ -262,6 +264,79 @@ def _all_completed_history(
         }
         for m in rows
     ]
+    return [r.match_date for r in rows], rows_out
+
+
+class HistoryWindow(list):
+    """A sport's completed matches before one day, shared by everything pricing that day.
+
+    A list, so every consumer that takes a history takes this unchanged. It also carries the
+    football Poisson fits built from it (`shared`), because those depend only on the window
+    and the competition, not on the fixture, and they cost seconds to build.
+    """
+
+    def __init__(self, rows: list[dict]):
+        super().__init__(rows)
+        self.shared: dict = {}
+
+
+# Loading a sport's whole history (118,000 football rows) takes about nine seconds, and every
+# page that prices a match used to pay it again. A crawler visiting a few hundred match pages
+# therefore kept the engine busy for an hour and starved everything else. The full history is
+# now loaded once and kept for two minutes, windows cut from it are shared by every request
+# for the same day, and simultaneous cold requests wait for one load instead of each making
+# their own. Ten minutes is short enough that a new result is priced in soon after it arrives.
+_HISTORY_TTL_SECONDS = 600
+_FULL_HISTORY = CoalescingCache(
+    _HISTORY_TTL_SECONDS, max_entries=4, max_concurrent=1, copy_results=False
+)
+_WINDOWS = CoalescingCache(
+    _HISTORY_TTL_SECONDS, max_entries=16, max_concurrent=2, copy_results=False
+)
+
+
+def _all_completed_history(
+    session: Session, before_date: datetime, sport: str = "football"
+) -> HistoryWindow:
+    """Prior completed matches **in one sport**, ascending by date.
+
+    Cut at the start of `before_date`'s day, so every match on a day shares one window. That
+    is the cut the board already used (the earliest kick-off of the day, which no earlier
+    match on the same day precedes), so a match page now agrees with the board it came from.
+    The window is read-only: it is shared between requests.
+
+    The sport filter is load-bearing, not tidiness: basketball rows in a football history
+    would feed ~113-point "scorelines" into a goal model that truncates at 8.
+    """
+    day = datetime.combine(before_date.date(), datetime.min.time())
+
+    def build() -> HistoryWindow:
+        dates, rows = _FULL_HISTORY.get_or_compute(
+            sport, lambda: _load_full_history(session, sport)
+        )
+        return HistoryWindow(rows[: bisect.bisect_left(dates, day)])
+
+    return _WINDOWS.get_or_compute((sport, day), build)
+
+
+def _shared_fits_for(history: list[dict], competitions: list[str | None]) -> dict:
+    """The football Poisson fits for several competitions, building only those not yet built."""
+    if not isinstance(history, HistoryWindow):
+        return build_shared_fits(history, competitions)
+    missing = [c for c in competitions if c not in history.shared]
+    if missing:
+        history.shared.update(build_shared_fits(history, missing))
+    return {c: history.shared[c] for c in competitions}
+
+
+def _shared_fit_for(history: list[dict], competition: str | None):
+    """The football Poisson fits for one competition over a history, built once per window."""
+    if not isinstance(history, HistoryWindow):
+        return build_shared_fit(history, competition)
+    fit = history.shared.get(competition)
+    if fit is None:
+        fit = history.shared[competition] = build_shared_fit(history, competition)
+    return fit
 
 
 # Pricing a basketball or tennis match replays the sport's whole history into a per-team
@@ -509,6 +584,8 @@ def predict_for_match(session: Session, match_id: int, history=None, shared=None
     settings = get_settings()
     if history is None:
         history = _all_completed_history(session, before_date=match.match_date, sport=match.sport)
+    if shared is None:
+        shared = _shared_fit_for(history, match.competition)
     elo_home = get_team_elo_before(session, home_team.id, match.match_date)
     elo_away = get_team_elo_before(session, away_team.id, match.match_date)
 
@@ -946,7 +1023,7 @@ def predict_for_matches(
             # baseline and build their far cheaper state internally.
             shared_by_competition: dict[str | None, object] = {}
             if sport == "football":
-                shared_by_competition = build_shared_fits(
+                shared_by_competition = _shared_fits_for(
                     history, sorted({m.competition for m in pending}, key=str)
                 )
         except Exception as exc:  # noqa: BLE001

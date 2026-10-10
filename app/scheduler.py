@@ -569,6 +569,30 @@ def tennis_feed_job() -> None:
         session.close()
 
 
+def engine_warm_job() -> None:
+    """Every few minutes: keep the engine's expensive shared work ready.
+
+    Loading the football history (about nine seconds) and grading every stored prediction
+    (about four) are cached for several minutes. Left to the first visitor after each expiry,
+    a crawler arriving then would queue behind them; this refreshes them just before they
+    lapse. It uses no API quota. A failure is logged and the next run tries again.
+    """
+    from datetime import date
+
+    from app.services.prediction_service import _all_completed_history
+    from app.services.progress_service import _grade_all
+
+    session = SessionLocal()
+    try:
+        _all_completed_history(session, datetime.combine(date.today(), datetime.min.time()))
+        _grade_all(session)
+    except Exception:  # noqa: BLE001
+        logger.exception("engine warm-up failed")
+        session.rollback()
+    finally:
+        session.close()
+
+
 def sports_warm_job() -> None:
     """Keep the basketball and tennis pages' data warm so no visitor pays for a cold read.
 
@@ -645,6 +669,15 @@ def start_scheduler() -> BackgroundScheduler | None:
         IntervalTrigger(minutes=5),
         id="results_strip_canary",
         next_run_time=datetime.now(),
+        coalesce=True,
+        max_instances=1,
+    )
+    # Keep the football history and the graded record warm for visitors and crawlers.
+    scheduler.add_job(
+        engine_warm_job,
+        IntervalTrigger(minutes=4),
+        id="engine_warm",
+        next_run_time=datetime.now() + timedelta(seconds=15),
         coalesce=True,
         max_instances=1,
     )

@@ -37,7 +37,12 @@ class Settings(BaseSettings):
     # App
     app_env: str = "development"
     log_level: str = "INFO"
-    api_rate_limit_per_minute: int = 60
+    # The engine is an internal service: its only client is the website's server, so every
+    # request arrives from one address. A low per-address limit therefore throttles the whole
+    # site (60 a minute turned a crawler's first visit into hundreds of 429s), and abuse is
+    # limited at the website or the CDN in front of it instead. This is a ceiling against a
+    # runaway caller, not a visitor limit.
+    api_rate_limit_per_minute: int = 6000
 
     # AI analyst agent (app/agents/analyst.py) — requires your own key from
     # console.anthropic.com. Unset by default; the agent stays honest about

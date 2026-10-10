@@ -100,11 +100,10 @@ analytics views are `noindex`.
 4. **Analytics.** Add a privacy-respecting analytics tool before launch so the first
    weeks of data are not lost. (Not installed yet; it needs your choice and, depending
    on where visitors are, a consent notice.)
-5. **Make the engine crawl-safe.** A crawler will request hundreds of pages in a burst.
-   The engine currently runs a full day of predictions per request, and a burst has
-   been seen to exhaust its database connections and return errors. That has to be fixed
-   (it is queued as its own task) and the site served from a cache or CDN, before
-   inviting Google in. A crawler that meets 500 errors reduces how often it comes back.
+5. **Crawl safety.** Done and measured: a sample of the sitemap fetched 8 at a time came back
+   200 of 200 healthy (see `docs/roadmap.md`, "Crawl safety"). Re-run
+   `python scripts/crawl_test.py` against a production build after any change to the engine's page
+   endpoints, and put a CDN in front before real traffic.
 6. **Core Web Vitals.** Run PageSpeed Insights on the home page, a match page and a
    league page against the live address. Watch LCP on the home hero and the weight of
    the first board.

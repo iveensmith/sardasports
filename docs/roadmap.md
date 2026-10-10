@@ -2627,3 +2627,39 @@ overwritten before this fix cannot be recovered; their `created_at` is still bef
 kick-off, so they still read as live.
 
 Tests: `tests/test_prediction_immutability.py`.
+
+## Crawl safety: a search engine's first visit
+
+Before inviting Google in, the site was crawled the way it will be: `scripts/crawl_test.py` fetches a
+random sample of the sitemap's URLs a few at a time against a production build (`next build` and
+`next start`; `next dev` compiles on demand and would measure the wrong thing) and reports failures,
+the "engine is unreachable" banner on pages that returned 200, and timings.
+
+**What it found (8 pages at a time).** 68 of 160 healthy. Two causes, one hiding the other:
+1. **The engine's rate limit.** 60 requests a minute per address, and the engine's only client is the
+   website's own server, so every request comes from one address: 209 of 458 requests were refused with
+   429. The limit is now 6000 a minute (a ceiling against a runaway caller; abuse is limited at the
+   website or CDN), in `config.py`, `.env.example` and the local `.env`.
+2. **Repeated expensive work.** Every match page loaded the whole football history (about nine
+   seconds, 118,000 rows) and refitted the Poisson baselines, and every league and market page graded
+   every stored prediction (about four seconds). One Python process, so a few hundred pages meant
+   an hour of queueing. Fixed by sharing, not by making any one thing faster:
+   - the full history is loaded once and kept for ten minutes; windows are cut from it per day and
+     shared (`HistoryWindow`), carrying the football fits built from them, so a match page costs
+     about two seconds instead of ten; simultaneous cold requests wait for one load;
+   - the graded list is kept for five minutes and shared;
+   - `engine_warm` (every 4 minutes) refreshes both just before they lapse, so no visitor pays for a
+     reload.
+   A match's window is now cut at the start of its day, which is what the board already did (the
+   earliest kick-off of the day), so a match page agrees with the board it came from.
+
+**Result.** 200 of 200 healthy at 8 at a time, 1.4 pages a second (median 4 s, slowest 30 s), so the
+whole sitemap (1,333 URLs) is about 16 minutes of crawling. At 4 at a time, which is closer to how
+Googlebot behaves, every page was healthy even before these changes.
+
+**What this does not do.** It does not make a single cold page fast: the first match page after a
+restart still waits for the history load (the warm-up job runs 15 seconds after start). It
+is one process, so a crawl still slows the site for visitors while it runs. For real traffic put a CDN
+in front (cache the HTML for the public pages for a few minutes) and run more than one engine
+worker; the caches here are per-process, so with several workers each warms its own.
+

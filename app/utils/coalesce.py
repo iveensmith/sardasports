@@ -57,8 +57,13 @@ class CoalescingCache:
         max_entries: int = 64,
         max_concurrent: int = 2,
         wait_timeout_seconds: float = 120.0,
+        copy_results: bool = True,
     ) -> None:
         self._ttl = ttl_seconds
+        # Deep copies protect a shared result from a caller that edits it. For a large,
+        # read-only result (a sport's whole match history) a copy costs more than the
+        # work being saved, so such a cache is built with `copy_results=False`.
+        self._copy_results = copy_results
         self._max_entries = max_entries
         self._wait_timeout = wait_timeout_seconds
         self._lock = threading.Lock()
@@ -66,6 +71,9 @@ class CoalescingCache:
         self._flights: dict[Hashable, _Flight] = {}
         self._slots = threading.BoundedSemaphore(max_concurrent)
         _ALL_CACHES.add(self)
+
+    def _out(self, value: Any) -> Any:
+        return copy.deepcopy(value) if self._copy_results else value
 
     def clear(self) -> None:
         """Forget every stored result. Computations already running still finish."""
@@ -79,7 +87,7 @@ class CoalescingCache:
                 hit = self._entries.get(key)
                 if hit is not None and hit[0] > monotonic():
                     self._entries.move_to_end(key)
-                    return copy.deepcopy(hit[1])
+                    return self._out(hit[1])
                 flight = self._flights.get(key)
                 leader = flight is None
                 if leader:
@@ -94,7 +102,7 @@ class CoalescingCache:
                 # slower than waiting would have been, but it is bounded.
                 return compute()
             if flight.ok:
-                return copy.deepcopy(flight.value)
+                return self._out(flight.value)
             # The leader failed: go round again and either find a new leader's
             # flight to wait on or become the leader.
 
@@ -108,7 +116,7 @@ class CoalescingCache:
                 self._entries.move_to_end(key)
                 while len(self._entries) > self._max_entries:
                     self._entries.popitem(last=False)
-            return copy.deepcopy(value)
+            return self._out(value)
         finally:
             with self._lock:
                 self._flights.pop(key, None)
