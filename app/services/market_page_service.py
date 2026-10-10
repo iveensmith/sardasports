@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models.match import Match
 from app.models.prediction import Prediction
 from app.models.team import Team
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates, market_base_rates
 from app.services.board_service import build_row, effective_odds_markets, odds_for
 from app.services.settlement import MatchResult, result_from_match
 from app.services.stored_predictions import payload_from_stored, predict_with_stored_fallback
@@ -228,7 +228,7 @@ def build_market_page(session: Session, kind: str, target_day: datetime) -> dict
         .filter(Team.id.in_({m.home_team_id for m in matches} | {m.away_team_id for m in matches}))
         .all()
     }
-    base_rates = market_base_rates(session, "football")
+    base_rates = market_base_rates(session, "football")  # the page-level figures below
     predictions = predict_with_stored_fallback(session, matches)
 
     picks: list[dict] = []
@@ -248,7 +248,7 @@ def build_market_page(session: Session, kind: str, target_day: datetime) -> dict
         row = build_row(
             match,
             prediction,
-            base_rates,
+            competition_base_rates(session, match.competition),
             names.get(match.home_team_id, ""),
             names.get(match.away_team_id, ""),
         )

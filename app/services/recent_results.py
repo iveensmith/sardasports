@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.match import Match
 from app.models.prediction import Prediction
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row
 from app.services.stored_predictions import payload_from_stored
 
@@ -95,8 +95,6 @@ def refresh(session: Session, limit: int = DEFAULT_LIMIT) -> dict:
 
 
 def _compute(session: Session, limit: int) -> dict:
-    base_rates = market_base_rates(session, "football")
-
     # Over-fetch: a pick can come back void (a stat the match never recorded) or
     # have no headline at all, and neither belongs on a strip of settled results.
     candidates = (
@@ -119,7 +117,7 @@ def _compute(session: Session, limit: int) -> dict:
         row = build_row(
             match,
             payload_from_stored(prediction),
-            base_rates,
+            competition_base_rates(session, match.competition),
             match.home_team.name,
             match.away_team.name,
         )

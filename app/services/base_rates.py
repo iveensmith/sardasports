@@ -31,7 +31,16 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from ml.markets import BTTS, CARDS, CORNERS, DOUBLE_CHANCE, GOALS, HT_GOALS, MATCH_RESULT
+from ml.markets import (
+    BTTS,
+    CARDS,
+    CORNERS,
+    DOUBLE_CHANCE,
+    GOALS,
+    HT_GOALS,
+    MATCH_RESULT,
+    STAT_MARKETS,
+)
 from ml.prediction.predict import CARDS_LINES, CORNERS_LINES, GOALS_LINES, HT_GOALS_LINES
 
 logger = logging.getLogger(__name__)
@@ -63,12 +72,7 @@ TOTAL_CARDS = "(home_yellow_cards + away_yellow_cards + home_red_cards + away_re
 _CACHE: dict[str, dict[str, float]] = {}
 
 
-def market_base_rates(session: Session, sport: str = "football") -> dict[str, float]:
-    """`{"goals:over_2.5": 50.6, ...}` — percentages, cached per process."""
-    cached = _CACHE.get(sport)
-    if cached is not None:
-        return cached
-
+def _select_list() -> list[str]:
     selects = [
         "COUNT(*) AS n",
         "AVG(CASE WHEN home_score > away_score THEN 1.0 ELSE 0.0 END) AS mr_home",
@@ -89,31 +93,17 @@ def market_base_rates(session: Session, sport: str = "football") -> dict[str, fl
     selects.append(
         "AVG(CASE WHEN home_score > 0 AND away_score > 0 THEN 1.0 ELSE 0.0 END) AS btts_yes"
     )
+    return selects
 
-    row = (
-        session.execute(
-            text(
-                f"SELECT {', '.join(selects)} FROM matches "
-                "WHERE sport = :sport AND status = 'completed' "
-                "AND home_score IS NOT NULL AND away_score IS NOT NULL"
-            ),
-            {"sport": sport},
-        )
-        .mappings()
-        .one()
-    )
 
+def _rates_from_row(row, min_sample: int) -> dict[str, float]:
+    """Turn one aggregate row into `{"goals:over_2.5": 50.6, ...}`, skipping thin markets."""
     total = row["n"] or 0
-    if total < MIN_SAMPLE:
-        logger.info("Only %d completed %s matches; base rates not computed.", total, sport)
-        _CACHE[sport] = {}
-        return {}
-
     rates: dict[str, float] = {}
 
     def put(key: str, value, sample: int = total) -> None:
         """Record a rate, skipping markets with too little history to judge."""
-        if value is None or sample < MIN_SAMPLE:
+        if value is None or sample < min_sample:
             return
         rates[key] = round(float(value) * 100.0, 1)
 
@@ -144,12 +134,98 @@ def market_base_rates(session: Session, sport: str = "football") -> dict[str, fl
                 continue
             put(f"{market}:over_{line}", over, sample)
             put(f"{market}:under_{line}", 1.0 - over, sample)
+    return rates
 
+
+_WHERE = (
+    "WHERE sport = :sport AND status = 'completed' "
+    "AND home_score IS NOT NULL AND away_score IS NOT NULL"
+)
+
+
+def market_base_rates(session: Session, sport: str = "football") -> dict[str, float]:
+    """`{"goals:over_2.5": 50.6, ...}` — percentages over every match, cached per process."""
+    cached = _CACHE.get(sport)
+    if cached is not None:
+        return cached
+
+    row = (
+        session.execute(
+            text(f"SELECT {', '.join(_select_list())} FROM matches {_WHERE}"), {"sport": sport}
+        )
+        .mappings()
+        .one()
+    )
+    total = row["n"] or 0
+    if total < MIN_SAMPLE:
+        logger.info("Only %d completed %s matches; base rates not computed.", total, sport)
+        _CACHE[sport] = {}
+        return {}
+
+    rates = _rates_from_row(row, MIN_SAMPLE)
     logger.info("Measured %d %s market base rates from %d matches", len(rates), sport, total)
     _CACHE[sport] = rates
     return rates
 
 
+# A competition's own rate replaces the overall one only when it rests on at least this many
+# matches that recorded the statistic. Corners and cards are recorded for fewer matches than
+# goals, so each market is judged on its own count.
+MIN_COMPETITION_SAMPLE = 150
+_COMPETITION_CACHE: dict[str, dict[str, dict[str, float]]] = {}
+
+
+def competition_base_rates(
+    session: Session, competition: str | None, sport: str = "football"
+) -> dict[str, float]:
+    """The base rates a call in `competition` should be judged against.
+
+    How often a market lands depends heavily on where it is played: over 8.5 corners is a
+    two-in-three event in England's second tier and a coin flip in Serie A, and over 3.5 cards
+    is routine in Italy and Spain and rare in England. Judged against one overall rate, every
+    fixture in a corner-heavy or card-heavy league looked like it had found something, because
+    it was beating the world's average rather than its own league's, and those markets took
+    most of the best tips there. Measured against the competition's own record, a call is a
+    claim about this fixture, not about the league.
+
+    Where a competition has too few matches recording a statistic, the overall rate stands in.
+    """
+    overall = market_base_rates(session, sport)
+    if not competition or not overall:
+        return overall
+    by_competition = _COMPETITION_CACHE.get(sport)
+    if by_competition is None:
+        rows = (
+            session.execute(
+                text(
+                    f"SELECT competition, {', '.join(_select_list())} FROM matches {_WHERE} "
+                    "GROUP BY competition"
+                ),
+                {"sport": sport},
+            )
+            .mappings()
+            .all()
+        )
+        by_competition = {
+            row["competition"]: _rates_from_row(row, MIN_COMPETITION_SAMPLE) for row in rows
+        }
+        _COMPETITION_CACHE[sport] = by_competition
+    own = by_competition.get(competition)
+    if not own:
+        return overall
+    merged = {**overall, **own}
+    # Goals and results are recorded everywhere, so a thin competition may borrow the overall
+    # rate for them. Corners, cards and half-time goals are not: where a competition records
+    # too few of them, the engine has no history of that statistic there, and the overall rate
+    # would be a yardstick for a number it cannot price. Those markets get no rate here, and so
+    # no calls (see `ml.markets.rank_calls`) rather than a call judged by someone else's league.
+    for key in list(merged):
+        if key.split(":", 1)[0] in STAT_MARKETS and key not in own:
+            del merged[key]
+    return merged
+
+
 def reset_cache() -> None:
     """Drop the cached rates. Used by tests and after a bulk ingest."""
     _CACHE.clear()
+    _COMPETITION_CACHE.clear()

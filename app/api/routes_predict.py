@@ -15,7 +15,7 @@ from app.schemas.prediction import (
     PredictionOut,
     TennisPredictionOut,
 )
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.pick_service import best_pick
 from app.services.prediction_service import MatchNotFoundError, predict_for_match
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
@@ -43,6 +43,29 @@ def _match_state(match: Match) -> dict:
             else None
         ),
     }
+
+
+def _withdraw_unrecorded_markets(payload: dict, rates: dict[str, float]) -> None:
+    """Blank the corner, card and half-time lines for a competition that records none of them.
+
+    A dedicated model will still return a number for a league whose history has no corners
+    or cards at all (it is reading features that are all zero), and the page would then show
+    "Over 8.5 corners 48.7%" as though the engine had something to go on. The rate table leaves
+    these markets out for such a competition (`competition_base_rates`), so a line with no rate
+    is shown as unavailable, exactly as for a competition the models were never fitted on.
+    """
+    if not rates:
+        return
+    for field, prefix in (
+        ("corners_markets", "corners"),
+        ("cards_markets", "cards"),
+        ("ht_goals_markets", "ht_goals"),
+    ):
+        for entry in payload.get(field) or []:
+            if f"{prefix}:over_{entry.get('line')}" not in rates:
+                entry["prob_over"] = None
+                entry["prob_under"] = None
+                entry["model_used"] = False
 
 
 def _actual_stats(match: Match) -> dict | None:
@@ -152,7 +175,9 @@ def predict(
     # in the route rather than the service because it needs the base-rate
     # table, which is a property of the whole database rather than of one
     # prediction.
-    ranked = rank_calls(candidate_calls(payload), market_base_rates(db, "football"))
+    rates = competition_base_rates(db, payload.get("competition"))
+    _withdraw_unrecorded_markets(payload, rates)
+    ranked = rank_calls(candidate_calls(payload), rates)
     best = headline_call(ranked)
     payload["calls"] = {
         "headline": best.as_dict() if best else None,

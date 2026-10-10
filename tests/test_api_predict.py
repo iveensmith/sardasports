@@ -430,9 +430,7 @@ def test_a_completed_fixture_carries_the_score_and_actual_stats(client, db_sessi
     assert body["events"][0]["player"] == "A. Striker"
 
 
-def test_a_completed_fixture_with_stats_never_fetched_reports_no_actual_stats(
-    client, db_session
-):
+def test_a_completed_fixture_with_stats_never_fetched_reports_no_actual_stats(client, db_session):
     """A match can be `completed` (fetch_results.py ran) before
     fetch_match_stats.py has had a turn — `actual_stats` must not appear as
     an all-None block, which would look like "checked, nothing there"
@@ -457,3 +455,34 @@ def test_a_completed_fixture_with_stats_never_fetched_reports_no_actual_stats(
 
     body = client.get(f"/predict/{fixture.id}").json()
     assert body["actual_stats"] is None
+
+
+def test_markets_a_competition_does_not_record_are_withdrawn_from_the_page():
+    """A model fitted elsewhere still returns a number for a league with no corners or cards in
+    its history. The page must not present it as a priced line."""
+    from app.api.routes_predict import _withdraw_unrecorded_markets
+
+    payload = {
+        "corners_markets": [
+            {"line": 8.5, "prob_over": 48.7, "prob_under": 51.3, "model_used": True},
+        ],
+        "cards_markets": [
+            {"line": 3.5, "prob_over": 41.5, "prob_under": 58.5, "model_used": True},
+        ],
+    }
+
+    # The competition has its own cards rate but no corners rate.
+    _withdraw_unrecorded_markets(payload, {"cards:over_3.5": 57.0, "goals:over_2.5": 50.0})
+
+    assert payload["corners_markets"][0] == {
+        "line": 8.5,
+        "prob_over": None,
+        "prob_under": None,
+        "model_used": False,
+    }
+    assert payload["cards_markets"][0]["prob_over"] == 41.5  # recorded here: left alone
+
+    # No table at all (too little history anywhere) is not a verdict on any market.
+    untouched = {"corners_markets": [{"line": 8.5, "prob_over": 48.7, "model_used": True}]}
+    _withdraw_unrecorded_markets(untouched, {})
+    assert untouched["corners_markets"][0]["prob_over"] == 48.7

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.match import Match
 from app.models.team import Team
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row
 from app.services.league_service import build_league, competition_for_slug, slug_for
 from app.services.settlement import Outcome, Record
@@ -143,12 +143,12 @@ def _build_day_rows(db: Session, target: date):
     )
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
-    base_rates = market_base_rates(db, "football")
     # Only markets and confidence are read here, so a current stored prediction will do.
     predictions = predict_with_stored_fallback(db, matches, allow_stored=True)
 
     rows, ranked_by_match, odds_by_match = [], {}, {}
     for match, prediction in zip(matches, predictions, strict=True):
+        base_rates = competition_base_rates(db, match.competition)
         row = build_row(
             match,
             prediction,

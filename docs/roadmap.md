@@ -2708,3 +2708,42 @@ tenth (`app/services/confidence_scale.py`). The order is exactly the raw score's
 probability. With fewer than 300 stored predictions it falls back to the raw score over ten. Tennis and
 basketball confidences are untouched. FAQ, glossary and the ring's tooltip say what it is now.
 
+## Best tips: too many corners and cards (10 Oct 2026)
+
+**Why.** The best tip is the likeliest call among those that beat their market's base rate by 5
+points. Two flaws made corners and cards win it:
+1. *One world-wide base rate for every league.* Over 8.5 corners lands about 64% of the time overall
+   but 68% in the Championship; over 3.5 cards 58% overall but 75% in Serie B. Judged against the
+   world's rate, every fixture in a corner-heavy or card-heavy league looked like a finding, and since
+   the lines are ladders (over 7.5, 8.5, 9.5 corners; over 2.5, 3.5, 4.5 cards) there was always an
+   easy, high-probability rung to take the headline. Measured on the 2,086 graded stored predictions,
+   cards led 34% of best tips (Serie B 95%, La Liga 88%, Serie A 75%) and corners 15% (Championship 79%).
+2. *The corner and card probabilities run high.* Corner calls claiming a 5-point lift realised 2.4
+   (1,475 calls) and card calls claiming 6.8 realised 4.8 (1,140), while match-result, double-chance
+   and goals calls realised what they claimed.
+
+**What changed.**
+- Base rates are measured per competition (`competition_base_rates`), falling back to the overall rate
+  where a competition has under 150 matches recording the statistic. Every place that ranks calls now
+  uses them: board, bankers and slip, league pages, market pages, the match page, the results strip and
+  the track record.
+- Corners need a 10-point lift and cards 8 to lead (`MARKET_MIN_HEADLINE_LIFT`); the per-market columns
+  keep the ordinary 5. The evidence above is why, not taste.
+- A competition that records no corners, cards or half-time goals gets no rates for them, so those calls
+  are no longer made there (`STAT_MARKETS`). Major League Soccer has cards for one match in 4,850 yet was
+  getting "Under 4.5 cards, 74%" as a best tip, from a model fitted on other leagues reading all-zero
+  features. The match page now shows those lines as unavailable.
+
+**Result on the same graded predictions.** Headline mix went from cards 34, goals 20, corners 15,
+double chance 12, match result 12, BTTS 5 to match result 28, goals 24, double chance 17, cards 14,
+corners 9, BTTS 7. Over the next four days' real fixtures: match result 33, goals 32, corners 10,
+cards 10, double chance 9. Premier League corners 17% to 4%; Serie B cards 95% to 18%.
+
+**The cost, stated plainly.** The published headline win rate falls from 76.2% to 68.9% (reconstructed
+76.2% to 68.6%; live 77.8% over 54), because the picks removed were the easy high-probability lines.
+It is the same engine, judged against a harder and more honest yardstick, and the figure on the home
+page and track record moves with it automatically. The old number flattered the engine.
+
+**Not done.** The corner and card probabilities themselves are about 5 points overconfident; the right
+fix is calibrating those models, not just raising the bar.
+

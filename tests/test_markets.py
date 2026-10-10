@@ -26,6 +26,7 @@ from ml.markets import (
     DOUBLE_CHANCE_MIN_HEADLINE_LIFT,
     GOALS,
     HEADLINE_EXCLUDED,
+    MARKET_MIN_HEADLINE_LIFT,
     MATCH_RESULT,
     MIN_HEADLINE_LIFT,
     NOTABLE_LIFT,
@@ -161,7 +162,7 @@ def test_a_market_with_no_base_rate_sorts_below_one_that_has_lift():
     inventing a base rate would fake the only comparison that matters."""
     calls = [
         Call(GOALS, "over_2.5", "Over 2.5 goals", 61.0),  # +10.4
-        Call("corners", "over_9.5", "Over 9.5 corners", 95.0),  # no base rate
+        Call(GOALS, "over_5.5", "Over 5.5 goals", 95.0),  # no base rate
     ]
     ranked = rank_calls(calls, {"goals:over_2.5": 50.6})
     assert ranked[0].call.selection == "over_2.5"
@@ -353,3 +354,74 @@ def test_the_exclusion_holds_even_when_nothing_else_qualifies():
     head = headline_call(rank_calls(calls, BASE_RATES))
     assert head.call.selection == "over_1.5"
     assert head.lift < MIN_HEADLINE_LIFT  # shown quietly, but it is a real market
+
+
+# --- corners and cards must earn a larger lift to lead ------------------------------------------
+
+
+def test_corners_and_cards_need_a_bigger_lift_than_goals_to_lead():
+    """Measured: corner calls that claimed a 5 to 10 point lift realised under 3, and the
+    lines are ladders with several easy, high-probability rungs. They used to take most best
+    tips in corner-heavy and card-heavy leagues."""
+    rates = {**BASE_RATES, "corners:over_8.5": 60.0, "cards:over_3.5": 50.0}
+    calls = [
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 58.0),  # +7.4: clears the ordinary bar
+        Call("corners", "over_8.5", "Over 8.5 corners", 68.0),  # +8.0: clears 5, not 10
+        Call("cards", "over_3.5", "Over 3.5 cards", 60.0),  # +10.0: clears 5, and 8
+    ]
+
+    # Corners alone cannot lead on +8: they need MARKET_MIN_HEADLINE_LIFT["corners"].
+    assert MARKET_MIN_HEADLINE_LIFT["corners"] > 8.0
+    lead = headline_call(rank_calls(calls, rates))
+    assert lead.call.market == "cards"  # the likeliest of those that earned their place, 60 > 58
+
+    # The goals call beats a corners call that has not earned a place, however likely.
+    only_goals_and_corners = [calls[0], calls[1]]
+    assert headline_call(rank_calls(only_goals_and_corners, rates)).call.market == GOALS
+
+
+def test_a_corner_call_with_a_real_lift_can_still_lead():
+    rates = {**BASE_RATES, "corners:over_8.5": 55.0}
+    calls = [
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 58.0),  # +7.4
+        Call("corners", "over_8.5", "Over 8.5 corners", 70.0),  # +15
+    ]
+
+    assert headline_call(rank_calls(calls, rates)).call.market == "corners"
+
+
+def test_a_market_column_is_unaffected_by_the_headline_bar():
+    """The per-market column still picks that market's likeliest call that beats the ordinary
+    bar; only the headline holds corners and cards to more."""
+    rates = {**BASE_RATES, "corners:over_8.5": 60.0}
+    calls = [Call("corners", "over_8.5", "Over 8.5 corners", 68.0)]  # +8
+
+    columns = best_per_market(rank_calls(calls, rates))
+
+    assert [c.call.market for c in columns] == ["corners"]
+
+
+def test_a_corners_or_cards_call_with_no_rate_for_its_league_is_not_made():
+    """A competition that records no corners has no history to price them from. The rate table
+    leaves those markets out for it, and so the calls are dropped, instead of being judged
+    against another league's corners and winning the headline on it."""
+    rates = {"goals:over_2.5": 50.6, "match_result:home": 44.4}
+    calls = [
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 55.0),
+        Call("corners", "over_8.5", "Over 8.5 corners", 80.0),
+        Call("cards", "under_4.5", "Under 4.5 cards", 74.0),
+        Call("ht_goals", "over_0.5", "Over 0.5 HT goals", 70.0),
+    ]
+
+    ranked = rank_calls(calls, rates)
+
+    assert [r.call.market for r in ranked] == [GOALS]
+    assert headline_call(ranked).call.market == GOALS
+
+
+def test_with_no_rates_at_all_every_call_is_still_listed():
+    """No table (a database with too little history) means no yardstick for anything, which is
+    not the same as a league that records no corners."""
+    calls = [Call("corners", "over_8.5", "Over 8.5 corners", 80.0)]
+
+    assert len(rank_calls(calls, {})) == 1

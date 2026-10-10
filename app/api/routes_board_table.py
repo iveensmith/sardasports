@@ -28,7 +28,7 @@ from sqlalchemy.orm import Session
 from app.database.session import get_db
 from app.models.match import Match
 from app.models.team import Team
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row, is_won
 from app.services.recent_results import DEFAULT_LIMIT, MAX_LIMIT, recent_settled
 from app.services.stored_predictions import predict_with_stored_fallback
@@ -112,8 +112,6 @@ def _build_board(
 
     team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
     names = {t.id: t.name for t in db.query(Team).filter(Team.id.in_(team_ids)).all()}
-    base_rates = market_base_rates(db, "football")
-
     # The board reads only the markets and the confidence, so a stored prediction that
     # is still current is as good as a fresh one and costs nothing to serve.
     predictions = predict_with_stored_fallback(db, matches, allow_stored=True)
@@ -121,7 +119,8 @@ def _build_board(
         build_row(
             match,
             prediction,
-            base_rates,
+            # Judged against its own competition's rates: see `competition_base_rates`.
+            competition_base_rates(db, match.competition),
             names.get(match.home_team_id, ""),
             names.get(match.away_team_id, ""),
         )

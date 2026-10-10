@@ -14,7 +14,12 @@ from datetime import datetime, timedelta
 import pytest
 
 from app.models import Match, Team
-from app.services.base_rates import MIN_SAMPLE, market_base_rates, reset_cache
+from app.services.base_rates import (
+    MIN_SAMPLE,
+    competition_base_rates,
+    market_base_rates,
+    reset_cache,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -179,3 +184,75 @@ def test_resetting_the_cache_picks_up_new_matches(db_session):
     reset_cache()
     # Same sport, so still 100% — but the read really did happen again.
     assert market_base_rates(db_session)["match_result:home"] == pytest.approx(100.0)
+
+
+# --- a competition's own rates ------------------------------------------------------------------
+
+
+def _seed_competition(session, competition, results, **extra):
+    """Like `_seed`, but in a named competition (so two can be told apart)."""
+    global _seed_calls
+    _seed_calls += 1
+    tag = _seed_calls
+    home = Team(name=f"CH-{tag}", league="Test", sport="football")
+    away = Team(name=f"CA-{tag}", league="Test", sport="football")
+    session.add_all([home, away])
+    session.flush()
+    for index, (home_score, away_score) in enumerate(results):
+        session.add(
+            Match(
+                external_id=f"c-{tag}-{index}",
+                match_date=datetime(2024, 1, 1) + timedelta(days=index),
+                competition=competition,
+                season="2024",
+                home_team_id=home.id,
+                away_team_id=away.id,
+                home_score=home_score,
+                away_score=away_score,
+                status="completed",
+                sport="football",
+                **extra,
+            )
+        )
+    session.commit()
+
+
+def test_a_competition_is_judged_against_its_own_rate_not_the_worlds(db_session):
+    """Over 8.5 corners lands far more often in one league than another; a call there has to
+    beat that league's rate, or every fixture in a corner-heavy league looks like a finding."""
+    # 200 matches in each league, 12 corners in one and 6 in the other.
+    _seed_competition(db_session, "Corner League", [(1, 0)] * 200, home_corners=7, away_corners=5)
+    _seed_competition(db_session, "Quiet League", [(1, 0)] * 200, home_corners=3, away_corners=3)
+
+    overall = market_base_rates(db_session)["corners:over_8.5"]
+    corner = competition_base_rates(db_session, "Corner League")["corners:over_8.5"]
+    quiet = competition_base_rates(db_session, "Quiet League")["corners:over_8.5"]
+
+    assert corner == pytest.approx(100.0) and quiet == pytest.approx(0.0)
+    assert overall == pytest.approx(50.0)  # the world's rate describes neither
+
+
+def test_a_competition_with_too_little_history_uses_the_overall_rate(db_session):
+    _seed_competition(db_session, "Big League", [(1, 0)] * 300, home_corners=5, away_corners=5)
+    _seed_competition(db_session, "Tiny League", [(1, 0)] * 20, home_corners=9, away_corners=9)
+
+    overall = market_base_rates(db_session)
+    tiny = competition_base_rates(db_session, "Tiny League")
+
+    assert tiny["corners:over_8.5"] == overall["corners:over_8.5"]
+    assert competition_base_rates(db_session, None) == overall
+    assert competition_base_rates(db_session, "Unknown League") == overall
+
+
+def test_a_competition_that_records_no_corners_gets_no_corner_rates(db_session):
+    """Goals are recorded everywhere, so a league can be judged on its own goals. A league that
+    records no corners has no history to price them from, so it gets no corner rate (and so no
+    corner calls) rather than another league's."""
+    _seed_competition(db_session, "Corner League", [(1, 0)] * 300, home_corners=6, away_corners=6)
+    _seed_competition(db_session, "No Corners League", [(3, 1)] * 300)
+
+    market_base_rates(db_session)
+    own = competition_base_rates(db_session, "No Corners League")
+
+    assert own["goals:over_2.5"] == pytest.approx(100.0)  # its own goals rate
+    assert not [key for key in own if key.startswith("corners:")]

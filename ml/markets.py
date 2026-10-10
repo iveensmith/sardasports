@@ -53,6 +53,10 @@ MARKET_NAMES = {
     CORNERS: "Corners",
     CARDS: "Cards",
 }
+# Markets that depend on a statistic only some competitions record. Where a competition has none
+# of it, there is nothing to price the market from, so it is not called there at all.
+STAT_MARKETS = frozenset({HT_GOALS, CORNERS, CARDS})
+
 MARKET_ORDER = [MATCH_RESULT, DOUBLE_CHANCE, GOALS, BTTS, HT_GOALS, CORNERS, CARDS]
 
 
@@ -220,6 +224,21 @@ MIN_HEADLINE_LIFT = 5.0
 # double chance instead of double chance crowding out the other two.
 DOUBLE_CHANCE_MIN_HEADLINE_LIFT = 20.0
 
+# The same bar, held higher for corners and cards, where the model has measurably overstated
+# what it knows.
+#
+# Measured on every graded stored prediction, judged against each competition's own rates: a
+# match-result, double-chance or goals call that claimed a lift of five to ten points realised
+# about that much (over 400 to 1,000 calls in each), while corners claimed 7.0 and realised
+# 2.4 (1,475 calls), and cards claimed 6.8 and realised 4.8 (1,140). The corner probabilities
+# run about five points too high at every level, so a corner line "beating its base rate by 5"
+# has usually not beaten it at all, and because the lines are ladders (over 7.5, 8.5, 9.5
+# corners; over 2.5, 3.5, 4.5 cards) there are always several easy ones with a high
+# probability to win the headline. Asking these two markets for a larger claimed lift is the
+# same rule as for double chance: it keeps the likeliest call that has really earned its
+# place, and lets a market that has earned more of the claim it makes lead instead.
+MARKET_MIN_HEADLINE_LIFT = {CORNERS: 10.0, CARDS: 8.0}
+
 # Selections that never lead a row whatever their probability.
 #
 # "Home or away" is the sum of both wins, so it says only "not a draw" —
@@ -272,6 +291,12 @@ def rank_calls(calls: list[Call], base_rates: dict[str, float]) -> list[RankedCa
     is no evidence they are notable, and guessing one would invent the
     comparison this module exists to make honest.
     """
+    # Hold back a corners, cards or half-time call that has no base rate when rates exist at
+    # all: the table is built per competition (see `competition_base_rates`) and leaves these
+    # out where the competition records none of that statistic. A call with no yardstick for its
+    # own league is a number the engine has no history to stand behind.
+    if base_rates:
+        calls = [c for c in calls if c.market not in STAT_MARKETS or c.key in base_rates]
     ranked = [
         RankedCall(
             call=call,
@@ -292,7 +317,10 @@ def rank_calls(calls: list[Call], base_rates: dict[str, float]) -> list[RankedCa
 
 
 def _pick(
-    entries: list[RankedCall], *, double_chance_min_lift: float | None = None
+    entries: list[RankedCall],
+    *,
+    double_chance_min_lift: float | None = None,
+    market_min_lift: dict[str, float] | None = None,
 ) -> RankedCall | None:
     """The likeliest call that clears the lift bar, else the likeliest.
 
@@ -320,6 +348,8 @@ def _pick(
     def _bar(entry: RankedCall) -> float:
         if double_chance_min_lift is not None and entry.call.market == DOUBLE_CHANCE:
             return double_chance_min_lift
+        if market_min_lift is not None and entry.call.market in market_min_lift:
+            return market_min_lift[entry.call.market]
         return MIN_HEADLINE_LIFT
 
     eligible = [e for e in allowed if e.lift is not None and e.lift >= _bar(e)]
@@ -379,4 +409,8 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     # cannot disagree on which selection represents a market once both have
     # decided that market gets to speak, which is the invariant that matters:
     # see `test_a_market_column_agrees_with_the_best_tip_when_they_are_the_same_market`.
-    return _pick(ranked, double_chance_min_lift=DOUBLE_CHANCE_MIN_HEADLINE_LIFT)
+    return _pick(
+        ranked,
+        double_chance_min_lift=DOUBLE_CHANCE_MIN_HEADLINE_LIFT,
+        market_min_lift=MARKET_MIN_HEADLINE_LIFT,
+    )

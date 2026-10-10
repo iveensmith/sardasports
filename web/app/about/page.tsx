@@ -255,6 +255,24 @@ export default async function AboutPage() {
           </p>
           <div className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
             <p className="text-[13px] font-semibold text-[var(--color-text)]">
+              10 October 2026: how the best tip is chosen
+            </p>
+            <p className="mt-2">
+              Corners and cards were taking too many best tips, because each
+              call was compared with how often its market lands across all
+              leagues rather than in its own league, and the corner and card
+              probabilities had run about five points high. Calls are now
+              compared with their own competition&rsquo;s rate, corners and
+              cards must clear a higher bar to lead, and a competition that
+              records no corners or cards gets no calls for them. The track
+              record grades the same pick the boards now lead with, so the
+              published rates fell: the reconstructed record from 76.2% to
+              68.6%, and the overall from 76.2% to 68.9%. The old figures were
+              flattered by easy, high-probability lines.
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+            <p className="text-[13px] font-semibold text-[var(--color-text)]">
               7 October 2026: track-record headline picks
             </p>
             <p className="mt-2">

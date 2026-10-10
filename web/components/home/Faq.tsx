@@ -89,7 +89,7 @@ export function Faq({
     },
     {
       q: "How is the best tip chosen?",
-      a: "From every market priced for the fixture, the engine takes the likeliest pick among those that beat how often their market lands anyway. Where none does, it takes the likeliest pick overall.",
+      a: "From every market priced for the fixture, the engine takes the likeliest pick among those that beat how often that market lands anyway, measured in the fixture's own competition: over 8.5 corners is routine in one league and rare in another, so a corner line is only a finding if it beats its own league's rate. Corners and cards have to beat it by more than other markets, because their probabilities have run about five points high in the record. Where nothing qualifies, the likeliest pick overall is shown.",
     },
     {
       q: "What is a banker?",

@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.match import Match
 from app.models.prediction import Prediction
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.settlement import Outcome, Record, result_from_match, settle_key
 from app.services.stored_predictions import payload_from_stored
 from app.utils.coalesce import CoalescingCache
@@ -83,7 +83,6 @@ def _grade_all(session: Session) -> list[_Graded]:
 
 def _grade_all_uncached(session: Session) -> list[_Graded]:
     """Regenerate and settle every stored prediction on a played fixture."""
-    base_rates = market_base_rates(session, "football")
     rows = (
         session.query(Prediction, Match)
         .join(Match, Match.id == Prediction.match_id)
@@ -97,7 +96,10 @@ def _grade_all_uncached(session: Session) -> list[_Graded]:
         result = result_from_match(match)
         if result is None:
             continue
-        ranked = rank_calls(candidate_calls(payload_from_stored(prediction)), base_rates)
+        ranked = rank_calls(
+            candidate_calls(payload_from_stored(prediction)),
+            competition_base_rates(session, match.competition),
+        )
         best = headline_call(ranked)
         if best is None:
             continue

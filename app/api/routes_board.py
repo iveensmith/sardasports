@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models import Match, Team
-from app.services.base_rates import market_base_rates
+from app.services.base_rates import competition_base_rates
 from app.services.pick_service import best_pick, most_likely_outcome
 from app.services.stored_predictions import predict_with_stored_fallback
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
@@ -158,9 +158,6 @@ def predictions_today(
             for team_id, total in rows:
                 played[team_id] = played.get(team_id, 0) + total
 
-    # One scan of the matches table for the whole board, not one per fixture.
-    base_rates_by_sport: dict[str, dict[str, float]] = {}
-
     entries = []
     for match, prediction in zip(matches, predictions, strict=True):
         agreement = agreement_for(prediction) if prediction else None
@@ -173,11 +170,9 @@ def predictions_today(
         # ml.markets for the measurements.
         calls = None
         if prediction and match.sport == "football":
-            if match.sport not in base_rates_by_sport:
-                base_rates_by_sport[match.sport] = market_base_rates(db, match.sport)
             ranked = rank_calls(
                 candidate_calls(prediction),
-                base_rates_by_sport[match.sport],
+                competition_base_rates(db, match.competition),
             )
             best = headline_call(ranked)
             calls = {

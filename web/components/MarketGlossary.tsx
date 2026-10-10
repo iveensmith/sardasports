@@ -27,7 +27,7 @@ const ITEMS: Array<{ term: string; body: string }> = [
   },
   {
     term: "Best tip",
-    body: "The single pick the engine leads with for the fixture, chosen from every market it priced: the likeliest call among those that beat how often their market lands anyway, or simply the likeliest where none do.",
+    body: "The single pick the engine leads with for the fixture, chosen from every market it priced: the likeliest call among those that beat how often their market lands in that competition anyway (corners and cards by a wider margin, as their probabilities have run high), or simply the likeliest where none do.",
   },
   {
     term: "Confidence",
