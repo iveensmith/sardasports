@@ -114,6 +114,26 @@ docker compose -f docker-compose.prod.yml exec -T api curl -s localhost:8000/hea
 docker compose -f docker-compose.prod.yml logs --tail=50 api
 ```
 
+## No domain yet? Test with a temporary address
+
+Steps 3 and 4 (the named tunnel and `CLOUDFLARE_TUNNEL_TOKEN`) need a domain on Cloudflare. To
+see the site running first, skip them and use the quick tunnel: a temporary
+`https://....trycloudflare.com` address that needs no account and no domain.
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.production --profile quick up -d --build api web quicktunnel
+docker compose -f docker-compose.prod.yml logs quicktunnel | grep trycloudflare
+```
+
+The second command prints the address. Limits: it changes every time the container restarts, it
+has no uptime promise, and Cloudflare provides it for testing, so do not give it to real
+visitors. The site stays `noindex` because `NEXT_PUBLIC_SITE_URL` is empty.
+
+When you have a domain, buy it through Cloudflare (Dashboard > Domain Registration; a `.com` is
+about $10 a year at cost) or add an existing one, then follow steps 3 and 4 above and start with
+the normal command. Stop the quick tunnel first:
+`docker compose -f docker-compose.prod.yml stop quicktunnel`.
+
 ## Cloudflare settings worth turning on
 
 - **SSL/TLS > Overview:** *Full* is fine; with a tunnel the origin leg is already encrypted.

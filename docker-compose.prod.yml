@@ -90,7 +90,29 @@ services:
     # and its public hostname is pointed at http://web:3000. See docs/deployment.md.
     command: tunnel --no-autoupdate run
     environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env.production}
+      # Empty is allowed so the file still parses in no-domain mode (see quicktunnel below).
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      web:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+  # NO DOMAIN YET? For testing only. Cloudflare hands out a temporary https address
+  # (https://something-random.trycloudflare.com) with no account and no domain. It changes
+  # every time this container restarts and has no uptime promise, so it is not for real
+  # traffic. Start it with, naming the services so the domain tunnel above is left out:
+  #
+  #   docker compose -f docker-compose.prod.yml --env-file .env.production
+  #     --profile quick up -d --build api web quicktunnel
+  #
+  # and read the address from:  docker compose -f docker-compose.prod.yml logs quicktunnel
+  quicktunnel:
+    image: cloudflare/cloudflared:latest
+    profiles: ["quick"]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://web:3000
     depends_on:
       web:
         condition: service_healthy
