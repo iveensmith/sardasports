@@ -1,0 +1,27 @@
+# Keep the engine image to code. Data, model files and the website are mounted or built
+# separately (see docker-compose.prod.yml), and none of it belongs in a layer.
+.git
+.claude
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.log
+
+web
+tests
+docs
+
+# Data and trained models live on the server's disk, not in the image.
+data
+ml/models/*
+!ml/models/.gitkeep
+rag/chroma_store

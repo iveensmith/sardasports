@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // A self-contained server (server.js plus only the modules it needs), which is what the
+  // production Docker image runs. It does not change `next dev` or `next start`.
+  output: "standalone",
   experimental: {
     // Off, not the default `true`. This cache sits in front of every fetch
     // — including ones with `cache: "no-store"` — and only clears on a

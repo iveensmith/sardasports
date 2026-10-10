@@ -1,0 +1,99 @@
+# SARDASPORTS in production: one server, Cloudflare in front.
+#
+#   visitor -> Cloudflare (DNS, CDN, DDoS, TLS) -> tunnel -> web -> api -> SQLite on disk
+#
+# Nothing here publishes a port to the internet. The server needs no open inbound ports
+# at all: the `cloudflared` container dials out to Cloudflare and traffic arrives over
+# that connection. The engine (`api`) is reachable only from `web`, on the private
+# compose network.
+#
+# Run it with:   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+# Full walkthrough, including first-time data upload and Cloudflare setup: docs/deployment.md
+#
+# This is separate from docker-compose.yml, which is the local development stack
+# (Postgres, Redis, ChromaDB, published ports) and is not what production runs.
+
+name: sardasports
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.api
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      APP_ENV: production
+      # SQLite on the mounted data directory. Four slashes: an absolute path.
+      DATABASE_URL: sqlite:////app/data/uniquepredict.db
+      # One process and one box: no shared cache is needed, and an unset Redis means
+      # "caching off", not an error.
+      REDIS_URL: ""
+      CHROMA_URL: ""
+      CHROMA_PERSIST_DIR: /app/rag/chroma_store
+      # The scheduler keeps data, results and models current, and runs only while this
+      # process does. See docs/deployment.md "Backups" before relying on it.
+      ENABLE_SCHEDULER: "true"
+    volumes:
+      # Everything the engine writes or needs that is not code lives on the server's
+      # disk under ${DATA_DIR}, so a rebuilt image never loses it.
+      - ${DATA_DIR:-/srv/sardasports}/data:/app/data
+      - ${DATA_DIR:-/srv/sardasports}/models:/app/ml/models
+      - ${DATA_DIR:-/srv/sardasports}/chroma:/app/rag/chroma_store
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    # The engine holds the match history and its model fits in memory (about 0.5 GB
+    # idle, more while a board is computed). Capped so a leak cannot take the box down.
+    mem_limit: 3g
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+        NEXT_PUBLIC_OPERATOR_NAME: ${NEXT_PUBLIC_OPERATOR_NAME:-}
+        NEXT_PUBLIC_CONTACT_EMAIL: ${NEXT_PUBLIC_CONTACT_EMAIL:-}
+    restart: unless-stopped
+    environment:
+      # Read at runtime, on the server: the browser never talks to the engine.
+      ENGINE_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    expose:
+      - "3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/robots.txt"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "5"}
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    # The token is created in the Cloudflare dashboard (Zero Trust > Networks > Tunnels)
+    # and its public hostname is pointed at http://web:3000. See docs/deployment.md.
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env.production}
+    depends_on:
+      web:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
