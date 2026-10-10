@@ -60,6 +60,11 @@ def test_games_without_a_real_outcome_are_left_out():
     assert basketball_feed.parse_item(_game(home=88, away=88)) is None  # a tie cannot be final
 
 
+def test_an_awarded_game_scored_20_0_is_not_a_result():
+    assert basketball_feed.parse_item(_game(home=20, away=0)) is None
+    assert basketball_feed.parse_item(_game(home=0, away=20)) is None
+
+
 def test_a_game_in_play_is_kept_scheduled_so_no_score_is_taken_early():
     live = basketball_feed.parse_item(_game(status="Q3", home=50, away=48))
 

@@ -2663,3 +2663,48 @@ is one process, so a crawl still slows the site for visitors while it runs. For 
 in front (cache the HTML for the public pages for a few minutes) and run more than one engine
 worker; the caches here are per-process, so with several workers each warms its own.
 
+## Checking the sport records, and the football quality items (10 Oct 2026)
+
+**Basketball and tennis picks, two days in** (`python scripts/check_sport_record.py` prints this report
+any time): 64 basketball and 56 tennis predictions stored before the match; 26 and 27 graded. Winner picks
+14 of 26 (54%) and 16 of 27 (59%); totals 11 of 26 and 17 of 27. The 95% intervals are 35 to 71% and
+41 to 75%: far too wide to say anything yet, and the report prints them so nobody reads more into the
+percentages than the sample supports. Calibration buckets hold 3 to 11 results each. Re-run after a few
+hundred results.
+
+What the check found and fixed:
+- **Awarded games were being stored as results.** 19 basketball games recorded 20-0 (a forfeit) were in the
+  history, teaching the scoring averages and totals that a team can score nothing. The parser now refuses
+  any game with a zero score; the 19 were deleted and basketball Elo replayed. (Retrain the basketball
+  models at the next weekly run; the effect on 36,000 games is small.)
+- **Matches that never reported a result stayed "In play" for ever** (a postponement the feed never
+  mentioned). A match six hours past its start with no result is now "No result".
+- Feeds were healthy: no errors, no duplicate fixtures (back-to-back games between the same two teams are
+  real), no ties, no tennis result without sets.
+- **Most basketball games are unpriced** (26 of 161 played in two days), because most leagues have no
+  loaded history yet. That improves by itself as the nightly backfill proceeds; the report lists which
+  leagues are unpriced.
+
+**BTTS "below base rate" is not a bug.** Across 2,086 stored predictions the probabilities are calibrated
+(predicted 50 to 60% came in at 53%, 40 to 50% at 50%) and the pick is right 53.1% of the time against
+52.3% for always saying yes. The trained model's held-out test: 55.1% against 54.5% for the majority on
+23,602 matches. So BTTS is nearly a coin flip with a very small real edge, not a broken model. The recent
+live dip (10 of 27) is a short window: yes was only 42.6% of live results while the engine says yes
+whenever it is above 50%. Nothing to fix in the model; the market page already reports its own record
+beside the base rate.
+
+**Unmapped clubs.** 425 of 1,404 football teams have no API-Football id (979 have one), 104 of them active in the last
+400 days, and the well-known ones are naming differences (Paris SG / Paris Saint Germain, Sp Lisbon / Sporting CP,
+Sheffield Weds / Sheffield Wednesday, OH Leuven / Oud-Heverlee Leuven). A partial mapping run (40
+requests, 2024 rosters, which took the count from 828 to 979 mapped) wrote ids for 151 national sides and queued 53 clubs for review in
+`data/processed/team_mapping_review.csv` without writing any weak match. The full run (2016 to 2025) is
+still the first step of the subscription runbook above; guessing names here would risk wrong ids.
+
+**The confidence score now spreads fixtures out.** The raw score (estimator agreement) was between 89 and
+98 for nine fixtures in ten, so the board showed 9.1 beside 9.6. It carries a real signal (over 2,086
+graded picks, the most agreed-on fifth won 81% against 72% for the least agreed-on fifth), so the board now
+shows its **rank** among every stored football prediction, out of ten: 5 is typical, 9 or more is the top
+tenth (`app/services/confidence_scale.py`). The order is exactly the raw score's order and it is not a
+probability. With fewer than 300 stored predictions it falls back to the raw score over ten. Tennis and
+basketball confidences are untouched. FAQ, glossary and the ring's tooltip say what it is now.
+

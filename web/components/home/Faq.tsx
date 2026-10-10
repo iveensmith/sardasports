@@ -85,7 +85,7 @@ export function Faq({
     },
     {
       q: "What does the confidence score mean?",
-      a: "It is a score out of ten for how closely the engine's three estimators agree on the fixture. It measures agreement, not the chance of winning; the percentage beside each pick is that. Most fixtures score high, so the score separates them poorly, which is why bankers are chosen on probability instead.",
+      a: "It ranks how closely the engine's three estimators agree on the fixture against every fixture it has priced, out of ten: 5 is typical and 9 or more is in the top tenth. It measures agreement, not the chance of winning; the percentage beside each pick is that. Picks the estimators agree on most have won more often than those they disagree on, but only modestly, which is why bankers are chosen on probability instead.",
     },
     {
       q: "How is the best tip chosen?",

@@ -178,6 +178,8 @@ export interface SportBoardMatch {
   kickoff: string;
   status: "scheduled" | "completed" | string;
   in_play: boolean;
+  /** Six hours past the start with no result: shown as no result, not as in play. */
+  overdue: boolean;
   home: string;
   away: string;
   home_score: number | null;

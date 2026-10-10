@@ -38,6 +38,8 @@ REFRESH_UNTIL_HOURS = 3
 REFRESH_AFTER_HOURS = 6
 # A board is capped so one big tournament day cannot make a request that never returns.
 BOARD_LIMIT = 160
+# How long after the start a match can still be being played (tennis runs longest).
+OVERDUE_AFTER = timedelta(hours=6)
 BOARD_TTL_SECONDS = 300
 _board_cache: dict[tuple, tuple[float, dict]] = {}
 # Two scheduled jobs store predictions (basketball's and tennis's); one at a time keeps
@@ -202,8 +204,12 @@ def _match_entry(match: Match, names: dict[int, str], row, fresh: dict | None) -
         "match_id": match.id,
         "kickoff": match.match_date.isoformat(),
         "status": match.status,
-        # Started but not finished, as far as the feed has told us.
-        "in_play": match.status != "completed" and match.match_date <= _now(),
+        # Started but not finished, as far as the feed has told us; and if no result has
+        # come six hours after the start (a postponement or an abandoned game the feed never
+        # reported), say so rather than showing it as in play for ever.
+        "in_play": match.status != "completed"
+        and timedelta(0) <= _now() - match.match_date < OVERDUE_AFTER,
+        "overdue": match.status != "completed" and _now() - match.match_date >= OVERDUE_AFTER,
         "home": home,
         "away": away,
         "home_score": match.home_score,

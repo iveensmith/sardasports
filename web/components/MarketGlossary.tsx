@@ -31,7 +31,7 @@ const ITEMS: Array<{ term: string; body: string }> = [
   },
   {
     term: "Confidence",
-    body: "A score out of ten for how closely the engine's independent estimators agree on the fixture. It describes agreement, not the chance of winning, which is what the percentage on each pick says.",
+    body: "Where the fixture ranks, out of ten, for how closely the engine's independent estimators agree, against every fixture it has priced: 5 is typical, 9 or more is in the top tenth. It describes agreement, not the chance of winning, which is what the percentage on each pick says.",
   },
   {
     term: "Prices and the ≈ mark",

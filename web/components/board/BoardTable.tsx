@@ -228,7 +228,7 @@ function ConfidenceCell({ value }: { value: number | null }) {
     <td className="px-1.5 py-2 text-center whitespace-nowrap">
       <span
         className="relative inline-flex h-[34px] w-[34px] items-center justify-center"
-        title={`Confidence ${value.toFixed(1)} out of 10`}
+        title={`Estimator agreement ranks ${value.toFixed(1)} out of 10 against past fixtures (5 is typical)`}
       >
         <svg
           aria-hidden="true"

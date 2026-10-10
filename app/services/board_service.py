@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from app.services.confidence_scale import rank_out_of_ten
 from app.services.settlement import MatchResult, Outcome, settle_key
 from ml.competition_catalogue import meta_for
 from ml.markets import (
@@ -257,6 +258,13 @@ def confidence_out_of_ten(confidence: float | None) -> float | None:
     return round(confidence / 10.0, 1)
 
 
+def _board_confidence(confidence: float | None) -> float | None:
+    """The score the board shows: a rank among past fixtures where there are enough to rank
+    against (see `confidence_scale`), otherwise the raw score over ten."""
+    ranked = rank_out_of_ten(confidence)
+    return ranked if ranked is not None else confidence_out_of_ten(confidence)
+
+
 def build_row(
     match,
     prediction: dict | None,
@@ -313,7 +321,7 @@ def build_row(
             if market in by_market
         },
         "best_tip": (_tip(best, odds_markets, result, fair_price_fallback=True) if best else None),
-        "confidence": confidence_out_of_ten(prediction.get("confidence") if prediction else None),
+        "confidence": _board_confidence(prediction.get("confidence") if prediction else None),
         "confidence_label": (prediction or {}).get("confidence_label"),
     }
 

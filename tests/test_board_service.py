@@ -340,3 +340,38 @@ def test_prices_reach_the_cells_they_belong_to():
     assert match_result["odds"] == pytest.approx(1.55)
     goals = row["tips"]["goals"]
     assert goals["odds"] == odds_for("goals", goals["selection"], ODDS)
+
+
+# --- the confidence score as a rank -------------------------------------------------------------
+
+
+def test_the_board_ranks_confidence_against_stored_predictions(monkeypatch):
+    from app.services import board_service, confidence_scale
+
+    scale = sorted(float(v) for v in range(80, 100) for _ in range(20))  # 400 scores, 80 to 99
+    monkeypatch.setattr(confidence_scale, "_SCALE", _FixedScale(scale))
+
+    low = board_service._board_confidence(80.0)
+    middle = board_service._board_confidence(90.0)
+    high = board_service._board_confidence(99.0)
+
+    assert low < middle < high  # the order of the raw score is kept
+    assert 4.5 <= middle <= 5.5  # the median fixture is about 5, not 9.0
+    assert high >= 9.5 and low <= 0.5
+
+
+def test_too_few_stored_predictions_falls_back_to_the_raw_score(monkeypatch):
+    from app.services import board_service, confidence_scale
+
+    monkeypatch.setattr(confidence_scale, "_SCALE", _FixedScale([90.0] * 10))
+
+    assert board_service._board_confidence(84.0) == 8.4
+    assert board_service._board_confidence(None) is None
+
+
+class _FixedScale:
+    def __init__(self, values):
+        self._values = values
+
+    def get_or_compute(self, _key, _compute):
+        return self._values

@@ -212,7 +212,11 @@ function Row({
           </>
         ) : (
           <span className="text-[var(--color-text-faint)]">
-            {match.in_play ? "In play" : "Upcoming"}
+            {match.in_play
+              ? "In play"
+              : match.overdue
+                ? "No result"
+                : "Upcoming"}
           </span>
         )}
       </td>

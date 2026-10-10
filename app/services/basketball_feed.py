@@ -123,6 +123,10 @@ def parse_item(item: dict) -> dict | None:
         away_total = (scores.get("away") or {}).get("total")
         if home_total is None or away_total is None or home_total == away_total:
             return None
+        # An awarded game is recorded as 20-0. It was never played, and as a score it would
+        # teach the scoring averages and the totals that a team can score nothing.
+        if min(home_total, away_total) <= 0:
+            return None
         outcome = "completed"
     elif status in NOT_STARTED or status in IN_PLAY:
         home_total = away_total = None
