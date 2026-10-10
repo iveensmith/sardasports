@@ -299,7 +299,10 @@ def test_a_played_fixture_grades_every_column():
     row = _row(status="completed", home_score=3, away_score=0)
     assert row["score"] == {"home": 3, "away": 0}
     assert row["tips"]["match_result"]["outcome"] == "won"  # picked home
-    assert row["tips"]["goals"]["outcome"] == "lost"  # picked under 2.5
+    # Under 2.5 never leads a column (see HEADLINE_EXCLUDED), so the goals pick is a line
+    # that 3-0 satisfies.
+    assert row["tips"]["goals"]["selection"] not in {"under_1.5", "under_2.5"}
+    assert row["tips"]["goals"]["outcome"] == "won"
     assert row["tips"]["btts"]["outcome"] == "won"  # picked no
 
 
@@ -339,7 +342,13 @@ def test_prices_reach_the_cells_they_belong_to():
     assert match_result["selection"] == "home"
     assert match_result["odds"] == pytest.approx(1.55)
     goals = row["tips"]["goals"]
-    assert goals["odds"] == odds_for("goals", goals["selection"], ODDS)
+    quoted = odds_for("goals", goals["selection"], ODDS)
+    if quoted is not None:
+        assert goals["odds"] == quoted
+        assert goals["odds_is_estimated"] is False
+    else:  # no bookmaker line for this pick: its own fair price, flagged as an estimate
+        assert goals["odds"] == pytest.approx(round(100.0 / goals["probability"], 2), abs=0.02)
+        assert goals["odds_is_estimated"] is True
 
 
 # --- the confidence score as a rank -------------------------------------------------------------

@@ -2918,3 +2918,42 @@ reserve rule, so it is "live-ish" until the plan is upgraded. The pages are serv
 site caches engine data for 1 to 3 minutes, so the screen can trail the engine by that much; a
 client-side refresh of in-play rows is the next step if exact timing matters. Only competitions this
 engine already ingests have fixtures to decorate (other leagues in the feed are ignored).
+
+## Speed, phone layout and the best-tip display (10 Oct 2026)
+
+**What was reported.** The site felt slow; pages scrolled sideways on a phone; the Today board
+read "43/97 best tips won"; Under 2.5 lost a lot and only Under 3.5 should show.
+
+**Slow.** Measured through the temporary address: even `/robots.txt` took about 0.8 s, so most of
+a page's time is the quick tunnel's network path, not the engine (a warm board is built in about
+1 s). Three real causes were found and fixed:
+- *Elo rebuild.* Every batch of new results triggered `rebuild_elo_history`, which deletes and
+  re-inserts about 236,000 rows in one transaction and holds the database write lock for minutes.
+  With the new startup results catch-up this happened right after every restart, exactly when the
+  first visitors arrived (a warm-up that should take 30 s took 14 minutes). Football now uses the
+  existing incremental `sync_elo`, extended with the per-competition K, and its safety check is
+  per team instead of global. Verified equal to a full replay (`tests/test_elo_sync_football.py`).
+  The results job went from 14 minutes to 14 seconds.
+- *Cold boards.* `engine_warm` now also builds yesterday's, today's and tomorrow's boards every
+  4 minutes, under the same cache key a request uses.
+- *Rebuilds under contention.* The engine's board cache serves an entry that has just expired
+  at once (up to 10 minutes past its 30 s life) while one background rebuild replaces it
+  (`CoalescingCache(stale_seconds=...)`); a request that landed on a rebuild during a busy
+  moment used to wait 40 seconds. Sampled every 12 s for 5 minutes after a restart: 0.23 to 1.4 s.
+- *Edge caching, for when there is a domain.* Public pages now send
+  `Cache-Control: public, s-maxage=60, stale-while-revalidate=600` (not `/api`, `/_next`, CSV).
+  Cloudflare does not cache HTML by itself: add the Cache Rule in `docs/deployment.md`.
+
+**Phone.** Two page-wide overflows, both found by measuring `scrollWidth` on every route at 375 px:
+the 1 px `.sr-only` labels in the board table were absolutely positioned outside the scroller and
+stretched the page to 725 px (`.overflow-x-auto { position: relative }` in `globals.css`), and the
+track record's chart grid and the prediction rows had no `min-w-0` / stacking below `sm`.
+
+**Under 2.5.** As a best tip it won 56.7% of the time (180 tips) against 68.7% for all tips, while
+Under 3.5 won 85.3%. `goals:under_1.5` and `goals:under_2.5` are now in `HEADLINE_EXCLUDED`: they are
+still priced and listed on the match page, they just do not lead a row or a goals column. The record
+did not move (68.3% against 68.7%; strong tips 83.5% either way).
+
+**"43/97".** The day tile now reads "Strong tips won" (tips rated 70%+ before kick-off) with the
+all-tips figure in its note, the same framing as the home hero and the track record
+(`counts.strong_finished` / `counts.strong_won`).

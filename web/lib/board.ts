@@ -112,6 +112,9 @@ export interface DayBoard {
     upcoming: number;
     finished: number;
     won: number;
+    /** Tips the engine rated 70% or more before kick-off: a subset of the above. */
+    strong_finished?: number;
+    strong_won?: number;
   };
   countries: CountryCount[];
   groups: BoardGroup[];

@@ -272,7 +272,15 @@ def is_strong_tip(probability: float | None) -> bool:
 # while the engine contributed nothing. It stays a candidate, so it can still
 # represent the double-chance row in the per-market table; it just cannot be
 # the headline.
-HEADLINE_EXCLUDED = frozenset({f"{DOUBLE_CHANCE}:home_away"})
+# Under 1.5 and Under 2.5 goals are also kept off the headline and the board's goals column.
+# Measured on 2,184 graded best tips, an Under 2.5 headline won 56.7% of the time (180 of them,
+# against 68.7% for all best tips) and Under 1.5 almost never leads, while Under 3.5 won 85.3%.
+# Their probabilities are honest (the model is calibrated on them), so they stay candidates: the
+# match page's full table still lists them. They just do not lead. Taking them out left the record
+# where it was (68.3% against 68.7%, strong tips 83.5% either way).
+HEADLINE_EXCLUDED = frozenset(
+    {f"{DOUBLE_CHANCE}:home_away", f"{GOALS}:under_1.5", f"{GOALS}:under_2.5"}
+)
 
 
 @dataclass(frozen=True)

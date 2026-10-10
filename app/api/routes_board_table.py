@@ -25,7 +25,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.database.session import get_db
+from app.database.session import SessionLocal, get_db
 from app.models.match import Match
 from app.models.team import Team
 from app.services.base_rates import competition_base_rates
@@ -48,7 +48,12 @@ MAX_FIXTURES = 400
 # Short, because a score arriving or a price being fetched should reach the page
 # within the time a reader would notice.
 BOARD_CACHE_SECONDS = 30.0
-_board_cache = CoalescingCache(BOARD_CACHE_SECONDS)
+# After those 30 seconds a board is still served at once, while one background rebuild replaces
+# it. Rebuilding is cheap on its own (about a second) but the engine is one process that is also
+# running the scheduler's jobs, and a request that landed on a rebuild during one of them waited
+# 40 seconds. A visitor now sees a board at most this much older than fresh, never a wait.
+BOARD_STALE_SECONDS = 600.0
+_board_cache = CoalescingCache(BOARD_CACHE_SECONDS, stale_seconds=BOARD_STALE_SECONDS)
 
 
 def _day_bounds(target: date) -> tuple[datetime, datetime]:
@@ -73,8 +78,20 @@ def board(
     target = on_date or datetime.now(UTC).date()
     return _board_cache.get_or_compute(
         (target, country, competition, sport, limit),
-        lambda: _build_board(db, target, country, competition, sport, limit),
+        # Its own session, not the request's: a stale answer is refreshed after this request
+        # has finished and its session has been closed.
+        lambda: _build_board_isolated(target, country, competition, sport, limit),
     )
+
+
+def _build_board_isolated(
+    target: date, country: str | None, competition: str | None, sport: str | None, limit: int
+) -> dict:
+    session = SessionLocal()
+    try:
+        return _build_board(session, target, country, competition, sport, limit)
+    finally:
+        session.close()
 
 
 def _build_board(
@@ -137,6 +154,7 @@ def _build_board(
         groups[name]["rows"].append(row)
 
     played = [r for r in rows if r["score"] is not None]
+    strong_played = [r for r in played if (r["best_tip"] or {}).get("strong")]
     return {
         "date": target.isoformat(),
         "counts": {
@@ -148,6 +166,9 @@ def _build_board(
             "upcoming": sum(1 for r in rows if r["score"] is None),
             "finished": len(played),
             "won": sum(1 for r in played if is_won(r)),
+            # The tips the engine rated 70% or more before kick-off: a subset of the above.
+            "strong_finished": len(strong_played),
+            "strong_won": sum(1 for r in strong_played if is_won(r)),
         },
         "countries": [
             {

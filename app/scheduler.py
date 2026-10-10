@@ -403,10 +403,9 @@ def fetch_live_job() -> None:
         )
         logger.info("fetch_live_job: %s", result)
         if result["settled"]:
-            from scripts.load_to_db import rebuild_elo_history
+            from app.services.elo_sync import sync_elo
 
-            rebuild_elo_history(session, settings)
-            session.commit()
+            sync_elo(session, "football")
     except Exception:  # noqa: BLE001 - a failed poll is retried on the next tick
         logger.exception("fetch_live_job failed")
         session.rollback()
@@ -660,10 +659,13 @@ def engine_warm_job() -> None:
     Loading the football history (about nine seconds) and grading every stored prediction
     (about four) are cached for several minutes. Left to the first visitor after each expiry,
     a crawler arriving then would queue behind them; this refreshes them just before they
-    lapse. It uses no API quota. A failure is logged and the next run tries again.
+    lapse. It also builds the day boards the home page asks for (yesterday, today, tomorrow),
+    which on a cold start took a visitor 30 to 50 seconds. It uses no API quota. A failure is
+    logged and the next run tries again.
     """
     from datetime import date
 
+    from app.api.routes_board_table import MAX_FIXTURES, _board_cache, _build_board_isolated
     from app.services.prediction_service import _all_completed_history
     from app.services.progress_service import _grade_all
 
@@ -676,6 +678,22 @@ def engine_warm_job() -> None:
         session.rollback()
     finally:
         session.close()
+
+    # The three boards the home page asks for. Built here, under the same cache key a request
+    # uses, so the first visitor after a start (or after the cache lapses) is served a finished
+    # board instead of waiting for the whole day's predictions to be priced. Each build uses its
+    # own session (a stale entry is refreshed in the background, after this job has moved on),
+    # and one slow or failing day must not stop the others.
+    today = datetime.now(UTC).date()
+    for offset in (0, 1, -1):
+        day = today + timedelta(days=offset)
+        try:
+            _board_cache.get_or_compute(
+                (day, None, None, "football", MAX_FIXTURES),
+                lambda d=day: _build_board_isolated(d, None, None, "football", MAX_FIXTURES),
+            )
+        except Exception:  # noqa: BLE001
+            logger.exception("board warm-up failed for %s", day)
 
 
 def sports_warm_job() -> None:

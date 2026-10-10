@@ -353,7 +353,7 @@ export default async function ProgressPage() {
         would present a reconstruction as recent form. It becomes honest once
         the live record spans a few weeks.
       */}
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2 [&>*]:min-w-0">
         {recentMonths.length > 1 && (
           <WinRateChart
             months={recentMonths}

@@ -5,10 +5,17 @@ the right tool after a bulk load but far too heavy for a job that has added a da
 results. This adds only the matches that have no rating row yet, continuing each
 competitor from their last rating.
 
-That is exact provided the new matches are the newest ones, which is how a daily feed
-behaves. If a match turns up that is older than ratings already written (a backfilled
-season, a corrected date), continuing from the last rating would be wrong, so the sport
-is replayed in full instead. Correct and slower beats fast and quietly off.
+That is exact provided each new match is newer than the last one already rated for
+**both of its teams** (ratings are per team, so two teams' histories do not interact). If one
+turns up older than a rating already written (a backfilled season, a corrected date),
+continuing from the last rating would be wrong, so the sport is replayed in full instead.
+Correct and slower beats fast and quietly off.
+
+The check is per team, not "newer than anything rated". Football results arrive a day or
+so late and in any order across leagues; a global check sent nearly every result to a full
+replay, which deletes and re-inserts about 236,000 rows in one transaction and locks the
+database for minutes. Football also needs the per-competition K the full replay uses, or the
+two would disagree.
 """
 
 from __future__ import annotations
@@ -21,6 +28,7 @@ from sqlalchemy.orm import Session
 from app.models import EloHistory, Match, Team
 from app.utils.config import get_settings
 from ml.elo.engine import EloEngine, MatchResult
+from ml.elo.football import FOOTBALL_COMPETITION_K
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +50,21 @@ def sync_elo(session: Session, sport: str) -> dict:
     if not new:
         return {"added": 0, "rebuilt": False}
 
-    newest_rated = (
-        session.query(func.max(EloHistory.match_date))
-        .join(Match, Match.id == EloHistory.match_id)
-        .filter(Match.sport == sport)
-        .scalar()
+    involved = {m.home_team_id for m in new} | {m.away_team_id for m in new}
+    last_rated = dict(
+        session.query(EloHistory.team_id, func.max(EloHistory.match_date))
+        .filter(EloHistory.team_id.in_(involved))
+        .group_by(EloHistory.team_id)
+        .all()
     )
-    if newest_rated is not None and new[0].match_date < newest_rated:
+    out_of_order = False
+    for match in new:  # ascending, so a team's own new matches are checked in order
+        for team_id in (match.home_team_id, match.away_team_id):
+            last = last_rated.get(team_id)
+            if last is not None and match.match_date <= last:
+                out_of_order = True
+            last_rated[team_id] = match.match_date
+    if out_of_order:
         from scripts.load_to_db import rebuild_elo_history
 
         logger.info("elo sync: %s has results older than its ratings; replaying in full", sport)
@@ -61,8 +77,9 @@ def sync_elo(session: Session, sport: str) -> dict:
         k_factor=settings.elo_k_factor,
         home_advantage=settings.elo_home_advantage,
         initial_rating=settings.elo_initial_rating,
+        # Must match `rebuild_elo_history`; the other sports see no listed competition.
+        competition_k=FOOTBALL_COMPETITION_K if sport == "football" else None,
     )
-    involved = {m.home_team_id for m in new} | {m.away_team_id for m in new}
     for team_id in involved:
         last = (
             session.query(EloHistory.rating_after)

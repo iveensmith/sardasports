@@ -143,9 +143,14 @@ the normal command. Stop the quick tunnel first:
 - **Security > Bots:** *Bot Fight Mode* on.
 - **Security > WAF > Rate limiting rules:** one rule on `POST /api/contact`, e.g. 5 requests per
   10 minutes per IP, so the contact form cannot be used to flood you.
-- **Caching:** the defaults are right. Cloudflare caches the hashed `/_next/static/*` files and
-  leaves the HTML alone (the engine's data changes constantly and the site manages its own
-  caching).
+- **Caching (once you have a domain):** Cloudflare caches the hashed `/_next/static/*` files by
+  default but never HTML. The site sends `Cache-Control: public, s-maxage=60, stale-while-revalidate=600`
+  on its pages, so add one rule to let Cloudflare keep them: **Caching > Cache Rules > Create rule**,
+  *When* `Hostname` equals your domain **and** `URI Path` does not start with `/api`; *Then* **Eligible
+  for cache**, Edge TTL **Use cache-control header if present**. Pages are then served from the
+  nearest Cloudflare location for up to a minute (and stale for up to ten while refreshing), instead
+  of travelling to your server each time. This does not work on the temporary `trycloudflare.com`
+  address, which has no zone to put a rule on.
 - **Email:** the Contact page stores messages in the engine's database (read them with
   `scripts/list_contact_messages.py`); nothing sends mail.
 

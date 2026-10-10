@@ -80,7 +80,7 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
       href={`/match/${fixture.match_id}`}
       className="block rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3.5 transition-colors hover:border-[var(--color-line-strong)] hover:bg-[var(--color-surface-raised)]"
     >
-      <div className="flex items-center gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="min-w-0 flex-1">
           {/* Meta line: badge, competition, kick-off, status. */}
           <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
@@ -112,7 +112,7 @@ export function FixtureRow({ fixture }: { fixture: BoardEntry }) {
         </div>
 
         {/* Status, then the prediction, then confidence. */}
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:shrink-0 sm:flex-nowrap">
           <StatusChip status={fixture.status} />
 
           {call ? (

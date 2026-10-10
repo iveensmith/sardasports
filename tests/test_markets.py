@@ -239,14 +239,38 @@ def test_home_or_away_is_still_a_candidate_for_the_per_market_table():
 
 def test_an_empty_call_loses_to_a_less_likely_one_that_means_something():
     """The bug this bar exists to fix. "Over 1.5 goals" at 76% against a
-    74.8% base rate is a restatement of football; "Under 2.5 goals" at 62%
-    against 49.4% is a reading of this fixture."""
+    74.8% base rate is a restatement of football; "Over 2.5 goals" at 62%
+    against 50.6% is a reading of this fixture."""
     calls = [
         Call(GOALS, "over_1.5", "Over 1.5 goals", 76.0),  # +1.2
-        Call(GOALS, "under_2.5", "Under 2.5 goals", 62.0),  # +12.6
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 62.0),  # +11.4
     ]
     head = headline_call(rank_calls(calls, BASE_RATES))
-    assert head.call.selection == "under_2.5"
+    assert head.call.selection == "over_2.5"
+
+
+def test_under_1_5_and_under_2_5_never_lead_however_likely_they_are():
+    """Measured: an Under 2.5 headline won 56.7% of the time against 68.7% for all best
+    tips. They stay candidates (the match page lists them) but do not lead."""
+    calls = [
+        Call(GOALS, "under_2.5", "Under 2.5 goals", 71.0),  # +21.6: the most notable
+        Call(GOALS, "under_1.5", "Under 1.5 goals", 40.0),
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 76.0),
+    ]
+    ranked = rank_calls(calls, BASE_RATES)
+
+    assert headline_call(ranked).call.selection == "over_1.5"
+    assert {r.call.selection for r in ranked} >= {"under_2.5", "under_1.5"}
+
+
+def test_under_3_5_can_still_lead():
+    calls = [
+        Call(GOALS, "under_3.5", "Under 3.5 goals", 84.0),
+        Call(GOALS, "over_1.5", "Over 1.5 goals", 76.0),
+    ]
+    rates = {**BASE_RATES, "goals:under_3.5": 70.0}
+
+    assert headline_call(rank_calls(calls, rates)).call.selection == "under_3.5"
 
 
 def test_when_nothing_clears_the_bar_the_likeliest_call_is_shown_anyway():

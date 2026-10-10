@@ -196,9 +196,10 @@ def fetch_and_apply_results(days_back: int = 3) -> int:
             # Import here, not at module load: load_to_db pulls in pandas and
             # the full ORM at import time, which every other script in this
             # file's import chain would otherwise pay for even when unused.
-            from scripts.load_to_db import rebuild_elo_history
+            # Only the new results are rated: a full replay locked the database for minutes.
+            from app.services.elo_sync import sync_elo
 
-            rebuild_elo_history(session, get_settings())
+            sync_elo(session, "football")
         session.commit()
     finally:
         session.close()
@@ -275,9 +276,9 @@ def resolve_stale_fixtures(older_than_days: int = 3, max_requests: int = 5) -> i
             time.sleep(REQUEST_DELAY_SECONDS)
         updated = apply_results(session, results)
         if updated:
-            from scripts.load_to_db import rebuild_elo_history
+            from app.services.elo_sync import sync_elo
 
-            rebuild_elo_history(session, settings)
+            sync_elo(session, "football")
         session.commit()
         logger.info("Settled %d of %d stale fixture(s).", updated, len(ids))
         return updated

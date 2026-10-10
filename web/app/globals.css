@@ -544,3 +544,13 @@ table {
 @utility text-balance {
   text-wrap: balance;
 }
+
+/*
+ * Horizontal scrollers must be positioned, or they do not clip their absolutely positioned
+ * descendants. The 1px `.sr-only` labels inside table cells are absolute, and without a
+ * positioned scroller around them they escaped it and stretched the whole page sideways on a
+ * phone (the board's table is wider than the screen on purpose, and scrolls inside its card).
+ */
+.overflow-x-auto {
+  position: relative;
+}

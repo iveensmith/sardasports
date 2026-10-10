@@ -22,6 +22,13 @@ long computes for itself rather than hanging with the leader.
 A failed computation is never cached. Its waiters do not inherit the failure;
 the next one to wake becomes the new leader and tries again.
 
+Optionally (`stale_seconds`), an entry that has just expired is still served, at once, while
+one background computation replaces it. A visitor then never waits for a rebuild that has
+already been done once: the first request after expiry gets the previous answer (at most
+`ttl + stale_seconds` old) and the next one gets the fresh one. A caller using this must pass
+a `compute` that does not depend on the request that happens to trigger it (its own database
+session, not the request's), because it can run after that request has finished.
+
 Results are returned as deep copies. The cached object is shared by every reader,
 and a route that sorts or annotates what it was handed would otherwise change it
 for the next request.
@@ -58,8 +65,10 @@ class CoalescingCache:
         max_concurrent: int = 2,
         wait_timeout_seconds: float = 120.0,
         copy_results: bool = True,
+        stale_seconds: float = 0.0,
     ) -> None:
         self._ttl = ttl_seconds
+        self._stale = stale_seconds
         # Deep copies protect a shared result from a caller that edits it. For a large,
         # read-only result (a sport's whole match history) a copy costs more than the
         # work being saved, so such a cache is built with `copy_results=False`.
@@ -83,15 +92,31 @@ class CoalescingCache:
     def get_or_compute(self, key: Hashable, compute: Callable[[], Any]) -> Any:
         deadline = monotonic() + self._wait_timeout
         while True:
+            refresh: _Flight | None = None
             with self._lock:
                 hit = self._entries.get(key)
-                if hit is not None and hit[0] > monotonic():
+                now = monotonic()
+                if hit is not None and hit[0] > now:
                     self._entries.move_to_end(key)
                     return self._out(hit[1])
-                flight = self._flights.get(key)
-                leader = flight is None
-                if leader:
-                    flight = self._flights[key] = _Flight()
+                if hit is not None and self._stale and hit[0] + self._stale > now:
+                    # Expired a moment ago: serve it, and refresh once in the background.
+                    if key not in self._flights:
+                        refresh = self._flights[key] = _Flight()
+                    stale_value = hit[1]
+                else:
+                    stale_value = None
+                    flight = self._flights.get(key)
+                    leader = flight is None
+                    if leader:
+                        flight = self._flights[key] = _Flight()
+
+            if stale_value is not None or refresh is not None:
+                if refresh is not None:
+                    threading.Thread(
+                        target=self._refresh, args=(key, refresh, compute), daemon=True
+                    ).start()
+                return self._out(stale_value)
 
             if leader:
                 return self._lead(key, flight, compute)
@@ -105,6 +130,14 @@ class CoalescingCache:
                 return self._out(flight.value)
             # The leader failed: go round again and either find a new leader's
             # flight to wait on or become the leader.
+
+    def _refresh(self, key: Hashable, flight: _Flight, compute: Callable[[], Any]) -> None:
+        """A background recompute for an entry that was served stale. A failure is dropped:
+        the stale entry stays until its window ends, and the next request tries again."""
+        try:
+            self._lead(key, flight, compute)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _lead(self, key: Hashable, flight: _Flight, compute: Callable[[], Any]) -> Any:
         try:
