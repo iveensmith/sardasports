@@ -71,6 +71,14 @@ export interface BoardRow {
   away_badge: Badge | null;
   /** Null until played. Not 0-0, which is a real scoreline. */
   score: { home: number; away: number } | null;
+  /** In play right now: minute and score so far. Null otherwise, and never the result. */
+  live?: {
+    status: string | null;
+    minute: number | null;
+    label: string;
+    home: number;
+    away: number;
+  } | null;
   /** Quoted bookmaker price, or the engine's fair price where none was quoted
    * — `odds_estimated` says which, per selection. */
   odds: { home: number | null; draw: number | null; away: number | null };

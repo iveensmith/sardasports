@@ -25,6 +25,16 @@ class ScorelineOut(BaseModel):
     probability: float
 
 
+class LiveOut(BaseModel):
+    """A fixture in play: its minute and score so far. Never the final result."""
+
+    status: str | None = None
+    minute: int | None = None
+    label: str
+    home: int
+    away: int
+
+
 class ScoreOut(BaseModel):
     home: int
     away: int
@@ -127,6 +137,7 @@ class BasketballPredictionOut(BaseModel):
 
     match_status: str = "scheduled"
     match_score: ScoreOut | None = None
+    live: LiveOut | None = None
     odds_1x2: OddsOut | None = None
 
     home_win: float
@@ -169,6 +180,7 @@ class TennisPredictionOut(BaseModel):
 
     match_status: str = "scheduled"
     match_score: ScoreOut | None = None
+    live: LiveOut | None = None
     odds_1x2: OddsOut | None = None
 
     home_win: float
@@ -268,6 +280,7 @@ class PredictionOut(BaseModel):
 
     match_status: str = "scheduled"
     match_score: ScoreOut | None = None
+    live: LiveOut | None = None
     ht_score: ScoreOut | None = None
     odds_1x2: OddsOut | None = None
 

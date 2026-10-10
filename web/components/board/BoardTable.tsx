@@ -284,6 +284,7 @@ function ConfidenceCell({ value }: { value: number | null }) {
  */
 function Fixture({ row }: { row: BoardRow }) {
   const played = row.score !== null;
+  const live = !played ? (row.live ?? null) : null;
   return (
     <div className="flex min-w-0 items-center gap-3">
       <div className="min-w-0 max-w-[260px]">
@@ -304,6 +305,15 @@ function Fixture({ row }: { row: BoardRow }) {
         <div className="shrink-0 text-right text-[13.5px] font-semibold tabular-nums">
           <p className="leading-tight">{row.score!.home}</p>
           <p className="mt-1.5 leading-tight">{row.score!.away}</p>
+        </div>
+      )}
+      {live && (
+        <div
+          className="shrink-0 text-right text-[13.5px] font-semibold tabular-nums"
+          style={{ color: "var(--color-lost)" }}
+        >
+          <p className="leading-tight">{live.home}</p>
+          <p className="mt-1.5 leading-tight">{live.away}</p>
         </div>
       )}
     </div>
@@ -332,9 +342,20 @@ function Row({ row }: { row: BoardRow }) {
                     : "var(--color-line-strong)",
             }}
           />
-          <span className="text-[11.5px] leading-tight text-[var(--color-text-faint)]">
-            {kickoffLabel(row)}
-          </span>
+          {row.live && row.score === null ? (
+            <span
+              className="text-[11.5px] leading-tight font-semibold"
+              style={{ color: "var(--color-lost)" }}
+            >
+              <span className="sr-only">Live, </span>
+              <span aria-hidden>LIVE </span>
+              {row.live.label}
+            </span>
+          ) : (
+            <span className="text-[11.5px] leading-tight text-[var(--color-text-faint)]">
+              {kickoffLabel(row)}
+            </span>
+          )}
         </div>
       </td>
 

@@ -16,6 +16,7 @@ from app.schemas.prediction import (
     TennisPredictionOut,
 )
 from app.services.base_rates import competition_base_rates
+from app.services.live_scores import live_payload
 from app.services.pick_service import best_pick
 from app.services.prediction_service import MatchNotFoundError, predict_for_match
 from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
@@ -30,6 +31,7 @@ def _match_state(match: Match) -> dict:
     the fixture page never carried it at all before."""
     return {
         "match_status": match.status,
+        "live": live_payload(match),
         "match_score": (
             {"home": match.home_score, "away": match.away_score}
             if match.home_score is not None and match.away_score is not None

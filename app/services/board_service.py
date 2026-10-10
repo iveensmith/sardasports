@@ -23,6 +23,7 @@ import re
 import unicodedata
 
 from app.services.confidence_scale import rank_out_of_ten
+from app.services.live_scores import live_payload
 from app.services.settlement import MatchResult, Outcome, settle_key
 from ml.competition_catalogue import meta_for
 from ml.markets import (
@@ -311,6 +312,9 @@ def build_row(
         "score": (
             {"home": match.home_score, "away": match.away_score} if result is not None else None
         ),
+        # The in-play view ({"label": "43'", "home": 1, "away": 0, ...}), or None. Separate
+        # from `score`, which stays None until the match is settled.
+        "live": live_payload(match),
         # Quoted prices where a bookmaker gave one, the engine's fair price
         # otherwise; `odds_estimated` says which, per selection.
         "odds": odds,

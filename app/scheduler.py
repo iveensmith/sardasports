@@ -125,6 +125,9 @@ PROFILES: dict[str, dict] = {
         "fixtures": {"days": 3, "cron": {"hour": "*/8"}},
         "odds": {"days": 3, "backfill": 10, "cron": {"hour": "*/12", "minute": 15}},
         "results": {"days": 3, "cron": {"hour": "*/6"}},
+        # Live scores: one request per poll. On the free plan a poll only runs while at least
+        # `reserve` requests remain, so it can never starve the jobs above of their share.
+        "live": {"minutes": 30, "reserve": 40},
         "stats": {"fixtures": 10, "cron": {"hour": 5, "minute": 10}},
         "injuries": {"teams": 10},
     },
@@ -132,6 +135,7 @@ PROFILES: dict[str, dict] = {
         "fixtures": {"days": 7, "cron": {"hour": "*/4"}},
         "odds": {"days": 3, "backfill": 40, "cron": {"hour": "*/4", "minute": 15}},
         "results": {"days": 3, "cron": {"hour": "*/3"}},
+        "live": {"minutes": 2, "reserve": 0},
         "stats": {"fixtures": 40, "cron": {"hour": "*/3", "minute": 10}},
         "injuries": {"teams": 100},
     },
@@ -375,6 +379,39 @@ def fetch_results_job() -> None:
             older_than_days=profile["results"]["days"], max_requests=STALE_REQUESTS
         )
         logger.info("fetch_results_job settled %d stale fixture(s)", settled)
+
+
+def fetch_live_job() -> None:
+    """Football scores for matches in play, one request.
+
+    Skipped without spending anything when no fixture could be in play (checked against the
+    database first), and, on a free plan, when fewer than the profile's `reserve` requests
+    remain, which leaves the day's fixtures, odds and results jobs their share.
+    """
+    settings = get_settings()
+    session = SessionLocal()
+    try:
+        from app.services.live_scores import needs_live_poll, refresh_live_scores
+
+        if not needs_live_poll(session):
+            return
+        profile = _admit("fetch_live_job", settings, lambda p: 1 + p["live"]["reserve"])
+        if profile is None:
+            return
+        result = refresh_live_scores(
+            session, settings.api_football_key, settings.api_football_base_url
+        )
+        logger.info("fetch_live_job: %s", result)
+        if result["settled"]:
+            from scripts.load_to_db import rebuild_elo_history
+
+            rebuild_elo_history(session, settings)
+            session.commit()
+    except Exception:  # noqa: BLE001 - a failed poll is retried on the next tick
+        logger.exception("fetch_live_job failed")
+        session.rollback()
+    finally:
+        session.close()
 
 
 def fetch_match_stats_job() -> None:
@@ -702,6 +739,15 @@ def start_scheduler() -> BackgroundScheduler | None:
     # for one that isn't completed yet.
     scheduler.add_job(
         fetch_match_stats_job, CronTrigger(**profile["stats"]["cron"]), id="fetch_match_stats"
+    )
+    # Live scores for matches in play. Cadence follows the plan (see PROFILES): coarse on the
+    # free plan, every couple of minutes on a paid one.
+    scheduler.add_job(
+        fetch_live_job,
+        IntervalTrigger(minutes=profile["live"]["minutes"]),
+        id="fetch_live",
+        coalesce=True,
+        max_instances=1,
     )
     scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
     scheduler.add_job(

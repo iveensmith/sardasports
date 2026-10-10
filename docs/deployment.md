@@ -158,6 +158,13 @@ docker compose -f docker-compose.prod.yml logs -f api       # engine log (schedu
 docker compose -f docker-compose.prod.yml restart api       # restart the engine
 ```
 
+After an update that changes the database (the commit message or `docs/roadmap.md` will say so),
+run the migration once the containers are back up:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T api alembic upgrade head
+```
+
 A deploy rebuilds the images and restarts the containers; data lives in `/srv/sardasports` and is
 untouched.
 

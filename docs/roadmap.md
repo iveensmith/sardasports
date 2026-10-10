@@ -2884,3 +2884,37 @@ the strip 20 of 24. All tips together are still 68.9%.
 same rate whether or not the others are shown. The strong record covers about half the fixtures. If a bar is
 ever raised to chase a number, say so on the page: the record is only meaningful because the threshold was set
 before looking at which tips won.
+
+## Live scores for football (10 Oct 2026)
+
+**The gap.** A football fixture had no in-play state: from kick-off until the by-date results job
+saw it finished (every 6 hours on the free plan) it read as "not played".
+
+**Source.** API-Football `/fixtures?live=all`: every fixture in play with its minute and score in a
+single request (297 in play at the time of testing, on the free plan).
+
+**Design.**
+- Five new columns on `matches` (`live_status`, `live_minute`, `live_home`, `live_away`,
+  `live_updated_at`; migration `a1b2c3d4e5f6`), **separate from `home_score`/`away_score`**. Those mean
+  "the final result" everywhere (grading, Elo, history); a half-played 1-0 must never be mistaken for
+  one. A live score is display-only, expires after 20 minutes without a refresh, and is ignored once
+  the match is settled.
+- `app/services/live_scores.py`: parse the feed, store the live view on fixtures we already hold
+  (matched by `apif-{id}`, never creating one), clear it when a fixture drops out of the feed, and
+  settle any fixture the feed reports as just finished.
+- `fetch_live_job` (id `fetch_live`): skipped without spending a request when no fixture kicked off
+  within the last 3 hours; on the **free plan** every 30 minutes and only while at least 40 requests of
+  the day remain (so it can never starve the fixtures, odds and results jobs); on a **paid plan** every
+  2 minutes with no reserve. The plan is read from the account, so upgrading changes it by itself.
+- Board rows carry `live` (`label` "63'" or "HT", `home`, `away`) while `score` stays null and
+  `status` stays "scheduled"; `/predict/{id}` carries it too. The board shows `LIVE 63'` and the score
+  in red beside the names; the match page header shows the score and `Live 63'`.
+
+**Checked against the real feed.** 147 fixtures in play, 18 to 20 of them in our database; their
+final-score columns stayed empty and the board and match page showed minute and score.
+
+**Limits.** On the free plan updates are at best every 30 minutes and are often skipped by the
+reserve rule, so it is "live-ish" until the plan is upgraded. The pages are server-rendered and the
+site caches engine data for 1 to 3 minutes, so the screen can trail the engine by that much; a
+client-side refresh of in-play rows is the next step if exact timing matters. Only competitions this
+engine already ingests have fixtures to decorate (other leagues in the feed are ignored).

@@ -138,6 +138,16 @@ class Match(Base):
     # "scheduled" | "completed"
     status: Mapped[str] = mapped_column(String(20), default="scheduled", nullable=False)
 
+    # The in-play view of a football fixture, from API-Football's live feed. Kept apart from
+    # home_score/away_score on purpose: those mean "the final result" everywhere (grading, Elo,
+    # history), and a half-played 1-0 must never be read as one. Display-only, goes stale on
+    # its own, and is cleared when the match is settled. See app/services/live_scores.py.
+    live_status: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    live_minute: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    live_home: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    live_away: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    live_updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, server_default=func.now(), onupdate=func.now()

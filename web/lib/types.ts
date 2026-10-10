@@ -105,6 +105,16 @@ export interface MatchScore {
   away: number;
 }
 
+/** A fixture in play: its minute and score so far. Not the final result. */
+export interface LiveScore {
+  status: string | null;
+  minute: number | null;
+  /** "63'", "HT", ... */
+  label: string;
+  home: number;
+  away: number;
+}
+
 /** Bookmaker 1X2 prices, read off the match row. `draw` is null for a sport
  *  with no draw market (basketball). */
 export interface Odds1X2 {
@@ -162,6 +172,7 @@ export interface FootballPrediction {
   competition: string;
   match_status: string;
   match_score: MatchScore | null;
+  live?: LiveScore | null;
   ht_score: MatchScore | null;
   odds_1x2: Odds1X2 | null;
   home_win: number;
@@ -205,6 +216,7 @@ export interface BasketballPrediction {
   competition: string;
   match_status: string;
   match_score: MatchScore | null;
+  live?: LiveScore | null;
   odds_1x2: Odds1X2 | null;
   /** No `draw`: zero ties in 4,149 ingested NBA games. Sums to 100 alone. */
   home_win: number;
@@ -236,6 +248,7 @@ export interface TennisPrediction {
   best_of: number | null;
   match_status: string;
   match_score: MatchScore | null;
+  live?: LiveScore | null;
   odds_1x2: Odds1X2 | null;
   home_win: number;
   away_win: number;

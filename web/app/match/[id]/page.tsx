@@ -480,6 +480,7 @@ export default async function MatchPage({
           })}
           status={prediction.match_status}
           score={prediction.match_score}
+          live={prediction.live ?? null}
           htScore={isFootball(prediction) ? prediction.ht_score : null}
           odds={prediction.odds_1x2}
           teamLinks={isFootball(prediction)}

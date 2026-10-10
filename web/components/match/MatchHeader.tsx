@@ -12,7 +12,7 @@
 import Link from "next/link";
 import type { Badge } from "@/lib/board";
 import { teamSlug } from "@/lib/teams";
-import type { MatchScore, Odds1X2 } from "@/lib/types";
+import type { LiveScore, MatchScore, Odds1X2 } from "@/lib/types";
 import { TeamCrest } from "@/components/board/TeamCrest";
 
 function OddsPill({ label, value }: { label: string; value: number | null }) {
@@ -38,6 +38,7 @@ export function MatchHeader({
   score,
   htScore,
   odds,
+  live = null,
   teamLinks = false,
 }: {
   home: string;
@@ -50,11 +51,14 @@ export function MatchHeader({
   score: MatchScore | null;
   htScore: MatchScore | null;
   odds: Odds1X2 | null;
+  /** In play now: shown as a live score, never as the result. */
+  live?: LiveScore | null;
   /** Link each side to its team page. Football only: those pages hold clubs
    * and national sides, not tennis players. */
   teamLinks?: boolean;
 }) {
   const finished = status === "completed";
+  const inPlay = !finished && live !== null;
 
   return (
     <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
@@ -80,13 +84,13 @@ export function MatchHeader({
         </div>
 
         <div className="flex flex-col items-center gap-1.5">
-          {score ? (
+          {score || inPlay ? (
             <p className="text-[34px] leading-none font-bold tabular-nums">
-              {score.home}
+              {(score ?? live)!.home}
               <span className="mx-1.5 text-[var(--color-text-faint)]">
                 &ndash;
               </span>
-              {score.away}
+              {(score ?? live)!.away}
             </p>
           ) : (
             <p className="text-[15px] font-semibold tabular-nums">{kickoff}</p>
@@ -94,12 +98,18 @@ export function MatchHeader({
           <span
             className="text-[11px] font-semibold tracking-wider uppercase"
             style={{
-              color: finished
-                ? "var(--color-text-faint)"
-                : "var(--color-gold-bright)",
+              color: inPlay
+                ? "var(--color-lost)"
+                : finished
+                  ? "var(--color-text-faint)"
+                  : "var(--color-gold-bright)",
             }}
           >
-            {finished ? "Finished" : "Scheduled"}
+            {finished
+              ? "Finished"
+              : inPlay
+                ? `Live ${live!.label}`
+                : "Scheduled"}
           </span>
           {htScore && (
             <span className="text-[11.5px] text-[var(--color-text-faint)]">
