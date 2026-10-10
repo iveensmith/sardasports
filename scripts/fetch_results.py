@@ -211,6 +211,80 @@ def fetch_and_apply_results(days_back: int = 3) -> int:
     return updated
 
 
+# API-Football accepts at most this many ids in one `/fixtures?ids=` request.
+IDS_PER_REQUEST = 20
+# How far back stale fixtures are chased. Older than this and a fixture that never got a result
+# was most likely postponed or called off, and asking about it again every run would spend the
+# quota on a question that keeps getting the same answer.
+STALE_LOOKBACK_DAYS = 60
+
+
+def stale_scheduled_ids(session, older_than_days: int, now: datetime | None = None) -> list[str]:
+    """API-Football ids of fixtures that should have finished long ago but are still scheduled.
+
+    "Long ago" is past the rolling window `fetch_and_apply_results` can reach by date: a fixture
+    still scheduled beyond it was missed (the backend was off for the days it was reachable) and
+    the by-date fetch will never see it again.
+    """
+    now = now or datetime.now(UTC).replace(tzinfo=None)
+    rows = (
+        session.query(Match.external_id)
+        .filter(
+            Match.sport == "football",
+            Match.status == "scheduled",
+            Match.external_id.like("apif-%"),
+            Match.match_date < now - timedelta(days=older_than_days),
+            Match.match_date >= now - timedelta(days=STALE_LOOKBACK_DAYS),
+        )
+        .order_by(Match.match_date.asc())
+        .all()
+    )
+    return [external_id.removeprefix("apif-") for (external_id,) in rows]
+
+
+def resolve_stale_fixtures(older_than_days: int = 3, max_requests: int = 5) -> int:
+    """Look up fixtures the by-date fetch missed, by id. Needs a paid plan.
+
+    A free plan refuses the `ids` parameter outright, so the first request only comes back with
+    that refusal; this returns 0 on it rather than raising, and spends nothing more.
+    Returns how many fixtures were settled.
+    """
+    settings = get_settings()
+    if not settings.api_football_key:
+        return 0
+    session = SessionLocal()
+    try:
+        ids = stale_scheduled_ids(session, older_than_days)
+        if not ids:
+            return 0
+        results: dict[str, dict] = {}
+        batches = [ids[i : i + IDS_PER_REQUEST] for i in range(0, len(ids), IDS_PER_REQUEST)]
+        for batch in batches[:max_requests]:
+            response = requests.get(
+                f"{settings.api_football_base_url}/fixtures",
+                headers={"x-apisports-key": settings.api_football_key},
+                params={"ids": "-".join(batch)},
+                timeout=40,
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if payload.get("errors"):
+                logger.warning("Stale fixtures not available: %s", payload["errors"])
+                break
+            results.update(results_from_fixtures(payload.get("response", [])))
+            time.sleep(REQUEST_DELAY_SECONDS)
+        updated = apply_results(session, results)
+        if updated:
+            from scripts.load_to_db import rebuild_elo_history
+
+            rebuild_elo_history(session, settings)
+        session.commit()
+        logger.info("Settled %d of %d stale fixture(s).", updated, len(ids))
+        return updated
+    finally:
+        session.close()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Fill in results for scheduled fixtures that have finished"

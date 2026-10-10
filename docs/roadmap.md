@@ -2747,3 +2747,102 @@ page and track record moves with it automatically. The old number flattered the 
 **Not done.** The corner and card probabilities themselves are about 5 points overconfident; the right
 fix is calibrating those models, not just raising the bar.
 
+## Calibrating the corner and card models (10 Oct 2026)
+
+**Method.** `ml/training/calibrate_count_markets.py` replays `predict_match` over every match after
+2024-09-14 (the active models' hold-out, so no probability was fitted on the match it is scored on),
+sharded (`replay --shard k --of 6`, six processes, CSVs in `data/processed/calibration/`), then
+`fit` fits a Platt curve per line, `p' = sigmoid(slope * logit(p) + intercept)`, on the first 60% by
+date and scores it on the last 40%. A curve is registered as a `ModelVersion` row
+`calibration_<market>_over_<line>` only if it improves held-out log loss by at least
+`MIN_IMPROVEMENT` (0.0005).
+
+**Result.** Corners over 7.5, 8.5 and 9.5 registered (slopes 0.91, 0.95, 0.88; intercepts -0.11,
+-0.20, -0.18: all pull the probability down, i.e. the model was overconfident on the high side).
+Cards did not earn a curve: 2.5 and 3.5 were already calibrated and 4.5 improved by less than the
+threshold (that row is kept, inactive). Calibrated corners claiming a lift of 5 or more claim 6.7 and
+realise 5.7; cards claim 6.9 and realise 8.5, i.e. cards were never the problem.
+
+**Where it is applied.** At read time only, in `app/services/count_calibration.py`
+(`calibrate_payload`), called on a freshly predicted payload, a published/stored payload and
+`payload_from_stored`. The `predictions` rows are never rewritten, so a frozen pre-kick-off number
+stays what the engine first said and nothing can be corrected twice. Curves are cached ten minutes;
+`clear_cache()` after registering new ones. Tests: `tests/test_calibration.py`.
+
+**Headline bars.** Re-measured with `scripts/measure_headline_mix.py` on 2,119 graded predictions.
+Corners at 10 / cards at 8 stay: headlines won by corners fall from 68% to 61% if the corner bar is
+lowered to 7.5, and card headlines win ~73% at any bar, so cards' bar is about variety (14.7% of
+headlines at 8, 23% at 5), not accuracy. The comment on `MARKET_MIN_HEADLINE_LIFT` says so.
+
+**Rerun when more data lands:** `replay` shards then `fit`, then restart the engine.
+
+## Fixtures that never got a result (10 Oct 2026)
+
+**Found.** 32 international fixtures from 28 Sep to 1 Oct (Nations League 16, friendlies 10, AFCON
+qualifiers 6) were still `scheduled` nine days later, and so were never graded or fed back into Elo.
+Two Irish Premier Division games from 9 Oct were waiting too.
+
+**Cause.** Results come from API-Football by date, and a free plan only serves about the last three
+days. The results job runs every six hours, but a cron run missed while the backend is down is not made
+up, and (unlike the daily data refresh) the results job had no catch-up at startup. A fixture that
+finished while the backend was off for more than three days could never be resulted again. The free
+plan refuses the `ids` lookup too ("Free plans do not have access to the Ids parameter"), so the 32 old
+ones cannot be fetched until the plan is upgraded.
+
+**Fixed.**
+- `app/scheduler.py`: `needs_results_catch_up()` is true when an API fixture kicked off more than three
+  hours ago, within the last three days, and is still scheduled; if so `fetch_results_job` runs once, 150
+  seconds after startup (`catch_up_fetch_results`).
+- `scripts/fetch_results.py`: `resolve_stale_fixtures()` looks stale fixtures up by id (20 per request, at
+  most 5 requests per run, up to 60 days back). `fetch_results_job` calls it on a paid plan only; on a
+  free plan the refusal is logged and nothing more is spent.
+- Tests in `tests/test_fetch_results.py` and `tests/test_scheduler_catch_up.py`.
+
+**On upgrading.** The first results run after the upgrade settles the 32 international fixtures with no
+action needed (5 requests). Nothing else in the upgrade runbook changes.
+
+## Match-result accuracy: what was tried, and the one thing that helped (10 Oct 2026)
+
+**Why.** The strip's 24 best tips read 16 won after reading 19 the day before. That was variance and a
+sliding window (yesterday overall: 25 of 35, 71%; since 10 Sep: 113 of 159, 71%), but match-result
+calls were the weak spot (Home/Away headlines win about 55%), so the result model was tested properly.
+
+**Method.** `ml/training/replay_match_result.py` replays `predict_match` over the 25,075 completed
+matches after 2024-09-14 (after the active models' training data, so no probability is scored on a
+match it was fitted on), six shards, history cut at the start of each day, recording Elo, Poisson,
+XGBoost and the blend. `scripts/analyse_match_result.py` scores them; anything fitted is fitted on the
+earlier 60% by date and scored on the later 40%.
+
+**Findings.**
+
+| | log-loss | accuracy |
+|---|---|---|
+| Elo | 1.0241 | 48.99% |
+| Poisson | 1.0411 | 47.97% |
+| XGBoost | 1.0174 | 49.17% |
+| current blend (.25/.35/.40) | 1.0181 | 49.29% |
+
+- The blend is already at the level of its best part; three-way accuracy is about 49% (a pick that is
+  never a draw wins 55% of the time on Home/Away headlines). That is the ceiling of this information.
+- Retuned weights (0 / 0.15 / 0.85) gain 0.0006 log-loss and 0.1 points of accuracy: noise. Not applied.
+- A separate correction per league did worse on the later 40% at every shrinkage tried. Not applied.
+- The features the model could use (form over 5 and 10 matches, home/away form, rest days, congestion,
+  head-to-head, Elo, league) are already all in; the gains left need information we do not have
+  (bookmaker odds, confirmed line-ups, injuries at scale): see the API-Football upgrade plan.
+- **One real fault:** the blend claims home wins 46.0% of the time and they happen 43.8%; it claims
+  draws 24.1% and they happen 26.2%. Identical in every one of six periods. Cause: Poisson gives the
+  home side 49.3% on average and Elo rarely leans to a draw (XGBoost alone is almost exact).
+
+**Fixed.** One multinomial correction, `z = 1.064 * log(p) + [-0.091, +0.092, 0]`, fitted by
+`ml/training/calibrate_match_result.py`, registered as `calibration_match_result`, applied at read time
+beside the corner curves in `app/services/count_calibration.py` (stored rows are not rewritten). Held-out
+log-loss 1.0186 to 1.0172; on the later 40% the average home claim goes from 46.0% to 43.7% (actual
+43.8%) and the draw from 24.0% to 26.1% (actual 26.0%). Double chance and the match-result calls are
+derived from those figures, so they follow. The more likely of home and away is unchanged in 96% of
+matches.
+
+**What it does not do.** It does not make the engine win more often: the headline win rate on 2,119
+graded predictions is 68.3% before and 68.8% after, which is inside noise. It makes the percentages
+honest, which also trims the Home calls that were being ranked on an inflated edge.
+
+**Rerun when more data lands:** replay shards, `calibrate_match_result`, restart the engine.

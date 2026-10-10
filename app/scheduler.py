@@ -65,6 +65,40 @@ def hours_since_refresh(now: datetime | None = None) -> float | None:
     return None
 
 
+# The results job asks API-Football for the last few days by date, and a free plan cannot ask
+# further back. A cron run missed while the backend was down is not made up, so a fixture that
+# finished in that gap stayed "scheduled" for good (32 international fixtures did). So on start
+# the job also runs once, shortly after, if any fixture is waiting for a result it can still get.
+RESULTS_CATCH_UP_DELAY_SECONDS = 150
+RESULTS_WINDOW_DAYS = 3
+
+
+def needs_results_catch_up(now: datetime | None = None) -> bool:
+    """True if a fixture from the API has kicked off and finished but has no result yet."""
+    from app.models.match import Match
+
+    now = now or datetime.now(UTC).replace(tzinfo=None)
+    session = SessionLocal()
+    try:
+        waiting = (
+            session.query(Match.id)
+            .filter(
+                Match.sport == "football",
+                Match.status == "scheduled",
+                Match.external_id.like("apif-%"),
+                Match.match_date < now - timedelta(hours=3),
+                Match.match_date >= now - timedelta(days=RESULTS_WINDOW_DAYS),
+            )
+            .first()
+        )
+        return waiting is not None
+    except Exception as exc:  # a missing table or a locked database must not stop startup
+        logger.warning("Could not check for fixtures waiting on a result: %s", exc)
+        return False
+    finally:
+        session.close()
+
+
 def needs_catch_up(now: datetime | None = None) -> bool:
     """True if the data is old enough, or unknown enough, to refresh at startup."""
     age = hours_since_refresh(now)
@@ -102,6 +136,9 @@ PROFILES: dict[str, dict] = {
         "injuries": {"teams": 100},
     },
 }
+
+# Requests a paid plan may spend per results run looking up fixtures the by-date fetch missed.
+STALE_REQUESTS = 5
 
 # One odds page is up to this many requests per day on the free plan's cap.
 ODDS_PAGES_PER_DAY = 3
@@ -319,14 +356,25 @@ def fetch_results_job() -> None:
     days.
     """
     settings = get_settings()
-    profile = _admit("fetch_results_job", settings, lambda p: p["results"]["days"])
+    profile = _admit(
+        "fetch_results_job",
+        settings,
+        lambda p: p["results"]["days"] + (STALE_REQUESTS if p is PROFILES["paid"] else 0),
+    )
     if profile is None:
         return
 
-    from scripts.fetch_results import fetch_and_apply_results
+    from scripts.fetch_results import fetch_and_apply_results, resolve_stale_fixtures
 
     updated = fetch_and_apply_results(days_back=profile["results"]["days"])
     logger.info("fetch_results_job marked %d fixture(s) completed", updated)
+    if profile is PROFILES["paid"]:
+        # Only a paid plan can look a fixture up by id, which is how one that slipped past the
+        # by-date window (the backend was off while it was reachable) is finally settled.
+        settled = resolve_stale_fixtures(
+            older_than_days=profile["results"]["days"], max_requests=STALE_REQUESTS
+        )
+        logger.info("fetch_results_job settled %d stale fixture(s)", settled)
 
 
 def fetch_match_stats_job() -> None:
@@ -730,6 +778,18 @@ def start_scheduler() -> BackgroundScheduler | None:
             "Data is older than %d hours (or has never been refreshed): refreshing in %d seconds",
             CATCH_UP_AFTER_HOURS,
             CATCH_UP_DELAY_SECONDS,
+        )
+    if needs_results_catch_up():
+        scheduler.add_job(
+            fetch_results_job,
+            DateTrigger(
+                run_date=datetime.now() + timedelta(seconds=RESULTS_CATCH_UP_DELAY_SECONDS)
+            ),
+            id="catch_up_fetch_results",
+        )
+        logger.info(
+            "Fixtures are waiting on a result: fetching results in %d seconds",
+            RESULTS_CATCH_UP_DELAY_SECONDS,
         )
     logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
     return scheduler

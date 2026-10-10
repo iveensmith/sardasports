@@ -200,3 +200,79 @@ def test_only_the_matching_external_id_is_touched(db_session):
     assert played.status == "completed"
     assert pending.status == "scheduled"
     assert pending.home_score is None
+
+
+# --- fixtures the by-date fetch missed ---------------------------------------
+
+
+def test_stale_ids_are_old_scheduled_api_fixtures_only(db_session):
+    from scripts.fetch_results import stale_scheduled_ids
+
+    _match(db_session, "apif-300", days_ago=10)  # missed: scheduled, long past
+    _match(db_session, "apif-301", days_ago=1)  # still inside the by-date window
+    _match(db_session, "apif-302", days_ago=10, status="completed", home_score=1, away_score=0)
+    _match(db_session, "csv-303", days_ago=10)  # not an API fixture: no id to look up
+    _match(db_session, "apif-304", days_ago=200)  # too old to chase
+
+    assert stale_scheduled_ids(db_session, older_than_days=3) == ["300"]
+
+
+def _response(payload):
+    class Response:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return payload
+
+    return Response()
+
+
+def test_stale_fixtures_are_settled_by_id(db_session, monkeypatch):
+    import scripts.fetch_results as module
+
+    match = _match(db_session, "apif-400", days_ago=10)
+    asked = []
+
+    def fake_get(url, headers, params, timeout):
+        asked.append(params["ids"])
+        return _response(
+            {"errors": [], "response": [_fixture(400, status="FT", home_goals=3, away_goals=1)]}
+        )
+
+    monkeypatch.setattr(module.requests, "get", fake_get)
+    monkeypatch.setattr(module.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(module, "get_settings", lambda: _Settings())
+    monkeypatch.setattr("scripts.load_to_db.rebuild_elo_history", lambda *_a, **_k: None)
+
+    assert module.resolve_stale_fixtures() == 1
+    assert asked == ["400"]
+    db_session.refresh(match)
+    assert match.status == "completed" and match.home_score == 3
+
+
+def test_a_free_plan_refusing_ids_settles_nothing_and_does_not_raise(db_session, monkeypatch):
+    import scripts.fetch_results as module
+
+    match = _match(db_session, "apif-500", days_ago=10)
+    calls = []
+
+    def fake_get(url, headers, params, timeout):
+        calls.append(params)
+        return _response(
+            {"errors": {"plan": "Free plans do not have access to the Ids parameter."}}
+        )
+
+    monkeypatch.setattr(module.requests, "get", fake_get)
+    monkeypatch.setattr(module.time, "sleep", lambda _s: None)
+    monkeypatch.setattr(module, "get_settings", lambda: _Settings())
+
+    assert module.resolve_stale_fixtures() == 0
+    assert len(calls) == 1  # asked once, was refused, stopped
+    db_session.refresh(match)
+    assert match.status == "scheduled"
+
+
+class _Settings:
+    api_football_key = "key"
+    api_football_base_url = "https://example.invalid"

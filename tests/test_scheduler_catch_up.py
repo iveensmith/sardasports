@@ -198,3 +198,70 @@ def test_the_catch_up_is_in_addition_to_the_nightly_run_not_instead_of_it(monkey
     assert running.get_job("daily_refresh_data") is not None
     assert running.get_job("catch_up_refresh_data") is not None
     assert len(running.get_jobs()) == 16
+
+
+# --- results ---------------------------------------------------------------------------
+
+
+def _fixture_row(session, external_id, hours_ago, status="scheduled"):
+    from app.models import Match, Team
+
+    home = Team(name=f"H-{external_id}", league="Test", sport="football")
+    away = Team(name=f"A-{external_id}", league="Test", sport="football")
+    session.add_all([home, away])
+    session.flush()
+    session.add(
+        Match(
+            external_id=external_id,
+            sport="football",
+            match_date=datetime.now() - timedelta(hours=hours_ago),
+            competition="Test League",
+            season="2026",
+            home_team_id=home.id,
+            away_team_id=away.id,
+            status=status,
+        )
+    )
+    session.commit()
+
+
+def test_a_finished_fixture_without_a_result_asks_for_a_results_catch_up(db_session):
+    _fixture_row(db_session, "apif-9001", hours_ago=30)
+
+    assert scheduler.needs_results_catch_up(datetime.now()) is True
+
+
+@pytest.mark.parametrize(
+    "hours_ago, status",
+    [
+        (1, "scheduled"),  # may still be playing
+        (24 * 5, "scheduled"),  # past what a by-date fetch can still reach
+        (30, "completed"),  # already settled
+    ],
+)
+def test_other_fixtures_do_not_ask_for_a_results_catch_up(db_session, hours_ago, status):
+    _fixture_row(db_session, "apif-9002", hours_ago=hours_ago, status=status)
+
+    assert scheduler.needs_results_catch_up(datetime.now()) is False
+
+
+def test_a_results_catch_up_is_scheduled_shortly_after_startup(monkeypatch, started):
+    monkeypatch.setattr(scheduler, "needs_catch_up", lambda: False)
+    monkeypatch.setattr(scheduler, "needs_results_catch_up", lambda: True)
+
+    running = scheduler.start_scheduler()
+    job = running.get_job("catch_up_fetch_results")
+
+    assert job is not None
+    assert job.func is scheduler.fetch_results_job
+    delay = (job.next_run_time.replace(tzinfo=None) - datetime.now()).total_seconds()
+    assert 30 < delay <= scheduler.RESULTS_CATCH_UP_DELAY_SECONDS + 5
+
+
+def test_no_waiting_fixtures_means_no_results_catch_up(monkeypatch, started):
+    monkeypatch.setattr(scheduler, "needs_catch_up", lambda: False)
+    monkeypatch.setattr(scheduler, "needs_results_catch_up", lambda: False)
+
+    running = scheduler.start_scheduler()
+
+    assert running.get_job("catch_up_fetch_results") is None
