@@ -113,9 +113,12 @@ export function Hero({
         </p>
 
         <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-          <Link href="#today" className="nt-cta nt-cta--primary">
+          {/* A plain anchor, not <Link>: the router treats a second click on the address
+              it is already at as "nothing to do", so after the page had been scrolled back
+              up the button did nothing. The browser's own anchor scroll always works. */}
+          <a href="#today" className="nt-cta nt-cta--primary">
             See today&rsquo;s picks
-          </Link>
+          </a>
           <Link href="/progress" className="nt-cta nt-cta--ghost">
             Check the record
           </Link>

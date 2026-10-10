@@ -52,8 +52,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && useradd --uid 1000 --create-home --shell /usr/sbin/nologin app
 
 WORKDIR /app
-COPY --from=builder --chown=app:app /app /app
-RUN mkdir -p data ml/models rag/chroma_store && chown -R app:app data ml/models rag/chroma_store
+# The libraries (many thousands of small files) and the code are separate layers, so a
+# code change reuses the libraries from cache. No `--chown` on them: the app only reads them
+# (bytecode writing is off), and a recursive chown over that many files took over three
+# minutes. Only the folders the engine writes to are handed to its user.
+COPY --from=builder /app/.venv /app/.venv
+COPY app ./app
+COPY ml ./ml
+COPY rag ./rag
+COPY scripts ./scripts
+COPY alembic ./alembic
+COPY alembic.ini pyproject.toml README.md ./
+RUN mkdir -p data ml/models rag/chroma_store \
+    && chown -R app:app data ml/models rag/chroma_store
 
 USER app
 EXPOSE 8000
