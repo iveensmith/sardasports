@@ -96,7 +96,13 @@ function srOutcome(outcome: Outcome) {
 }
 
 /** One market cell: the pick above, its price in a pill below. */
-function TipCell({ tip }: { tip: Tip | undefined }) {
+function TipCell({
+  tip,
+  markStrong = false,
+}: {
+  tip: Tip | undefined;
+  markStrong?: boolean;
+}) {
   if (!tip) {
     return (
       <td className="px-1.5 py-2 text-center text-[12px] text-[var(--color-unknown)]">
@@ -114,6 +120,15 @@ function TipCell({ tip }: { tip: Tip | undefined }) {
         {tip.short_label}
         <OutcomeMark outcome={tip.outcome} />
         <span className="sr-only">{srOutcome(tip.outcome)}</span>
+        {markStrong && tip.strong && (
+          <span
+            className="ml-1 text-[10px] text-[var(--color-gold-bright)]"
+            title="Strong tip: the engine rates this 70% or more"
+          >
+            <span aria-hidden="true">★</span>
+            <span className="sr-only"> (strong tip)</span>
+          </span>
+        )}
       </span>
       {tip.odds !== null ? (
         <span
@@ -356,7 +371,7 @@ function Row({ row }: { row: BoardRow }) {
         <TipCell key={market} tip={row.tips[market]} />
       ))}
 
-      <TipCell tip={row.best_tip ?? undefined} />
+      <TipCell tip={row.best_tip ?? undefined} markStrong />
       <ConfidenceCell value={row.confidence} />
     </tr>
   );

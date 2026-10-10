@@ -29,6 +29,8 @@ export interface Tip {
   /** Points above that base rate. Null where there is no measured yardstick. */
   lift: number | null;
   notable: boolean;
+  /** True when the engine rates this tip at 70% or more. Absent on older copies. */
+  strong?: boolean;
   /** Best offered price, or a fair price derived from `probability` where no
    * bookmaker line covers this pick at all — see `odds_is_estimated`. */
   odds: number | null;

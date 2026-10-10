@@ -285,7 +285,15 @@ export default async function ProgressPage() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        {progress.strong && progress.strong.record.settled > 0 && (
+          <StatCard
+            label={`Strong tips, ${progress.strong.min_probability}%+`}
+            value={rate(progress.strong.record)}
+            note={`${progress.strong.record.won} of ${progress.strong.record.settled} settled. Tips the engine rated ${progress.strong.min_probability}% or more before kick-off, about half of all fixtures; all tips together are ${rate(overall)}.`}
+            accent="var(--color-gold-bright)"
+          />
+        )}
         <StatCard
           label="Backtested"
           value={hasBacktest ? rate(backtest.record) : "—"}

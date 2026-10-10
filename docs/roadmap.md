@@ -2846,3 +2846,41 @@ graded predictions is 68.3% before and 68.8% after, which is inside noise. It ma
 honest, which also trims the Home calls that were being ranked on an inflated edge.
 
 **Rerun when more data lands:** replay shards, `calibrate_match_result`, restart the engine.
+
+## Strong tips: a higher win rate by putting forward what the engine is surest of (10 Oct 2026)
+
+**The ask.** "I want a high percentage of won games in the best tips." The engine's accuracy cannot be
+pushed much further with the data it has (see the match-result section above), but the *best tips* win
+rate is mostly decided by which tips are put forward.
+
+**Evidence.** On 2,117 graded best tips the stated probabilities are honest: tips claiming 70-80% won
+75.9%, 80-90% won 85.8%, 90%+ won 95.6%. Winning more therefore means leading with the likelier tips.
+
+| Best tips counted | Share of fixtures | Win rate |
+|---|---|---|
+| every fixture (unchanged) | 100% | 68.9% |
+| rated 65%+ | 57% | 81.4% |
+| rated 70%+ (**chosen**) | 51% | 83.6% |
+| rated 75%+ | 45% | 84.4% |
+| rated 80%+ | 32% | 88.1% |
+
+Also measured and rejected: dropping the lift bars so the likeliest call always leads (83% on every fixture,
+but 73% of the headlines become double chance and "under 4.5 cards", which win because they are nearly
+always true, not because the engine saw anything).
+
+**Built.** `ml/markets.STRONG_TIP_MIN_PROBABILITY = 70` / `is_strong_tip`.
+- Every fixture keeps its best tip; each tip now carries `strong`, from the probability stored before
+  kick-off, so it cannot be chosen after the result.
+- The home results strip shows only strong tips (`/board/recent-settled` now returns `strong_only`,
+  `min_probability`) and says so: "Recent strong tips ... 20 of 24".
+- `/progress` gets `strong` (overall, live, backtest), shown as the first stat card on the track-record
+  page and a line in the hero, always next to the all-tips records, which are unchanged and still shown.
+- A gold star marks strong tips in the board's best-tip column.
+
+**Result today.** Strong tips: 907 of 1,085 settled (83.6%); live (stored before kick-off) 49 of 56 (87.5%);
+the strip 20 of 24. All tips together are still 68.9%.
+
+**Honest limits.** Selecting by probability does not make the engine more accurate: the same tips win at the
+same rate whether or not the others are shown. The strong record covers about half the fixtures. If a bar is
+ever raised to chase a number, say so on the page: the record is only meaningful because the threshold was set
+before looking at which tips won.

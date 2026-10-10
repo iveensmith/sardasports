@@ -46,7 +46,14 @@ from app.services.base_rates import competition_base_rates
 from app.services.settlement import Outcome, Record, result_from_match, settle_key
 from app.services.stored_predictions import payload_from_stored
 from app.utils.coalesce import CoalescingCache
-from ml.markets import best_per_market, candidate_calls, headline_call, rank_calls
+from ml.markets import (
+    STRONG_TIP_MIN_PROBABILITY,
+    best_per_market,
+    candidate_calls,
+    headline_call,
+    is_strong_tip,
+    rank_calls,
+)
 
 # How many days of daily results the "recent form" chart covers.
 RECENT_DAYS = 30
@@ -67,6 +74,8 @@ class _Graded:
     per_market: dict[str, Outcome]
     # True when the prediction was stored before kick-off.
     live: bool
+    # The headline call's stated probability, in percent.
+    probability: float = 0.0
 
 
 # Grading every stored prediction takes about four seconds, and the track record, every league
@@ -120,6 +129,7 @@ def _grade_all_uncached(session: Session) -> list[_Graded]:
                     for entry in best_per_market(ranked)
                 },
                 live=prediction.created_at is not None and prediction.created_at < match.match_date,
+                probability=best.call.probability,
             )
         )
     return graded
@@ -169,11 +179,20 @@ def build_progress(session: Session) -> dict:
         if entry.match_date >= cutoff:
             recent[entry.match_date.date().isoformat()].append(entry.headline)
 
+    strong = [entry for entry in graded if is_strong_tip(entry.probability)]
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         # The headline number, over everything settled.
         "overall": _record(entry.headline for entry in graded),
         "span": _span(graded),
+        # The tips the engine rated at or above `min_probability` before kick-off, counted from
+        # the same settled predictions as everything else: a subset, never a replacement.
+        "strong": {
+            "min_probability": STRONG_TIP_MIN_PROBABILITY,
+            "record": _record(e.headline for e in strong),
+            "live": _record(e.headline for e in strong if e.live),
+            "backtest": _record(e.headline for e in strong if not e.live),
+        },
         # Split so the interface cannot present a backtest as a live record.
         "live": {"record": _record(e.headline for e in live), "span": _span(live)},
         "backtest": {

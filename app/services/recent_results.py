@@ -7,6 +7,8 @@ card this size does not reliably have; and it needed a full day's predictions
 recomputed on the spot, so one slow or failed request hid it with nothing to say
 why.
 
+It shows only strong tips (see `ml.markets.STRONG_TIP_MIN_PROBABILITY`).
+
 This reads stored predictions straight from the database instead. There is no
 recomputation, so it is fast and cannot fail the way a live prediction can, and
 it takes the newest settled picks across however many days that needs, so there is
@@ -26,6 +28,7 @@ from app.models.prediction import Prediction
 from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row
 from app.services.stored_predictions import payload_from_stored
+from ml.markets import STRONG_TIP_MIN_PROBABILITY
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +111,7 @@ def _compute(session: Session, limit: int) -> dict:
             Match.away_score.is_not(None),
         )
         .order_by(Match.match_date.desc())
-        .limit(limit * 3)
+        .limit(limit * 5)
         .all()
     )
 
@@ -124,6 +127,9 @@ def _compute(session: Session, limit: int) -> dict:
         tip = row["best_tip"]
         if tip is None or tip["outcome"] not in ("won", "lost"):
             continue
+        # Only the tips the engine was surest of: see `STRONG_TIP_MIN_PROBABILITY`.
+        if not tip.get("strong"):
+            continue
         rows.append(row)
         if len(rows) >= limit:
             break
@@ -134,5 +140,7 @@ def _compute(session: Session, limit: int) -> dict:
         "won": sum(1 for row in rows if row["best_tip"]["outcome"] == "won"),
         "from": min(dates) if dates else None,
         "to": max(dates) if dates else None,
+        "strong_only": True,
+        "min_probability": STRONG_TIP_MIN_PROBABILITY,
         "rows": rows,
     }

@@ -235,12 +235,23 @@ export default async function HomePage() {
         backtest={backtestRecord}
         liveSince={progress?.live.span?.first ?? null}
         fixturesToday={today?.counts.fixtures ?? 0}
+        strong={
+          progress?.strong
+            ? {
+                record: progress.strong.record,
+                minProbability: progress.strong.min_probability,
+              }
+            : null
+        }
       />
 
       <ResultsTicker
         rows={recent?.rows ?? []}
         from={recent?.from ?? null}
         to={recent?.to ?? null}
+        minProbability={
+          recent?.strong_only ? (recent.min_probability ?? 70) : null
+        }
       />
 
       {/* One rule for the page's rhythm: every section after the first is set

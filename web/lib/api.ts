@@ -221,6 +221,9 @@ export interface RecentSettled {
   /** First and last match date covered (YYYY-MM-DD). Null when empty. */
   from: string | null;
   to: string | null;
+  /** True when the rows are only the tips the engine rated `min_probability` or more. */
+  strong_only?: boolean;
+  min_probability?: number;
   rows: BoardRow[];
 }
 

@@ -57,6 +57,13 @@ export interface Progress {
   span: Span | null;
   live: { record: SettledRecord; span: Span | null };
   backtest: { record: SettledRecord; span: Span | null };
+  /** The tips rated `min_probability` or more before kick-off: a subset of `overall`. */
+  strong?: {
+    min_probability: number;
+    record: SettledRecord;
+    live: SettledRecord;
+    backtest: SettledRecord;
+  };
   by_month: MonthRecord[];
   recent_days: DayRecord[];
   by_market: MarketRecord[];

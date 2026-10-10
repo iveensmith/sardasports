@@ -34,6 +34,7 @@ from ml.markets import (
     best_per_market,
     candidate_calls,
     headline_call,
+    is_strong_tip,
     rank_calls,
 )
 from ml.team_badges import badge_dict
@@ -169,6 +170,7 @@ def _tip(
         "base_rate": entry.base_rate,
         "lift": None if entry.lift is None else round(entry.lift, 1),
         "notable": entry.notable,
+        "strong": is_strong_tip(call.probability),
         "odds": odds,
         "odds_is_estimated": odds_is_estimated,
         # None before kick-off, "won"/"lost"/"void" afterwards. Absent rather

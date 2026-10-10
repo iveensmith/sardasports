@@ -68,12 +68,15 @@ export function ResultsTicker({
   rows,
   from,
   to,
+  minProbability = null,
 }: {
   rows: BoardRow[];
   /** First and last match date the strip covers, named so it is never read as
    * last night's results when it is not. */
   from: string | null;
   to: string | null;
+  /** Set when the strip only carries tips rated at least this likely. */
+  minProbability?: number | null;
 }) {
   const settled = rows.filter(
     (row) =>
@@ -93,13 +96,14 @@ export function ResultsTicker({
         {/* The dates are named rather than implied. These are the newest picks
             that settled, which is not necessarily last night's. */}
         <p className="mb-2 text-[12px] text-[var(--color-text-faint)]">
-          Recently settled
+          {minProbability ? "Recent strong tips" : "Recently settled"}
           {from && to
             ? from === to
               ? `, ${shortDate(to)}`
               : `, ${shortDate(from)} to ${shortDate(to)}`
             : ""}
           : {won} of {settled.length} picks came in
+          {minProbability ? ` (tips rated ${minProbability}% or more)` : ""}
         </p>
       </div>
 

@@ -224,7 +224,15 @@ def test_the_strip_reads_stored_predictions_and_never_recomputes(db_session, tea
 
 def test_with_no_settled_picks_the_strip_is_empty_not_an_error(db_session):
     result = recent_settled(db_session)
-    assert result == {"count": 0, "won": 0, "from": None, "to": None, "rows": []}
+    assert result == {
+        "count": 0,
+        "won": 0,
+        "from": None,
+        "to": None,
+        "strong_only": True,
+        "min_probability": 70.0,
+        "rows": [],
+    }
 
 
 def test_the_won_count_agrees_with_the_rows(db_session, teams):
@@ -364,3 +372,54 @@ def test_the_canary_reports_a_failure_and_never_raises(db_session, monkeypatch, 
         scheduler.strip_canary_job()  # must not raise
 
     assert "could not rebuild" in caplog.text
+
+
+# --- strong tips ------------------------------------------------------------------------------
+
+
+def _weak_row(match_id: int) -> Prediction:
+    """Nothing here is likelier than about 66%, so its best tip is not a strong one."""
+    return _row(match_id, home=0.36, draw=0.30, away=0.34)
+
+
+def test_the_strip_shows_only_strong_tips(db_session, teams):
+    strong = _match(db_session, teams, datetime(2026, 10, 6, 15), (2, 0))
+    weak = _match(db_session, teams, datetime(2026, 10, 5, 15), (2, 0))
+    db_session.add_all([_row(strong.id), _weak_row(weak.id)])
+    db_session.commit()
+
+    rows = recent_settled(db_session)["rows"]
+
+    assert len(rows) == 1
+    assert rows[0]["best_tip"]["strong"] is True
+    assert rows[0]["best_tip"]["probability"] >= 70.0
+
+
+def test_a_tip_below_the_bar_is_flagged_not_strong(db_session, teams):
+    from app.services.board_service import build_row
+    from app.services.stored_predictions import payload_from_stored
+
+    match = _match(db_session, teams, datetime(2026, 10, 6, 15), (2, 0))
+    row = _weak_row(match.id)
+
+    built = build_row(match, payload_from_stored(row), {}, "Arsenal", "Chelsea")
+
+    assert built["best_tip"]["strong"] is False
+    assert built["best_tip"]["probability"] < 70.0
+
+
+def test_the_track_record_reports_strong_tips_as_a_subset_of_the_whole(db_session, teams):
+    from app.models import Prediction  # noqa: F401
+    from app.services.progress_service import _GRADED, build_progress
+
+    _GRADED.clear()
+    strong = _match(db_session, teams, datetime(2026, 10, 6, 15), (2, 0))
+    weak = _match(db_session, teams, datetime(2026, 10, 5, 15), (2, 0))
+    db_session.add_all([_row(strong.id), _weak_row(weak.id)])
+    db_session.commit()
+
+    progress = build_progress(db_session)
+
+    assert progress["strong"]["min_probability"] == 70.0
+    assert progress["overall"]["settled"] == 2
+    assert progress["strong"]["record"]["settled"] == 1

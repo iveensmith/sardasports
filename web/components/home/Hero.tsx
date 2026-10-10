@@ -43,6 +43,7 @@ export function Hero({
   backtest,
   liveSince,
   fixturesToday,
+  strong = null,
 }: {
   /** Picks stored before kick-off, then graded. Null before any exist. */
   live: SettledRecord | null;
@@ -50,6 +51,8 @@ export function Hero({
   backtest: SettledRecord | null;
   liveSince: string | null;
   fixturesToday: number;
+  /** The tips the engine rated at least `minProbability` before kick-off: a subset of the above. */
+  strong?: { record: SettledRecord; minProbability: number } | null;
 }) {
   return (
     <section className="relative isolate flex min-h-[calc(100svh-6.5rem)] flex-col items-center justify-center overflow-hidden">
@@ -136,6 +139,14 @@ export function Hero({
                 {live ? "Reconstructed from past matches" : "Backtest"}:{" "}
                 {backtest.won.toLocaleString()} of{" "}
                 {backtest.settled.toLocaleString()} ({rate(backtest)}).{" "}
+              </>
+            )}
+            {strong && strong.record.settled > 0 && (
+              <>
+                Strong tips (rated {strong.minProbability}% or more):{" "}
+                {strong.record.won.toLocaleString()} of{" "}
+                {strong.record.settled.toLocaleString()} ({rate(strong.record)}
+                ).{" "}
               </>
             )}
             <Link
