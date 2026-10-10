@@ -24,7 +24,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /app
 
 # Dependencies first, so a code change does not reinstall them.
-COPY pyproject.toml uv.lock ./
+# README.md is named in pyproject.toml's metadata, and the build fails without it.
+COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
