@@ -74,8 +74,8 @@ export function MoreSports({ sports }: { sports: SportSummary[] | null }) {
                     ? ` (${ageLabel(age)} ago)`
                     : ""}.{" "}
                   {summary.upcoming_fixtures > 0
-                    ? `${summary.upcoming_fixtures} upcoming.`
-                    : "No upcoming fixtures are loaded."}
+                    ? `${summary.upcoming_fixtures} upcoming with predictions.`
+                    : "No upcoming predictions yet."}
                 </span>
               )}
               <span className="mt-4 text-[13px] font-medium text-[var(--color-gold-bright)] underline-offset-4 group-hover:underline">

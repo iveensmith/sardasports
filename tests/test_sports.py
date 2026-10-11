@@ -291,3 +291,47 @@ def test_the_football_pages_do_not_show_basketball_or_tennis(client, db_session,
     leagues = client.get("/leagues").json()
     listed = {c["competition"] for country in leagues["countries"] for c in country["competitions"]}
     assert "NBA" not in listed and "ATP" not in listed
+
+
+def test_a_match_with_no_prediction_is_not_listed_anywhere(client, db_session, monkeypatch):
+    from app.models import SportPrediction
+
+    a, b = _players(db_session, "basketball", "Boston Celtics", "Miami Heat", league="NBA")
+    c, d = _players(db_session, "basketball", "Unknown FC", "Nobody BC", league="NBA")
+    priced = _match(
+        db_session, "basketball", a, b, _now() + timedelta(days=2), None, competition="NBA"
+    )
+    thin = _match(
+        db_session, "basketball", c, d, _now() + timedelta(days=2, hours=1), None,
+        competition="NBA",
+    )  # fmt: skip
+    played_thin = _match(
+        db_session, "basketball", c, d, _now() - timedelta(days=1), (90, 80), competition="NBA"
+    )
+    played = _match(
+        db_session, "basketball", a, b, _now() - timedelta(days=1, hours=1), (100, 90),
+        competition="NBA",
+    )  # fmt: skip
+    db_session.add(
+        SportPrediction(
+            match_id=priced.id, sport="basketball", created_at=_now(), updated_at=_now(),
+            home_win_pct=60.0, away_win_pct=40.0, payload={},
+        )
+    )  # fmt: skip
+    db_session.commit()
+    no_basis = {thin.id, played_thin.id}
+
+    def fake(db, matches):
+        # The engine answers a thin match with a near coin flip and says so.
+        return [
+            {"home_win": 50.0, "away_win": 50.0, "thin_history": m.id in no_basis} for m in matches
+        ]
+
+    monkeypatch.setattr(sport_service, "predict_for_matches", fake)
+
+    page = client.get("/sports/basketball").json()
+
+    assert [m["match_id"] for m in page["upcoming"]] == [priced.id]
+    assert [m["match_id"] for m in page["recent"]] == [played.id]
+    sports = {s["sport"]: s for s in client.get("/sports").json()["sports"]}
+    assert sports["basketball"]["upcoming_fixtures"] == 1

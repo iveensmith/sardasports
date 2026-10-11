@@ -559,6 +559,27 @@ def test_the_board_groups_by_league_and_labels_where_each_prediction_came_from(d
         sport_predictions.build_board(db_session, "football", day)
 
 
+def test_a_match_with_no_prediction_is_left_off_the_board(db_session, priced):
+    a, b = _basketball_pair(db_session)
+    day = (_now() + timedelta(days=1)).replace(hour=18, minute=0, second=0, microsecond=0)
+    kept = _bb_match(db_session, a, b, day, status="scheduled")
+    thin = _bb_match(db_session, b, a, day + timedelta(hours=2), status="scheduled")
+    db_session.commit()
+    priced["thin"].add(thin.id)
+
+    board = sport_predictions.build_board(db_session, "basketball", day)
+
+    listed = [e["match_id"] for c in board["competitions"] for e in c["matches"]]
+    assert listed == [kept.id]
+    assert board["counts"]["fixtures"] == 1
+
+    # A day on which nothing can be priced has no competitions at all, not empty ones.
+    sport_predictions.clear_cache()
+    priced["thin"].add(kept.id)
+    empty = sport_predictions.build_board(db_session, "basketball", day)
+    assert empty["competitions"] == [] and empty["counts"]["fixtures"] == 0
+
+
 def test_the_board_and_record_routes(client, db_session, priced):
     a, b = _basketball_pair(db_session)
     day = _now() + timedelta(days=1)

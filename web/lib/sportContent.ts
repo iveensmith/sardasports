@@ -93,7 +93,7 @@ export const SPORT_COPY: Record<OtherSportKey, SportCopy> = {
       "Totals outside the NBA are priced from a normal distribution around the expected total (what each side scores blended with what the other concedes) with that league's own spread. It was checked against games it never saw, and the table shows the result. A team with fewer than six prior games, or none for over a year, is not priced: a default rating is not evidence.",
     ],
     source:
-      "Results come from API-Basketball. History runs from 2022 to 2025 for the leagues loaded so far (more are added every day within the plan's request limit), and fixtures and results since arrive through a daily feed covering every league the provider lists. A league's ratings are only as good as the seasons loaded for it, and a league with too little history is shown without a pick.",
+      "Results come from API-Basketball. History runs from 2022 to 2025 for the leagues loaded so far (more are added every day within the plan's request limit), and fixtures and results since arrive through a daily feed covering every league the provider lists. A league's ratings are only as good as the seasons loaded for it, and a match with too little history behind it is left off the board rather than shown without a pick.",
     competitor: { singular: "team", plural: "teams" },
     cardLine: "NBA, EuroLeague and dozens more leagues: winners and totals",
     keywords: [

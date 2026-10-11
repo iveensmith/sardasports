@@ -300,9 +300,9 @@ export function SportBoard({
           No {sport} matches on {shortDate(board.date)}
         </p>
         <p className="mt-2 max-w-[60ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
-          Either nothing is scheduled that day or it has not been loaded yet.
-          Fixtures are pulled in on a schedule through the day, so an empty day
-          here means nothing has arrived, not that nothing is being played.
+          Either nothing is scheduled that day, it has not been loaded yet, or the
+          matches on it have too little history behind them to predict, and
+          only matches with a prediction are listed here.
         </p>
       </div>
     );

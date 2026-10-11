@@ -355,7 +355,7 @@ export function SportPage({
                     board.counts.competitions === 1
                       ? "competition"
                       : "competitions"
-                  }; ${board.counts.priced} priced${
+                  }${
                     board.counts.stored_in_advance > 0
                       ? `, ${board.counts.stored_in_advance} stored before the match`
                       : ""

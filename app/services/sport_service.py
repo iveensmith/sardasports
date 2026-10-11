@@ -24,7 +24,7 @@ from time import monotonic
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import EloHistory, ModelVersion
+from app.models import EloHistory, ModelVersion, SportPrediction
 from app.models.match import Match
 from app.models.team import Team
 from app.services.prediction_service import predict_for_matches
@@ -131,9 +131,17 @@ def _summary(db: Session) -> dict:
     )
     completed = {sport: (count, last) for sport, count, last in rows}
 
+    # For basketball and tennis only fixtures that carry a stored prediction count: a
+    # match the engine could not price (a side with too little history) is not listed
+    # anywhere on the site. Football has its own board and keeps every fixture.
     upcoming_rows = (
         db.query(Match.sport, func.count(Match.id), func.min(Match.match_date))
-        .filter(Match.status == "scheduled", Match.match_date >= now)
+        .outerjoin(SportPrediction, SportPrediction.match_id == Match.id)
+        .filter(
+            Match.status == "scheduled",
+            Match.match_date >= now,
+            (Match.sport == "football") | SportPrediction.match_id.is_not(None),
+        )
         .group_by(Match.sport)
         .all()
     )
@@ -340,10 +348,19 @@ def _names(db: Session, matches: list[Match]) -> dict[int, str]:
 
 
 def _predict(db: Session, matches: list[Match]) -> list[dict | None]:
+    """The engine's payload per match, or None where it has no basis for one.
+
+    A side with too little history comes back from the engine with a near coin-flip
+    number; that is not a prediction, so it is dropped here and the match is not listed.
+    """
     if not matches:
         return []
     try:
-        return predict_for_matches(db, matches)
+        payloads = predict_for_matches(db, matches)
+        return [
+            None if p is None or p.get("thin_history") or p.get("home_win") is None else p
+            for p in payloads
+        ]
     except Exception:  # noqa: BLE001
         logger.exception("sport page predictions failed")
         try:
@@ -376,10 +393,12 @@ def _recent(db: Session, sport: str) -> list[dict]:
         if len(chosen) >= MIN_RECENT:
             break
         chosen += [m for m in finished if m.match_date.date() == day]
-    latest = chosen[:RECENT_LIMIT]
-    names = _names(db, latest)
-    payloads = _predict(db, latest)
-    return [_match_row(m, names, p) for m, p in zip(latest, payloads, strict=True)]
+    names = _names(db, chosen)
+    payloads = _predict(db, chosen)
+    # Matches the engine could not price are left out, and the list is filled from the
+    # next ones, so a thin match never takes a place or shows without a prediction.
+    rows = [_match_row(m, names, p) for m, p in zip(chosen, payloads, strict=True) if p is not None]
+    return rows[:RECENT_LIMIT]
 
 
 def _upcoming(db: Session, sport: str) -> list[dict]:
@@ -393,12 +412,15 @@ def _upcoming(db: Session, sport: str) -> list[dict]:
             Match.match_date < now + timedelta(days=UPCOMING_WINDOW_DAYS),
         )
         .order_by(Match.match_date.asc())
-        .limit(UPCOMING_LIMIT)
+        .limit(UPCOMING_LIMIT * 3)
         .all()
     )
     names = _names(db, fixtures)
     payloads = _predict(db, fixtures)
-    return [_match_row(m, names, p) for m, p in zip(fixtures, payloads, strict=True)]
+    rows = [
+        _match_row(m, names, p) for m, p in zip(fixtures, payloads, strict=True) if p is not None
+    ]
+    return rows[:UPCOMING_LIMIT]
 
 
 def _compute(db: Session, sport: str) -> dict:

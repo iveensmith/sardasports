@@ -3097,3 +3097,15 @@ stored-in-advance kept apart from reconstructed).
 The image also needed `openpyxl` (it reads the tennis workbooks, was missing from the lockfile, so the
 server's tennis workbook refresh could not have run): installed in `docker/Dockerfile.api`; run
 `uv lock` when convenient and drop that line.
+
+## Basketball and tennis list only matches that have a prediction (11 Oct 2026)
+
+A side with too little history is not priced (`thin_history`), and the board used to list those
+matches anyway with "Not enough history". On a typical day that was most of the basketball board
+(for 10 Oct 142 of 160 rows, in 61 competitions) and about half of tennis. They are now left off
+everywhere: the day board (`build_board`, so a league with nothing priced disappears too), the
+"upcoming" and "recent" lists on each sport page (`sport_service`, which over-fetches so the list
+still fills), and the home page's "upcoming" count, which now counts only fixtures carrying a stored
+prediction. The engine's coin-flip numbers for thin matches are discarded rather than shown as picks.
+Football is unchanged (its board still shows a fixture without a prediction, as stated in
+how-it-works). A match is still reachable by its own URL; it is just not listed.

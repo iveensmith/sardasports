@@ -301,6 +301,10 @@ def build_board(session: Session, sport: str, day: datetime) -> dict:
     grouped: dict[str, list[dict]] = {}
     for match in matches:
         entry = _match_entry(match, names, stored.get(match.id), fresh.get(match.id))
+        if entry["pick"] is None:
+            # A side with too little history has no prediction, and a match with no
+            # prediction is not listed: the site shows what the engine can stand behind.
+            continue
         # Tennis is grouped by tournament (under its tour); basketball by league.
         group = match.tournament or match.competition if sport == "tennis" else match.competition
         grouped.setdefault((match.competition, group), []).append(entry)
