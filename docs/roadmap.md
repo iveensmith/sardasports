@@ -2957,3 +2957,54 @@ did not move (68.3% against 68.7%; strong tips 83.5% either way).
 **"43/97".** The day tile now reads "Strong tips won" (tips rated 70%+ before kick-off) with the
 all-tips figure in its note, the same framing as the home hero and the track record
 (`counts.strong_finished` / `counts.strong_won`).
+
+## A Dixon-Coles goals model, and what it did and did not change (10 Oct 2026)
+
+**The ask.** "Add the Poisson model with a Dixon-Coles adjustment" to lift the best tips to about 70%.
+
+**Built.** `ml/poisson/model.py` `DixonColesModel`, now the full-time goals model
+(`ml/prediction/predict.fit_goals_model`, `GOALS_DECAY_PER_DAY = 0.001`):
+1. *No second home-advantage factor.* `PoissonModel` multiplies the home side's goals by 1.15 on top
+   of a league average of home goals that already contains the home advantage. Counted twice it
+   claimed home wins 48.5% of the time against 42.5% real. This was the largest single fault.
+2. *The Dixon-Coles low-score correction* (`rho`, about -0.045, estimated by maximum likelihood).
+3. *Recency weighting* (`exp(-0.001 * age_in_days)`, a half-life of about two years).
+The count-stat models (corners, cards, half-time goals) still use the plain `PoissonModel` with its
+1.15, so their registered corner curves are untouched (a test pins both defaults).
+
+**Chosen on evidence, out of sample** (`scripts/evaluate_goal_models.py`, 2,636 held-out matches,
+history cut at the start of each day):
+
+| goals model | 1X2 log-loss | over 1.5 | over 2.5 | over 3.5 | BTTS |
+|---|---|---|---|---|---|
+| plain Poisson (before) | 1.0533 | 0.5573 | 0.6880 | 0.6011 | 0.6922 |
+| no double home advantage | 1.0447 | 0.5562 | 0.6869 | 0.5987 | 0.6940 |
+| + Dixon-Coles | 1.0444 | 0.5560 | 0.6869 | 0.5987 | 0.6935 |
+| + decay 0.001 (**used**) | 1.0335 | 0.5547 | 0.6846 | 0.5959 | 0.6931 |
+| + decay 0.002 | 1.0316 | 0.5568 | 0.6877 | 0.5977 | 0.6957 |
+| + decay 0.005 | 1.0368 | 0.5645 | 0.6991 | 0.6038 | 0.7031 |
+
+**The blend** (`replay_match_result`, all 25,181 held-out matches): the goals model alone went from
+1.0411 to 1.0250 and now claims home 43.6% (real 43.8%), but the three-estimator blend only from
+1.0181 to 1.0161 because XGBoost was already doing most of the work; three-way accuracy is 49.3%
+either way. The blend is now calibrated by the model itself (home 44.0% against 43.8%), so the
+match-result correction added earlier no longer helps (1.0171 to 1.0167, below its threshold) and
+**has been cleared**: it was fitted to the old, biased blend and would now over-correct. Retuned blend
+weights again did not help. After deploying, run once on each database that has the old correction:
+`python -m ml.training.calibrate_match_result --clear`.
+
+**The number that matters** (`scripts/evaluate_best_tips.py`: the whole engine, old goals model with
+its correction against the new one, the same 8,433 held-out matches, production tip rules):
+
+| | all best tips won | strong tips (70%+) won |
+|---|---|---|
+| old goals model | 66.7% | 80.3% |
+| Dixon-Coles | 67.0% | 80.2% |
+
+So this is a better-calibrated model and a cleaner one (it replaced a patch), **not** a jump in the
+win rate. The best-tip win rate is set by which tips are put forward: over the new engine's tips,
+claim >= 50% wins 72.6% (82% of fixtures), >= 60% wins 77.4% (66%), >= 70% wins 80.2% (55%), >= 80%
+wins 86.0% (22%). The stated probabilities are honest at every level (a tip claiming 76% won 76.5%).
+
+**Legacy rows.** Predictions stored before this change were made by the old engine and are now read
+without a correction, so their home probability reads up to two points high; new ones are right.

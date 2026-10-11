@@ -136,3 +136,17 @@ def test_a_payload_with_missing_result_figures_does_not_crash(db_session):
     calibrate_payload(payload)
 
     assert payload["home_win"] is None
+
+
+def test_a_correction_can_be_cleared_and_set_by_hand(db_session):
+    _register(db_session)
+    assert cal.clear() == 1
+    assert _registered(db_session) is None
+
+    cal.set_values(1.05, -0.07, 0.08)
+    metrics = _registered(db_session).metrics
+
+    assert (metrics["scale"], metrics["home_offset"], metrics["draw_offset"]) == (1.05, -0.07, 0.08)
+    payload = {"home_win": 50.0, "draw": 25.0, "away_win": 25.0}
+    calibrate_payload(payload)
+    assert payload["home_win"] < 50.0  # and the reader sees it straight away (cache cleared)

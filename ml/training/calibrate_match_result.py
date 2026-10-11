@@ -24,6 +24,12 @@ tenth of a point (noise). What improves is that the percentages mean what they s
 Usage:
     python -m ml.training.replay_match_result --shard 0 --of 6     # (all six shards first)
     python -m ml.training.calibrate_match_result [--no-register]
+
+    # Apply numbers fitted elsewhere (e.g. on the production database, which has not run the
+    # replay), or switch the correction off. Whenever the blend itself changes (a new goals
+    # model, new weights) the old correction no longer fits it: refit, or clear it.
+    python -m ml.training.calibrate_match_result --set 1.064 -0.091 0.092
+    python -m ml.training.calibrate_match_result --clear
 """
 
 from __future__ import annotations
@@ -126,10 +132,65 @@ def fit(register: bool = True) -> None:
         print(f"-> registered {MODEL_NAME}")
 
 
+def clear() -> int:
+    """Switch the correction off. Returns how many registered rows were deactivated."""
+    from app.database.session import SessionLocal
+    from app.models import ModelVersion
+
+    session = SessionLocal()
+    try:
+        count = (
+            session.query(ModelVersion)
+            .filter(ModelVersion.model_name == MODEL_NAME, ModelVersion.is_active.is_(True))
+            .update({"is_active": False})
+        )
+        session.commit()
+    finally:
+        session.close()
+    clear_cache()
+    return count
+
+
+def set_values(scale: float, home_offset: float, draw_offset: float) -> None:
+    """Register a correction fitted elsewhere, replacing the active one."""
+    metrics = {
+        "market": "match_result",
+        "scale": float(scale),
+        "home_offset": float(home_offset),
+        "draw_offset": float(draw_offset),
+        "source": "set by hand",
+    }
+    register_model_version(MODEL_NAME, new_version_string(), "n/a (calibration)", metrics, 0)
+    clear_cache()
+
+
+def clear_cache() -> None:
+    from app.services.count_calibration import clear_cache as _clear
+
+    _clear()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--no-register", action="store_true")
-    fit(register=not parser.parse_args().no_register)
+    parser.add_argument("--clear", action="store_true", help="deactivate the registered correction")
+    parser.add_argument(
+        "--set",
+        nargs=3,
+        type=float,
+        metavar=("SCALE", "HOME", "DRAW"),
+        help="register a correction fitted elsewhere",
+    )
+    args = parser.parse_args()
+    if args.clear:
+        print(f"deactivated {clear()} registered correction(s)")
+        return
+    if args.set:
+        set_values(*args.set)
+        scale, home, draw = args.set
+        print(f"registered {MODEL_NAME}: scale {scale}, home {home}, draw {draw}")
+        return
+    fit(register=not args.no_register)
 
 
 if __name__ == "__main__":

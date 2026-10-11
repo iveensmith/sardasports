@@ -29,7 +29,7 @@ from ml.feature_engineering.features import (
     build_team_history_index,
     feature_completeness,
 )
-from ml.poisson.model import PoissonModel
+from ml.poisson.model import DixonColesModel, PoissonModel
 from ml.prediction.explain import explain_prediction
 from ml.training.common import FEATURE_COLUMNS, one_hot_competition
 
@@ -57,7 +57,24 @@ CARDS_LINES = [2.5, 3.5, 4.5]
 CORNERS_MAX = 15
 CARDS_MAX = 10
 
-# Full-time goals: reuses the *same* PoissonModel already fit below (no
+# The full-time goals model is a Dixon-Coles model, not the plain `PoissonModel` the count stats
+# below still use. Measured on 2,636 held-out matches (scripts/evaluate_goal_models.py), against
+# the plain model it removes a double-counted home advantage (home wins were claimed 48.5% of the
+# time and happened 42.5%), adds the low-score correction and weights recent matches more:
+# match-result log-loss 1.0533 -> 1.0335, and over 1.5 / 2.5 / 3.5 goals all improve. The decay
+# was chosen from 0.001 to 0.005 per day: 0.001 (a half-life of about two years) is best across
+# the goals lines and within 0.002 of the best for the match result.
+GOALS_DECAY_PER_DAY = 0.001
+
+
+def fit_goals_model(matches: list[dict]) -> DixonColesModel:
+    """The full-time goals model for a list of completed matches (may be empty)."""
+    if not matches:
+        return DixonColesModel()
+    return DixonColesModel(decay_per_day=GOALS_DECAY_PER_DAY).fit(matches)
+
+
+# Full-time goals: reuses the *same* goals model already fit below (no
 # separate fit needed — a scoreline matrix works for any line). Half-time
 # goals gets its own, genuinely separate Poisson fit (see
 # ml/training/train_ht_goals.py's docstring for why a half isn't just
@@ -217,7 +234,7 @@ class SharedFit:
     """
 
     history_index: TeamHistoryIndex
-    poisson: PoissonModel
+    poisson: PoissonModel  # a DixonColesModel (see `fit_goals_model`)
     corners_poisson: PoissonModel | None
     cards_poisson: PoissonModel | None
     ht_goals_poisson: PoissonModel | None
@@ -274,12 +291,13 @@ def build_shared_fits(
                 "away_team": m["away_team"],
                 "home_score": m["home_score"],
                 "away_score": m["away_score"],
+                "match_date": m.get("match_date"),
             }
             for m in scoped
         ]
         by_pool_fit[pool] = fits[competition] = SharedFit(
             history_index=index,
-            poisson=(PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel()),
+            poisson=fit_goals_model(poisson_matches),
             # Scoping already happened, so these pass `None` to avoid a
             # second, redundant filter over the same rows.
             corners_poisson=_fit_count_stat_poisson(scoped, None, _corners_value, CORNERS_MAX),
@@ -400,6 +418,7 @@ def predict_match(
             "away_team": m["away_team"],
             "home_score": m["home_score"],
             "away_score": m["away_score"],
+            "match_date": m.get("match_date"),
         }
         for m in history
         if _pool is None or fit_pool(m.get("competition")) == _pool
@@ -409,11 +428,7 @@ def predict_match(
     # strengths from — fall back to the model's default league-average
     # parameters (a neutral "average team vs. average team" estimate) rather
     # than crashing the whole prediction.
-    poisson = (
-        shared.poisson
-        if shared is not None
-        else (PoissonModel().fit(poisson_matches) if poisson_matches else PoissonModel())
-    )
+    poisson = shared.poisson if shared is not None else fit_goals_model(poisson_matches)
     poisson_probs = poisson.result_probabilities(home_team, away_team)
     expected_home, expected_away = poisson.expected_goals(home_team, away_team)
     top_scorelines = poisson.top_scorelines(home_team, away_team, n=5)
