@@ -554,3 +554,101 @@ table {
 .overflow-x-auto {
   position: relative;
 }
+
+/*
+  The hero emblem (components/home/HeroEmblem.tsx): the SARDASPORTS logo,
+  large and lit, with a burst of rays behind it. It arrives with a single
+  soft flash on load and then holds still. The drawing is the site's own
+  artwork, so there is nothing to license; opacity is set per theme because
+  the logo's gold is made for a dark ground.
+*/
+.hero-emblem {
+  --he-logo: 0.17;
+  --he-rays: 0.4;
+  --he-ray-color: rgba(240, 217, 138, 0.16);
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+:root[data-theme="light"] .hero-emblem {
+  --he-logo: 0.95;
+  --he-rays: 1;
+  --he-ray-color: rgba(150, 117, 26, 0.2);
+}
+.hero-emblem__rays {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  width: min(160vw, 1500px);
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: repeating-conic-gradient(
+    from 4deg at 50% 50%,
+    var(--he-ray-color) 0deg 3.5deg,
+    transparent 3.5deg 11deg
+  );
+  -webkit-mask-image: radial-gradient(closest-side, #000 0%, transparent 74%);
+  mask-image: radial-gradient(closest-side, #000 0%, transparent 74%);
+  opacity: var(--he-rays);
+  animation: hero-emblem-rays 1.5s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.hero-emblem__logo {
+  position: relative;
+  width: min(90vw, 780px);
+  height: auto;
+  margin-top: 5%;
+  opacity: var(--he-logo);
+  filter: drop-shadow(0 0 36px rgba(227, 188, 69, 0.22));
+  animation: hero-emblem-flash 1.3s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+:root[data-theme="light"] .hero-emblem__logo {
+  filter: drop-shadow(0 0 1px rgba(17, 22, 33, 0.55))
+    drop-shadow(0 8px 28px rgba(150, 117, 26, 0.3));
+}
+@keyframes hero-emblem-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  16% {
+    opacity: min(1, calc(var(--he-logo) * 2.6));
+  }
+  100% {
+    opacity: var(--he-logo);
+    transform: scale(1);
+  }
+}
+@keyframes hero-emblem-rays {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  16% {
+    opacity: 1;
+  }
+  100% {
+    opacity: var(--he-rays);
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-emblem__rays,
+  .hero-emblem__logo {
+    animation: none;
+  }
+}
+
+/*
+  Type that sits over the hero artwork. A halo in the page's own colour (not a
+  visible shadow) keeps each letter's edge clean where the logo or its rays
+  pass behind it, and costs nothing where there is plain background.
+*/
+.hero-copy {
+  text-shadow:
+    0 0 14px var(--color-base),
+    0 0 5px var(--color-base),
+    0 0 2px var(--color-base);
+}

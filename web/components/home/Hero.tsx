@@ -1,10 +1,10 @@
 /**
- * The landing hero: a figure, a claim, and the two ways in.
+ * The landing hero: the SARDASPORTS mark, a claim, and the two ways in.
  *
  * The composition follows the reference site's, because the client asked for
- * it and it is a good one: a full-bleed figure sitting centred behind the
+ * it and it is a good one: a full-bleed picture sitting centred behind the
  * headline, dissolved into the page by a three-stop veil so the type has
- * contrast at the top and the figure has none by the bottom. Theirs runs
+ * contrast at the top and the picture is clear at the foot. Theirs runs
  * roughly 68% → 78% → 97% opacity down the frame; this uses the same shape in
  * this site's own base colour.
  *
@@ -32,7 +32,7 @@
  */
 
 import Link from "next/link";
-import { HeroFigure } from "@/components/home/HeroFigure";
+import { HeroEmblem } from "@/components/home/HeroEmblem";
 import { rate, type SettledRecord } from "@/lib/progress";
 
 /** Below this many settled picks a win rate moves a long way on one result. */
@@ -65,19 +65,15 @@ export function Hero({
         style={{ background: "var(--hero-glow)" }}
       />
 
-      {/* The figure, height-fitted and standing on the bottom edge. `meet`
-          rather than `slice`: slicing a 900-wide box into a short hero
-          cropped the head clean off. `--hero-figure-opacity` is 1 in dark
-          mode — flattening the SVG's own backlight and body together with
-          one opacity is what made an early version invisible — but light
-          mode wants the whole figure fainter, not just dissolved sooner by
-          the veil, so it gets its own lower value there. */}
+      {/* The emblem, centred behind the headline. `--hero-figure-opacity` is
+          1 in dark mode and lower on paper, where the same artwork otherwise
+          competes with dark type. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-10 bottom-0 -z-20 flex justify-center"
         style={{ opacity: "var(--hero-figure-opacity)" }}
       >
-        <HeroFigure className="h-full w-auto" />
+        <HeroEmblem />
       </div>
 
       {/* The veil. Three stops, following the reference: it lifts off the top
@@ -100,7 +96,7 @@ export function Hero({
           <span className="nt-gold-shine">graded</span>.
         </h1>
 
-        <p className="mx-auto mt-5 max-w-[56ch] text-[clamp(0.95rem,1.6vw,1.075rem)] leading-relaxed text-[var(--color-text-dim)] text-balance">
+        <p className="hero-copy mx-auto mt-5 max-w-[56ch] text-[clamp(1rem,1.7vw,1.15rem)] leading-relaxed font-medium text-[var(--color-text)] text-balance">
           The best AI prediction site for football: free predictions and betting
           tips from a calibrated engine that blends three independent estimators
           across seven markets. Every pick is graded against the final score and
@@ -125,7 +121,7 @@ export function Hero({
         </div>
 
         {(live || backtest) && (
-          <p className="mx-auto mt-6 max-w-[62ch] text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+          <p className="hero-copy mx-auto mt-6 max-w-[62ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
             {live && (
               <>
                 Live record
