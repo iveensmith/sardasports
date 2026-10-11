@@ -27,7 +27,11 @@ const ITEMS: Array<{ term: string; body: string }> = [
   },
   {
     term: "Best tip",
-    body: "The single pick the engine leads with for the fixture, chosen from every market it priced: the likeliest call among those that beat how often their market lands in that competition anyway (corners and cards by a wider margin, as their probabilities have run high), or simply the likeliest where none do.",
+    body: "The single pick the engine leads with for the fixture: the likeliest call among those that beat how often their market lands in that competition anyway, or simply the likeliest where none do. Corners and cards are priced and listed on the match page but are never the best tip.",
+  },
+  {
+    term: "Draw no bet (DNB)",
+    body: "Back one side to win. If the match is drawn the stake is returned, so a draw is neither a win nor a loss and is left out of the win rate. Its percentage is the chance that side wins given that the match is not drawn: the home win divided by home plus away.",
   },
   {
     term: "Confidence",

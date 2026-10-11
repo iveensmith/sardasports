@@ -38,6 +38,7 @@ const SPORT_BADGE: Record<string, string> = {
 const MARKET_COLOR: Record<string, string> = {
   match_result: "var(--color-home)",
   double_chance: "var(--color-draw)",
+  dnb: "var(--color-draw)",
   goals: "var(--color-gold-bright)",
   btts: "var(--color-gold-bright)",
   ht_goals: "var(--color-gold-bright)",

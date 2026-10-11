@@ -111,6 +111,8 @@ export interface DayBoard {
     predicted: number;
     upcoming: number;
     finished: number;
+    /** Best tips that were won or lost: a refunded draw is not in this count. */
+    settled?: number;
     won: number;
     /** Tips the engine rated 70% or more before kick-off: a subset of the above. */
     strong_finished?: number;

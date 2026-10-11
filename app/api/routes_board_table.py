@@ -154,7 +154,10 @@ def _build_board(
         groups[name]["rows"].append(row)
 
     played = [r for r in rows if r["score"] is not None]
-    strong_played = [r for r in played if (r["best_tip"] or {}).get("strong")]
+    # A refunded draw (draw no bet) or an unrecorded statistic is void: not a win and not a
+    # loss, so it is out of the rate. `finished` stays "matches that have a score".
+    settled = [r for r in played if (r["best_tip"] or {}).get("outcome") in ("won", "lost")]
+    strong_played = [r for r in settled if r["best_tip"].get("strong")]
     return {
         "date": target.isoformat(),
         "counts": {
@@ -165,7 +168,8 @@ def _build_board(
             "predicted": sum(1 for r in rows if r["best_tip"] is not None),
             "upcoming": sum(1 for r in rows if r["score"] is None),
             "finished": len(played),
-            "won": sum(1 for r in played if is_won(r)),
+            "settled": len(settled),
+            "won": sum(1 for r in settled if is_won(r)),
             # The tips the engine rated 70% or more before kick-off: a subset of the above.
             "strong_finished": len(strong_played),
             "strong_won": sum(1 for r in strong_played if is_won(r)),

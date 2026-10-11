@@ -50,8 +50,8 @@ const STAGES: Array<{ title: string; body: string[] }> = [
   {
     title: "One analysis, many markets",
     body: [
-      "The same underlying probabilities price several markets: match result, double chance, goals over and under several lines, both teams to score, and, for competitions that record them, corners and cards. Double chance is derived from the match-result probabilities, so it cannot disagree with them.",
-      "Each market also has a base rate: how often it lands across the completed matches on record in that competition, since over 8.5 corners or over 3.5 cards is routine in one league and rare in another. A pick that merely restates that rate says little, so the best tip for a fixture favours the likeliest call among those that beat their base rate, and falls back to the likeliest overall where none do. Corners and cards must beat theirs by a wider margin, because in the graded record their probabilities have run about five points above how often they came in.",
+      "The same underlying probabilities price several markets: match result, double chance, draw no bet, goals over and under several lines, both teams to score, and, for competitions that record them, corners and cards. Double chance and draw no bet are derived from the match-result probabilities, so they cannot disagree with them.",
+      "Each market also has a base rate: how often it lands across the completed matches on record in that competition, since over 8.5 corners or over 3.5 cards is routine in one league and rare in another. A pick that merely restates that rate says little, so the best tip for a fixture favours the likeliest call among those that beat their base rate, and falls back to the likeliest overall where none do. Corners and cards are priced but are never offered as the best tip. A draw no bet pick returns the stake on a draw, so a draw counts as neither a win nor a loss and is reported separately.",
     ],
   },
   {

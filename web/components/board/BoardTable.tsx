@@ -88,10 +88,15 @@ function OutcomeMark({ outcome }: { outcome: Outcome }) {
   );
 }
 
-function srOutcome(outcome: Outcome) {
+function srOutcome(outcome: Outcome, market?: string) {
   if (outcome === "won") return " (won)";
   if (outcome === "lost") return " (lost)";
-  if (outcome === "void") return "  (not settled: stat not recorded)";
+  if (outcome === "void") {
+    // Draw no bet returns the stake on a draw; elsewhere a void is a statistic nobody recorded.
+    return market === "dnb"
+      ? " (draw: stake returned)"
+      : "  (not settled: stat not recorded)";
+  }
   return "";
 }
 
@@ -119,7 +124,7 @@ function TipCell({
       >
         {tip.short_label}
         <OutcomeMark outcome={tip.outcome} />
-        <span className="sr-only">{srOutcome(tip.outcome)}</span>
+        <span className="sr-only">{srOutcome(tip.outcome, tip.market)}</span>
         {markStrong && tip.strong && (
           <span
             className="ml-1 text-[10px] text-[var(--color-gold-bright)]"

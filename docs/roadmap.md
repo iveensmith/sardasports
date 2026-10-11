@@ -3008,3 +3008,41 @@ wins 86.0% (22%). The stated probabilities are honest at every level (a tip clai
 
 **Legacy rows.** Predictions stored before this change were made by the old engine and are now read
 without a correction, so their home probability reads up to two points high; new ones are right.
+
+## Corners and cards out of the best tip; draw no bet in (11 Oct 2026)
+
+**The ask.** No corners or cards as the best tip, other markets in, and add draw no bet (DNB).
+
+**Built.**
+- `ml/markets.HEADLINE_EXCLUDED_MARKETS = {corners, cards}`: they are never *the* best tip and a fixture
+  with nothing else has none. They are still priced, still listed per market on the match page and
+  still graded in the market breakdown. The lift bars that used to hold them back
+  (`MARKET_MIN_HEADLINE_LIFT`) are gone; they had no remaining job.
+- `DNB` market (`dnb:home`, `dnb:away`, shorthand "1 DNB" / "2 DNB"): the probability is home / (home +
+  away), i.e. the chance a side wins given that someone does; derived from the match-result
+  probabilities, so it cannot disagree with them. Judged against the base rate of the same
+  conditional (`app/services/base_rates.py`). No bookmaker DNB price is stored, so it shows its own
+  fair price, flagged as an estimate.
+- Grading: a draw returns the stake, so it settles **void**, not lost, and (like an unrecorded
+  statistic) is kept out of the win rate and reported separately. The day tile, the strip, the track
+  record and the strong-tip record all count only won and lost; `counts.settled` carries that
+  denominator.
+- Copy updated (FAQ, how it works, glossary with a DNB entry, About corrections).
+
+**Measured on 2,225 graded predictions (same fixtures, the three rule sets):**
+
+| | won of settled | refunded draws | strong tips (70%+) won |
+|---|---|---|---|
+| before (corners and cards allowed) | 68.0% | 1.4% | 83.4% |
+| corners and cards out | 65.8% | 0% | 80.8% |
+| corners and cards out, DNB added | **72.7%** | 12.2% | 80.9% |
+
+Taking corners and cards out costs about 2 points (card tips, in particular, won 73 to 75% of the
+time). DNB more than recovers it, and it also leaves fewer outright losses: a draw that used to
+lose a Home pick is now a refund. Of every 100 best tips, about 64 win, 24 lose and 12 are refunded.
+
+**What to know.** DNB becomes about half of the best tips (49% of the sample; the straight match-result
+pick almost disappears, because "home given a winner" is always likelier than "home wins"). It is
+the right comparison for what a bettor gets, but it is a different bet from a straight win, and the
+win rate is of tips that were settled. If DNB should not crowd out straight picks, a higher bar for it
+(as double chance has) is a one-line change in `ml/markets.py`.

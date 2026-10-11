@@ -89,7 +89,7 @@ export function Faq({
     },
     {
       q: "How is the best tip chosen?",
-      a: "From every market priced for the fixture, the engine takes the likeliest pick among those that beat how often that market lands anyway, measured in the fixture's own competition: over 8.5 corners is routine in one league and rare in another, so a corner line is only a finding if it beats its own league's rate. Corners and cards have to beat it by more than other markets, because their probabilities have run about five points high in the record. Where nothing qualifies, the likeliest pick overall is shown.",
+      a: "From the markets priced for the fixture, the engine takes the likeliest pick among those that beat how often that market lands anyway, measured in the fixture's own competition: over 2.5 goals is routine in one league and rare in another, so a line is only a finding if it beats its own league's rate. Draw no bet is one of the markets: back a side and the stake is returned on a draw, which is why a draw is left out of the win rate. Corners and cards are priced and listed on the match page but are never the best tip. Where nothing qualifies, the likeliest pick overall is shown.",
     },
     {
       q: "What is a banker?",

@@ -37,6 +37,10 @@ from dataclasses import dataclass
 # strings rather than an enum, because they are serialised to the API.
 MATCH_RESULT = "match_result"
 DOUBLE_CHANCE = "double_chance"
+# Draw no bet: back one side, and the stake is returned if the match is drawn. Its probability is
+# the chance the side wins *given the match is not drawn*, home / (home + away), which is why a
+# draw settles it as void rather than lost (see `app.services.settlement`).
+DNB = "dnb"
 GOALS = "goals"
 BTTS = "btts"
 HT_GOALS = "ht_goals"
@@ -47,6 +51,7 @@ CARDS = "cards"
 MARKET_NAMES = {
     MATCH_RESULT: "Match result",
     DOUBLE_CHANCE: "Double chance",
+    DNB: "Draw no bet",
     GOALS: "Goals",
     BTTS: "Both teams to score",
     HT_GOALS: "Half-time goals",
@@ -57,7 +62,7 @@ MARKET_NAMES = {
 # of it, there is nothing to price the market from, so it is not called there at all.
 STAT_MARKETS = frozenset({HT_GOALS, CORNERS, CARDS})
 
-MARKET_ORDER = [MATCH_RESULT, DOUBLE_CHANCE, GOALS, BTTS, HT_GOALS, CORNERS, CARDS]
+MARKET_ORDER = [MATCH_RESULT, DOUBLE_CHANCE, DNB, GOALS, BTTS, HT_GOALS, CORNERS, CARDS]
 
 
 # Bookmaker shorthand, for the board's fixed-width market columns.
@@ -72,6 +77,8 @@ SHORT_CODES: dict[str, str] = {
     f"{DOUBLE_CHANCE}:home_draw": "1X",
     f"{DOUBLE_CHANCE}:away_draw": "X2",
     f"{DOUBLE_CHANCE}:home_away": "12",
+    f"{DNB}:home": "1 DNB",
+    f"{DNB}:away": "2 DNB",
     f"{BTTS}:yes": "Yes",
     f"{BTTS}:no": "No",
 }
@@ -164,6 +171,13 @@ def candidate_calls(prediction: dict | None) -> list[Call]:
             Call(DOUBLE_CHANCE, "away_draw", "Away or draw", away + draw),
             Call(DOUBLE_CHANCE, "home_away", "Home or away", home + away),
         ]
+        # Draw no bet: a side to win, with the stake back on a draw. The two outcomes it covers
+        # are the ones above, conditioned on there being a winner, so it is derived, not modelled.
+        if home + away > 0:
+            calls += [
+                Call(DNB, "home", "Home (draw no bet)", home / (home + away) * 100.0),
+                Call(DNB, "away", "Away (draw no bet)", away / (home + away) * 100.0),
+            ]
 
     btts_yes, btts_no = _number(prediction.get("btts_yes")), _number(prediction.get("btts_no"))
     if btts_yes is not None and btts_no is not None:
@@ -224,30 +238,6 @@ MIN_HEADLINE_LIFT = 5.0
 # double chance instead of double chance crowding out the other two.
 DOUBLE_CHANCE_MIN_HEADLINE_LIFT = 20.0
 
-# The same bar, held higher for corners and cards, where the model has measurably overstated
-# what it knows.
-#
-# Measured on every graded stored prediction, judged against each competition's own rates: a
-# match-result, double-chance or goals call that claimed a lift of five to ten points realised
-# about that much (over 400 to 1,000 calls in each), while corners claimed 7.0 and realised
-# 2.4 (1,475 calls), and cards claimed 6.8 and realised 4.8 (1,140). The corner probabilities
-# run about five points too high at every level, so a corner line "beating its base rate by 5"
-# has usually not beaten it at all, and because the lines are ladders (over 7.5, 8.5, 9.5
-# corners; over 2.5, 3.5, 4.5 cards) there are always several easy ones with a high
-# probability to win the headline. Asking these two markets for a larger claimed lift is the
-# same rule as for double chance: it keeps the likeliest call that has really earned its
-# place, and lets a market that has earned more of the claim it makes lead instead.
-#
-# Corner probabilities are now recalibrated when read (`app/services/count_calibration.py`),
-# which removed most of the overstatement, so this bar no longer has to carry the whole
-# correction. It stays for two measured reasons (`scripts/measure_headline_mix.py`, 2,119
-# graded predictions): lowering the corner bar to 5 to 7.5 adds headlines that came in only
-# about 30% to 50% of the time (the share that hit falls from 68% to 61%), and card headlines
-# win about 73% of the time at any bar, so their bar of 8 is not about accuracy: it keeps
-# cards at roughly one headline in seven instead of one in four, so that other markets can
-# lead too.
-MARKET_MIN_HEADLINE_LIFT = {CORNERS: 10.0, CARDS: 8.0}
-
 # A best tip the engine rates at least this likely is a "strong tip".
 #
 # Measured on 2,117 graded best tips, the engine's stated probabilities are honest: tips it put
@@ -262,6 +252,15 @@ STRONG_TIP_MIN_PROBABILITY = 70.0
 def is_strong_tip(probability: float | None) -> bool:
     return probability is not None and probability >= STRONG_TIP_MIN_PROBABILITY
 
+
+# Markets that never lead a row, whatever their probability or lift.
+#
+# Corners and cards are still priced, still listed on the match page and still graded in the
+# market breakdown, but they are not offered as *the* best tip. The decision is the owner's, and
+# the record supports it: they were the weakest part of the headline (corner headlines won less
+# often than their claim even after calibration, and a league with many corners or cards had them
+# taking most of its best tips), and leaving them out costs the record nothing measurable.
+HEADLINE_EXCLUDED_MARKETS = frozenset({CORNERS, CARDS})
 
 # Selections that never lead a row whatever their probability.
 #
@@ -352,7 +351,6 @@ def _pick(
     entries: list[RankedCall],
     *,
     double_chance_min_lift: float | None = None,
-    market_min_lift: dict[str, float] | None = None,
 ) -> RankedCall | None:
     """The likeliest call that clears the lift bar, else the likeliest.
 
@@ -380,8 +378,6 @@ def _pick(
     def _bar(entry: RankedCall) -> float:
         if double_chance_min_lift is not None and entry.call.market == DOUBLE_CHANCE:
             return double_chance_min_lift
-        if market_min_lift is not None and entry.call.market in market_min_lift:
-            return market_min_lift[entry.call.market]
         return MIN_HEADLINE_LIFT
 
     eligible = [e for e in allowed if e.lift is not None and e.lift >= _bar(e)]
@@ -433,6 +429,7 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     nobody, and the honest version of "we have no strong read here" is a
     modest number shown modestly, not an absence.
     """
+    ranked = [r for r in ranked if r.call.market not in HEADLINE_EXCLUDED_MARKETS]
     if not ranked:
         return None
     # Not quite the rule each market column uses — double chance answers to
@@ -444,5 +441,4 @@ def headline_call(ranked: list[RankedCall]) -> RankedCall | None:
     return _pick(
         ranked,
         double_chance_min_lift=DOUBLE_CHANCE_MIN_HEADLINE_LIFT,
-        market_min_lift=MARKET_MIN_HEADLINE_LIFT,
     )

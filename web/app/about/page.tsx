@@ -255,6 +255,21 @@ export default async function AboutPage() {
           </p>
           <div className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
             <p className="text-[13px] font-semibold text-[var(--color-text)]">
+              11 October 2026: corners and cards out, draw no bet in
+            </p>
+            <p className="mt-2">
+              Corners and cards are no longer offered as the best tip; they are
+              still priced and listed on each match page. Draw no bet joined the
+              markets a best tip can come from. A draw returns the stake on that
+              pick, so it is neither a win nor a loss and is reported separately
+              from the win rate, as an unrecorded statistic already was. On the
+              graded predictions the same fixtures would have read 65.8% won
+              with corners and cards removed and 72.7% of settled tips with draw
+              no bet added, with 12.2% of tips refunded on a draw.
+            </p>
+          </div>
+          <div className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
+            <p className="text-[13px] font-semibold text-[var(--color-text)]">
               10 October 2026: how the best tip is chosen
             </p>
             <p className="mt-2">

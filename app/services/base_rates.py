@@ -35,6 +35,7 @@ from ml.markets import (
     BTTS,
     CARDS,
     CORNERS,
+    DNB,
     DOUBLE_CHANCE,
     GOALS,
     HT_GOALS,
@@ -117,6 +118,10 @@ def _rates_from_row(row, min_sample: int) -> dict[str, float]:
         put(f"{DOUBLE_CHANCE}:home_draw", home + draw)
         put(f"{DOUBLE_CHANCE}:away_draw", away + draw)
         put(f"{DOUBLE_CHANCE}:home_away", home + away)
+        # Draw no bet is judged against how often a side wins when there is a winner.
+        if home + away > 0:
+            put(f"{DNB}:home", home / (home + away))
+            put(f"{DNB}:away", away / (home + away))
 
     put(f"{BTTS}:yes", row["btts_yes"])
     if row["btts_yes"] is not None:

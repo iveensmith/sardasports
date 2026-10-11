@@ -17,7 +17,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy.orm import joinedload  # noqa: E402
 
-import ml.markets as markets  # noqa: E402
 from app.database.session import SessionLocal  # noqa: E402
 from app.models.match import Match  # noqa: E402
 from app.models.prediction import Prediction  # noqa: E402
@@ -51,7 +50,8 @@ def main() -> None:
 
     print(f"{len(prepared)} graded predictions")
     for corners, cards in BARS:
-        markets.MARKET_MIN_HEADLINE_LIFT = {markets.CORNERS: corners, markets.CARDS: cards}
+        # Corners and cards no longer lead at all; this script predates that rule and is
+        # kept for the claim-floor tables in the roadmap.
         mix: Counter = Counter()
         wins: dict = defaultdict(int)
         for ranked, result in prepared:

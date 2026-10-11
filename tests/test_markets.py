@@ -26,7 +26,6 @@ from ml.markets import (
     DOUBLE_CHANCE_MIN_HEADLINE_LIFT,
     GOALS,
     HEADLINE_EXCLUDED,
-    MARKET_MIN_HEADLINE_LIFT,
     MATCH_RESULT,
     MIN_HEADLINE_LIFT,
     NOTABLE_LIFT,
@@ -83,7 +82,7 @@ def _ranked(prediction=SPAIN_CROATIA, rates=BASE_RATES):
 
 def test_every_market_the_engine_prices_becomes_a_call():
     markets = {call.market for call in candidate_calls(SPAIN_CROATIA)}
-    assert markets == {"match_result", "double_chance", "goals", "btts", "ht_goals"}
+    assert markets == {"match_result", "double_chance", "dnb", "goals", "btts", "ht_goals"}
 
 
 def test_a_market_the_engine_could_not_price_produces_no_call():
@@ -301,9 +300,9 @@ def test_a_call_with_no_base_rate_cannot_lead_while_a_measured_one_can():
 
 
 def test_an_unmeasurable_call_still_leads_when_it_is_all_there_is():
-    calls = [Call("corners", "over_7.5", "Over 7.5 corners", 91.0)]
+    calls = [Call(GOALS, "over_1.5", "Over 1.5 goals", 91.0)]
     head = headline_call(rank_calls(calls, {}))
-    assert head.call.selection == "over_7.5"
+    assert head.call.selection == "over_1.5"
     assert head.lift is None
 
 
@@ -346,7 +345,7 @@ def test_best_per_market_never_repeats_a_market():
 
 def test_best_per_market_is_in_reading_order_not_score_order():
     markets = [r.call.market for r in best_per_market(_ranked())]
-    assert markets == ["match_result", "double_chance", "goals", "btts", "ht_goals"]
+    assert markets == ["match_result", "double_chance", "dnb", "goals", "btts", "ht_goals"]
 
 
 def test_over_and_under_are_both_candidates_so_a_low_line_can_win():
@@ -383,35 +382,40 @@ def test_the_exclusion_holds_even_when_nothing_else_qualifies():
 # --- corners and cards must earn a larger lift to lead ------------------------------------------
 
 
-def test_corners_and_cards_need_a_bigger_lift_than_goals_to_lead():
-    """Measured: corner calls that claimed a 5 to 10 point lift realised under 3, and the
-    lines are ladders with several easy, high-probability rungs. They used to take most best
-    tips in corner-heavy and card-heavy leagues."""
-    rates = {**BASE_RATES, "corners:over_8.5": 60.0, "cards:over_3.5": 50.0}
+def test_corners_and_cards_never_lead_however_likely_or_notable():
+    """The owner's rule. They are still priced and listed, but not offered as the best tip."""
+    rates = {**BASE_RATES, "corners:over_8.5": 50.0, "cards:over_3.5": 40.0}
     calls = [
-        Call(GOALS, "over_2.5", "Over 2.5 goals", 58.0),  # +7.4: clears the ordinary bar
-        Call("corners", "over_8.5", "Over 8.5 corners", 68.0),  # +8.0: clears 5, not 10
-        Call("cards", "over_3.5", "Over 3.5 cards", 60.0),  # +10.0: clears 5, and 8
+        Call(GOALS, "over_2.5", "Over 2.5 goals", 55.0),  # +4.4: below the bar, but all there is
+        Call("corners", "over_8.5", "Over 8.5 corners", 90.0),  # +40
+        Call("cards", "over_3.5", "Over 3.5 cards", 85.0),  # +45
     ]
 
-    # Corners alone cannot lead on +8: they need MARKET_MIN_HEADLINE_LIFT["corners"].
-    assert MARKET_MIN_HEADLINE_LIFT["corners"] > 8.0
     lead = headline_call(rank_calls(calls, rates))
-    assert lead.call.market == "cards"  # the likeliest of those that earned their place, 60 > 58
 
-    # The goals call beats a corners call that has not earned a place, however likely.
-    only_goals_and_corners = [calls[0], calls[1]]
-    assert headline_call(rank_calls(only_goals_and_corners, rates)).call.market == GOALS
+    assert lead.call.market == GOALS
 
 
-def test_a_corner_call_with_a_real_lift_can_still_lead():
-    rates = {**BASE_RATES, "corners:over_8.5": 55.0}
+def test_a_fixture_with_only_corners_and_cards_has_no_best_tip():
+    rates = {"corners:over_8.5": 50.0, "cards:over_3.5": 40.0}
     calls = [
-        Call(GOALS, "over_2.5", "Over 2.5 goals", 58.0),  # +7.4
-        Call("corners", "over_8.5", "Over 8.5 corners", 70.0),  # +15
+        Call("corners", "over_8.5", "Over 8.5 corners", 90.0),
+        Call("cards", "over_3.5", "Over 3.5 cards", 85.0),
     ]
 
-    assert headline_call(rank_calls(calls, rates)).call.market == "corners"
+    assert headline_call(rank_calls(calls, rates)) is None
+
+
+def test_corners_and_cards_are_still_listed_per_market_for_the_match_page():
+    rates = {**BASE_RATES, "corners:over_8.5": 50.0, "cards:over_3.5": 40.0}
+    calls = [
+        Call("corners", "over_8.5", "Over 8.5 corners", 70.0),
+        Call("cards", "over_3.5", "Over 3.5 cards", 65.0),
+    ]
+
+    columns = best_per_market(rank_calls(calls, rates))
+
+    assert [c.call.market for c in columns] == ["corners", "cards"]
 
 
 def test_a_market_column_is_unaffected_by_the_headline_bar():

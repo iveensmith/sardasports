@@ -74,6 +74,7 @@ export interface Progress {
 const MARKET_NAMES: Record<string, string> = {
   match_result: "Match result",
   double_chance: "Double chance",
+  dnb: "Draw no bet",
   goals: "Goals",
   btts: "Both teams to score",
   ht_goals: "Half-time goals",

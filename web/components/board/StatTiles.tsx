@@ -46,10 +46,10 @@ function Tile({
 }
 
 export function StatTiles({ counts }: { counts: DayBoard["counts"] }) {
-  const settled = counts.finished > 0;
-  const winRate = settled
-    ? Math.round((counts.won / counts.finished) * 100)
-    : null;
+  // Won out of the tips that were won or lost; a refunded draw is held apart, as everywhere.
+  const gradedCount = counts.settled ?? counts.finished;
+  const settled = counts.finished > 0 && gradedCount > 0;
+  const winRate = settled ? Math.round((counts.won / gradedCount) * 100) : null;
   // The headline figure is the tips the engine was surest of (rated 70% or more before
   // kick-off); the all-tips figure stays on the tile so nothing is hidden.
   const strongFinished = counts.strong_finished ?? 0;
@@ -73,13 +73,13 @@ export function StatTiles({ counts }: { counts: DayBoard["counts"] }) {
         <Tile
           label="Strong tips won"
           value={`${strongWon}/${strongFinished}`}
-          note={`${Math.round((strongWon / strongFinished) * 100)}% of tips rated 70%+. All ${counts.finished} best tips: ${counts.won} won`}
+          note={`${Math.round((strongWon / strongFinished) * 100)}% of tips rated 70%+. All ${gradedCount} best tips: ${counts.won} won`}
           accent="var(--color-won)"
         />
       ) : settled ? (
         <Tile
           label="Best tips won"
-          value={`${counts.won}/${counts.finished}`}
+          value={`${counts.won}/${gradedCount}`}
           note={winRate === null ? undefined : `${winRate}% of settled`}
           accent="var(--color-won)"
         />

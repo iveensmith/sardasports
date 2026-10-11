@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
 
-from ml.markets import BTTS, CARDS, CORNERS, DOUBLE_CHANCE, GOALS, HT_GOALS, MATCH_RESULT
+from ml.markets import BTTS, CARDS, CORNERS, DNB, DOUBLE_CHANCE, GOALS, HT_GOALS, MATCH_RESULT
 
 
 class Outcome(StrEnum):
@@ -142,6 +142,15 @@ def settle(market: str, selection: str, result: MatchResult) -> Outcome:
         if covered is None:
             return Outcome.VOID
         return Outcome.WON if result.winner in covered else Outcome.LOST
+
+    if market == DNB:
+        if selection not in ("home", "away"):
+            return Outcome.VOID
+        # A draw returns the stake: not a win, and not a loss, so it is held apart from the rate
+        # exactly as an unrecorded statistic is.
+        if result.winner == "draw":
+            return Outcome.VOID
+        return Outcome.WON if result.winner == selection else Outcome.LOST
 
     if market == BTTS:
         if selection == "yes":
