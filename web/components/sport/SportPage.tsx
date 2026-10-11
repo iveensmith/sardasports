@@ -153,6 +153,52 @@ function pct(count: { settled: number; won: number }): string {
     : `${((count.won / count.settled) * 100).toFixed(1)}%`;
 }
 
+function MarketsRecord({ record }: { record: SportRecord }) {
+  const rows = Object.entries(record.markets ?? {}).filter(
+    ([, m]) => m.live.settled + m.reconstructed.settled >= 20,
+  );
+  if (rows.length === 0) return null;
+  return (
+    <div className={`${card} overflow-x-auto`}>
+      <table className="w-full min-w-[520px] border-collapse text-[14px]">
+        <caption className="px-4 pt-3 text-left text-[12.5px] text-[var(--color-text-faint)]">
+          How often the call the engine would back on each extra market came in
+          (the line nearest a coin flip). Stored in advance is counted apart
+          from reconstructed.
+        </caption>
+        <thead>
+          <tr className="text-left text-[12px] text-[var(--color-text-faint)]">
+            <th className="px-4 py-3 font-medium">Market</th>
+            <th className="px-4 py-3 font-medium">Stored before the match</th>
+            <th className="px-4 py-3 font-medium">Reconstructed</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([id, m]) => (
+            <tr key={id} className="border-t border-[var(--color-line)]">
+              <th scope="row" className="px-4 py-3 text-left font-medium">
+                {m.name}
+              </th>
+              <td className="px-4 py-3 tabular-nums">
+                {m.live.won} of {m.live.settled}{" "}
+                <span className="text-[var(--color-text-dim)]">
+                  ({pct(m.live)})
+                </span>
+              </td>
+              <td className="px-4 py-3 tabular-nums">
+                {m.reconstructed.won} of {m.reconstructed.settled}{" "}
+                <span className="text-[var(--color-text-dim)]">
+                  ({pct(m.reconstructed)})
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function RecordTable({
   record,
   sport,
@@ -341,6 +387,7 @@ export function SportPage({
               The record so far
             </SectionTitle>
             <RecordTable record={record} sport={sport} />
+            <MarketsRecord record={record} />
           </section>
         )}
 

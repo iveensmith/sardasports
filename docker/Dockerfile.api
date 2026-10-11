@@ -36,6 +36,11 @@ COPY alembic ./alembic
 COPY alembic.ini ./
 RUN uv sync --frozen --no-dev
 
+# openpyxl reads the tennis workbooks and is declared in pyproject.toml, but uv.lock predates it,
+# so a frozen sync does not install it. It is installed here, after the sync (which would remove
+# it again if it came first). Drop this line once `uv lock` has been run.
+RUN uv pip install --python /app/.venv/bin/python "openpyxl>=3.1"
+
 
 FROM python:3.12-slim AS runtime
 

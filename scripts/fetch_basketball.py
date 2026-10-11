@@ -47,6 +47,7 @@ from app.database.session import SessionLocal
 from app.models.match import Match
 from app.models.team import Team
 from app.utils.config import get_settings
+from ml.period_scores import basketball_periods
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -114,6 +115,7 @@ def _rows_from_items(items: list[dict], competition: str, season: str) -> list[d
                 "away_team": away,
                 "home_score": int(home_total),
                 "away_score": int(away_total),
+                "period_scores": basketball_periods(scores),
             }
         )
     return rows
@@ -155,6 +157,7 @@ def load_rows(session, rows: list[dict]) -> int:
                 away_team_id=away.id,
                 home_score=row["home_score"],
                 away_score=row["away_score"],
+                period_scores=row.get("period_scores"),
                 # Football-only stats stay NULL rather than 0 — see module
                 # docstring. A zero here would read as "no corners taken",
                 # not "this sport has no corners".

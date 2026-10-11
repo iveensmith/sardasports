@@ -3046,3 +3046,54 @@ pick almost disappears, because "home given a winner" is always likelier than "h
 the right comparison for what a bettor gets, but it is a different bet from a straight win, and the
 win rate is of tips that were settled. If DNB should not crowd out straight picks, a higher bar for it
 (as double chance has) is a one-line change in `ml/markets.py`.
+
+## Basketball and tennis: every market that can be priced honestly (11 Oct 2026)
+
+**The ask.** Over/under for each quarter, each half, full time and each team; and for tennis, the
+many markets beyond a winner. Not just home win or away win.
+
+**What decides whether a market can exist.** It must be priceable from, and gradable against, real
+period results. So the first step was data: `matches.period_scores` (migration `b2c3d4e5f6a7`,
+`ml/period_scores.py`), filled by `scripts/backfill_period_scores.py` from files already on disk (no
+API requests): quarter scores for 35,866 basketball games (99.9% of those finished; quarters plus
+overtime equal the final score in all of them) and set-by-set games for 80,130 tennis matches (42
+rows whose sets contradicted the recorded result were dropped). The live feeds (API-Basketball, ESPN)
+now store the same detail going forward.
+
+**Basketball** (`ml/basketball_markets.py`, profiles in `ml/basketball_period_profiles.json`, fitted
+and evaluated by `scripts/fit_basketball_period_profiles.py`): home and away team totals, 1st and 2nd
+half totals and winners, each quarter's total and winner, and the full-game spread (overtime included),
+in addition to the existing game total. Three over/under lines per market (always x.5), derived from
+the engine's expected points for each side and the league's own period shares and spread. A league's
+format is read from the data: 12,124 games (NCAA) are recorded in two halves, so they get halves
+and never a "quarter 1". Winner markets include the tie probability (a tie is a real outcome in a
+quarter) and follow the moneyline. **Out of sample (7,578 games after Sep 2024):** claimed 33% / 50% /
+67% happened 31-32% / 50% / 66-68% for totals, team totals and the spread; period winners claimed
+79-80% happened 76% (a fitted shrink, slope 0.88, brought them within 1 to 3 points).
+
+**Tennis** (`ml/tennis_markets.py`, parameters in `ml/tennis_market_params.json`, fitted and
+evaluated by `scripts/fit_tennis_markets.py` on 72,598 matches): correct score in sets (3 or 5 set
+format), total sets, set handicap, home/away player to win at least one set, first set winner,
+first set total games, game handicap, and tiebreak in the match; total games keeps its trained model.
+Everything is built conditional on who wins, so the home set scores sum exactly to the match win
+probability. **Out of sample (13,154 matches since Jan 2024):** set markets within 1 to 2 points at
+every band (e.g. a claimed 70% to win a set happened 71%, straight-sets scores 26%->26%, 14%->15%),
+first set winner 67->66, game handicap 34->32 and 66->68, tiebreak 29->31, 45->48; the weakest is
+total sets over (claimed 54% happened 58%, n=1,216).
+
+**Honesty notes.** Every one of these is `source: "statistical"`: a distribution around an
+expectation with measured spread, not a model trained per line, and the board says so. The tennis
+calibrations were fitted on Elo-only probabilities, so they are if anything slightly conservative for
+the live Elo+model blend. Predictions stored before this change carry no markets (they were not priced
+then); new ones do, and a day with no stored rows shows them freshly calculated.
+
+**Where it shows.** Each match on the basketball and tennis boards has an "All markets" panel with
+every line's probability and, once the match is over, a tick on the side that came in. The sport
+page's record section adds a per-market accuracy table (the call nearest a coin flip on each market,
+stored-in-advance kept apart from reconstructed).
+
+**To deploy.** `git pull`, rebuild, then once on the server:
+`alembic upgrade head` and `python -m scripts.backfill_period_scores` (both inside the api container).
+The image also needed `openpyxl` (it reads the tennis workbooks, was missing from the lockfile, so the
+server's tennis workbook refresh could not have run): installed in `docker/Dockerfile.api`; run
+`uv lock` when convenient and drop that line.

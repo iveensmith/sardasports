@@ -11,6 +11,7 @@
 
 import Link from "next/link";
 import { CountryMark } from "@/components/board/CountryMark";
+import { SportMarkets } from "@/components/sport/SportMarkets";
 import { matchPath } from "@/lib/seo";
 import {
   ageLabel,
@@ -128,99 +129,113 @@ function Row({
         : null;
 
   return (
-    <tr className="border-t border-[var(--color-line)] align-top">
-      <td className="px-4 py-3 whitespace-nowrap text-[13px] tabular-nums text-[var(--color-text-dim)]">
-        {kickoffTime(match.kickoff)}
-      </td>
-      <td className="px-4 py-3">
-        <Link
-          href={matchPath(match.home, match.away, match.match_id)}
-          className="font-medium hover:text-[var(--color-gold-bright)]"
-        >
-          {match.home} <span className="text-[var(--color-text-faint)]">v</span>{" "}
-          {match.away}
-        </Link>
-        {match.surface && (
-          <span className="block text-[12px] text-[var(--color-text-faint)]">
-            {match.surface.toLowerCase()}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3">
-        <WinBar match={match} />
-      </td>
-      <td className="px-4 py-3">
-        {match.pick ? (
-          <>
-            <span className="font-medium">{match.pick.name}</span>{" "}
-            <span className="tabular-nums text-[var(--color-text-dim)]">
-              {match.pick.probability.toFixed(0)}%
-            </span>
+    <>
+      <tr className="border-t border-[var(--color-line)] align-top">
+        <td className="px-4 py-3 whitespace-nowrap text-[13px] tabular-nums text-[var(--color-text-dim)]">
+          {kickoffTime(match.kickoff)}
+        </td>
+        <td className="px-4 py-3">
+          <Link
+            href={matchPath(match.home, match.away, match.match_id)}
+            className="font-medium hover:text-[var(--color-gold-bright)]"
+          >
+            {match.home}{" "}
+            <span className="text-[var(--color-text-faint)]">v</span>{" "}
+            {match.away}
+          </Link>
+          {match.surface && (
             <span className="block text-[12px] text-[var(--color-text-faint)]">
-              {SOURCE_NOTE[match.source]}
-              {match.ratings_age_days
-                ? `, ratings ${ageLabel(match.ratings_age_days)} old`
-                : ""}
+              {match.surface.toLowerCase()}
             </span>
-          </>
-        ) : (
-          <span className="text-[var(--color-text-faint)]">
-            {SOURCE_NOTE.unpriced}
-          </span>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        {match.total ? (
-          <>
-            <span className="tabular-nums">
-              {match.total.prob_over >= 50 ? "Over" : "Under"}{" "}
-              {match.total.line}
-            </span>
-            <span className="block text-[12px] tabular-nums text-[var(--color-text-dim)]">
-              {Math.round(
-                match.total.prob_over >= 50
-                  ? match.total.prob_over
-                  : 100 - match.total.prob_over,
-              )}
-              %
-              {done && actualTotal !== null
-                ? `, was ${actualTotal} ${totalUnit}`
-                : ""}
-            </span>
-          </>
-        ) : (
-          <span className="text-[var(--color-text-faint)]">–</span>
-        )}
-      </td>
-      <td className="px-4 py-3 whitespace-nowrap">
-        {done ? (
-          <>
-            <span className="tabular-nums">
-              {match.home_score}–{match.away_score}
-            </span>
-            {match.winner_correct !== null && (
-              <span
-                className={`ml-2 text-[12.5px] font-medium ${
-                  match.winner_correct
-                    ? "text-[var(--color-won)]"
-                    : "text-[var(--color-lost)]"
-                }`}
-              >
-                {match.winner_correct ? "Right" : "Wrong"}
+          )}
+        </td>
+        <td className="px-4 py-3">
+          <WinBar match={match} />
+        </td>
+        <td className="px-4 py-3">
+          {match.pick ? (
+            <>
+              <span className="font-medium">{match.pick.name}</span>{" "}
+              <span className="tabular-nums text-[var(--color-text-dim)]">
+                {match.pick.probability.toFixed(0)}%
               </span>
-            )}
-          </>
-        ) : (
-          <span className="text-[var(--color-text-faint)]">
-            {match.in_play
-              ? "In play"
-              : match.overdue
-                ? "No result"
-                : "Upcoming"}
-          </span>
-        )}
-      </td>
-    </tr>
+              <span className="block text-[12px] text-[var(--color-text-faint)]">
+                {SOURCE_NOTE[match.source]}
+                {match.ratings_age_days
+                  ? `, ratings ${ageLabel(match.ratings_age_days)} old`
+                  : ""}
+              </span>
+            </>
+          ) : (
+            <span className="text-[var(--color-text-faint)]">
+              {SOURCE_NOTE.unpriced}
+            </span>
+          )}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          {match.total ? (
+            <>
+              <span className="tabular-nums">
+                {match.total.prob_over >= 50 ? "Over" : "Under"}{" "}
+                {match.total.line}
+              </span>
+              <span className="block text-[12px] tabular-nums text-[var(--color-text-dim)]">
+                {Math.round(
+                  match.total.prob_over >= 50
+                    ? match.total.prob_over
+                    : 100 - match.total.prob_over,
+                )}
+                %
+                {done && actualTotal !== null
+                  ? `, was ${actualTotal} ${totalUnit}`
+                  : ""}
+              </span>
+            </>
+          ) : (
+            <span className="text-[var(--color-text-faint)]">–</span>
+          )}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          {done ? (
+            <>
+              <span className="tabular-nums">
+                {match.home_score}–{match.away_score}
+              </span>
+              {match.winner_correct !== null && (
+                <span
+                  className={`ml-2 text-[12.5px] font-medium ${
+                    match.winner_correct
+                      ? "text-[var(--color-won)]"
+                      : "text-[var(--color-lost)]"
+                  }`}
+                >
+                  {match.winner_correct ? "Right" : "Wrong"}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-[var(--color-text-faint)]">
+              {match.in_play
+                ? "In play"
+                : match.overdue
+                  ? "No result"
+                  : "Upcoming"}
+            </span>
+          )}
+        </td>
+      </tr>
+      {match.markets && match.markets.length > 0 && (
+        <tr>
+          <td colSpan={6} className="p-0">
+            <SportMarkets
+              markets={match.markets}
+              homeLabel={match.home}
+              awayLabel={match.away}
+            />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 

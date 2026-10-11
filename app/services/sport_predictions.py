@@ -27,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Match, SportPrediction, Team
 from app.services.prediction_service import predict_for_matches
+from app.services.sport_markets import attach_results, markets_record
 from ml.basketball_catalogue import by_display_name
 
 logger = logging.getLogger(__name__)
@@ -188,6 +189,7 @@ def _match_entry(match: Match, names: dict[int, str], row, fresh: dict | None) -
             else None
         )
         source = "stored" if row.created_at < match.match_date else "reconstructed"
+        markets = (row.payload or {}).get("markets")
     elif fresh and fresh.get("home_win") is not None and not fresh.get("thin_history"):
         home_win, away_win = fresh["home_win"], fresh["away_win"]
         total = main_total(fresh)
@@ -195,9 +197,11 @@ def _match_entry(match: Match, names: dict[int, str], row, fresh: dict | None) -
         confidence = fresh.get("confidence")
         age = fresh.get("ratings_age_days") if fresh.get("stale_ratings") else None
         source = "calculated"
+        markets = fresh.get("markets")
     else:
         home_win = away_win = total = expected = confidence = age = None
         source = "unpriced"
+        markets = None
 
     home, away = names.get(match.home_team_id, ""), names.get(match.away_team_id, "")
     entry = {
@@ -229,6 +233,9 @@ def _match_entry(match: Match, names: dict[int, str], row, fresh: dict | None) -
         "source": source,
         "winner_correct": None,
         "total_correct": None,
+        # Teams, halves, quarters, spread (basketball); sets, handicaps, first set (tennis).
+        # Each carries its result once the match is over and it can be graded.
+        "markets": attach_results(match.sport, match, markets),
     }
     if home_win is not None:
         side = "home" if home_win >= away_win else "away"
@@ -354,7 +361,11 @@ def sport_record(session: Session, sport: str) -> dict:
     live: list = []
     reconstructed: list = []
     first = None
+    market_rows: list = []
     for row, match in pairs:
+        market_rows.append(
+            (row.created_at < match.match_date, sport, match, (row.payload or {}).get("markets"))
+        )
         graded = _grade(
             match, row.home_win_pct, row.away_win_pct, row.total_line, row.prob_over_pct
         )
@@ -367,6 +378,7 @@ def sport_record(session: Session, sport: str) -> dict:
         "sport": sport,
         "live": _record(live),
         "reconstructed": _record(reconstructed),
+        "markets": markets_record(market_rows),
         "live_since": None if first is None else first.isoformat(),
         "stored_total": session.query(SportPrediction)
         .filter(SportPrediction.sport == sport)

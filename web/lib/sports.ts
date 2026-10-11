@@ -199,6 +199,49 @@ export interface SportBoardMatch {
   source: "stored" | "calculated" | "reconstructed" | "unpriced";
   winner_correct: boolean | null;
   total_correct: boolean | null;
+  /** Team totals, halves, quarters, spread (basketball); sets, handicaps, first set (tennis). */
+  markets?: SportMarket[];
+}
+
+/** One extra market for a match: its lines, and what each settled as once the match is over. */
+export interface SportMarket {
+  id: string;
+  group: string;
+  name: string;
+  type:
+    | "over_under"
+    | "handicap"
+    | "three_way"
+    | "two_way"
+    | "yes_no"
+    | "correct_score";
+  source: string;
+  expected?: number | null;
+  lines?: Array<{
+    line: number;
+    prob_over: number;
+    prob_under: number;
+    prob_home: number;
+    prob_away: number;
+  }>;
+  scores?: Array<{
+    score: string;
+    home_sets: number;
+    away_sets: number;
+    prob: number;
+  }>;
+  home?: number;
+  away?: number;
+  tie?: number;
+  yes?: number;
+  no?: number;
+  /** Present once the match is over and the market could be graded. */
+  result?: {
+    actual?: number | string;
+    lines?: string[];
+    result?: string;
+    scores?: number[];
+  };
 }
 
 export interface SportBoardCompetition {
@@ -228,10 +271,19 @@ export interface RecordCount {
   won: number;
 }
 
+export interface MarketRecord {
+  name: string;
+  group: string;
+  live: RecordCount;
+  reconstructed: RecordCount;
+}
+
 export interface SportRecord {
   sport: OtherSportKey;
   live: { winner: RecordCount; total: RecordCount };
   reconstructed: { winner: RecordCount; total: RecordCount };
+  /** Accuracy of the call the engine would back on each extra market, by market id. */
+  markets?: Record<string, MarketRecord>;
   live_since: string | null;
   stored_total: number;
 }

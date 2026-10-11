@@ -27,6 +27,8 @@ dependencies = [
     "matplotlib>=3.11.2",
     "anthropic>=1.7.0",
     "chromadb>=1.5.9",
+    # Reads the tennis-data workbooks (pandas.read_excel).
+    "openpyxl>=3.1",
 ]
 
 [dependency-groups]

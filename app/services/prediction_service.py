@@ -436,6 +436,7 @@ def _predict_basketball(session: Session, match, home_team, away_team, history=N
         winner_scaler_params=winner_scaler,
         total_models=total_models,
         league_totals=league_totals,
+        competition=match.competition,
     )
 
     return {
@@ -460,6 +461,8 @@ def _predict_basketball(session: Session, match, home_team, away_team, history=N
             }
             for m in result.total_points_markets
         ],
+        # Team totals, halves, quarters and the spread (statistical; see ml.basketball_markets).
+        "markets": result.extra_markets,
         "confidence": result.confidence,
         "confidence_label": result.confidence_label,
         "model_version": model_version.version if model_version else None,
@@ -504,6 +507,7 @@ def _predict_tennis(session: Session, match, home_player, away_player, history=N
         winner_model=winner_model,
         winner_scaler_params=winner_scaler,
         total_models=total_models,
+        tour=match.competition,
     )
 
     return {
@@ -531,6 +535,8 @@ def _predict_tennis(session: Session, match, home_player, away_player, history=N
             }
             for m in result.total_games_markets
         ],
+        # Sets, handicaps, first set, tiebreak (statistical; see ml.tennis_markets).
+        "markets": result.extra_markets,
         "confidence": result.confidence,
         "confidence_label": result.confidence_label,
         "model_version": model_version.version if model_version else None,

@@ -36,6 +36,7 @@ from app.models.match import Match
 from app.models.team import Team
 from app.utils.config import get_settings
 from ml.basketball_catalogue import PRIORITY_IDS, catalogue, display_name, free_plan_seasons
+from ml.period_scores import basketball_periods
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +146,7 @@ def parse_item(item: dict) -> dict | None:
         "away_team": away,
         "home_score": None if home_total is None else int(home_total),
         "away_score": None if away_total is None else int(away_total),
+        "period_scores": basketball_periods(scores) if outcome == "completed" else None,
         "status": outcome,
     }
 
@@ -188,6 +190,7 @@ def upsert(session: Session, rows: list[dict]) -> dict:
                 away_team_id=away.id,
                 home_score=row["home_score"],
                 away_score=row["away_score"],
+                period_scores=row.get("period_scores"),
                 status=row["status"],
             )
             session.add(match)

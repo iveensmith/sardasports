@@ -46,6 +46,7 @@ from sqlalchemy.orm import Session
 
 from app.models.match import Match
 from app.models.team import Team
+from ml.period_scores import flip_tennis, tennis_sets
 
 logger = logging.getLogger(__name__)
 
@@ -177,6 +178,14 @@ def _sets_and_games(competitor: dict) -> tuple[int, int]:
     return sets, games
 
 
+def _set_games(competitor: dict) -> list[int | None]:
+    """Games in each set, in order played, for one competitor."""
+    return [
+        None if line.get("value") is None else int(line.get("value"))
+        for line in (competitor.get("linescores") or [])
+    ]
+
+
 def parse_scoreboard(payload: dict, default_tour: str) -> list[dict]:
     """Singles matches in a scoreboard, as plain dicts ready for `upsert`."""
     rows = []
@@ -243,6 +252,9 @@ def _parse_competition(
             return None  # not played to a finish
         row["sets"] = (a_sets, b_sets)
         row["games"] = (a_games, b_games)
+        a_set_games, b_set_games = _set_games(competitors[0]), _set_games(competitors[1])
+        if len(a_set_games) == len(b_set_games) and None not in a_set_games + b_set_games:
+            row["set_scores"] = tennis_sets(list(zip(a_set_games, b_set_games, strict=True)))
     return row
 
 
@@ -292,8 +304,10 @@ def upsert(session: Session, rows: list[dict]) -> dict:
         home, away = (b, a) if swap else (a, b)
         sets = row["sets"]
         games = row["games"]
+        set_scores = row.get("set_scores")
         if sets and swap:
             sets, games = (sets[1], sets[0]), (games[1], games[0])
+            set_scores = flip_tennis(set_scores)
 
         if existing is None:
             session.add(
@@ -313,6 +327,7 @@ def upsert(session: Session, rows: list[dict]) -> dict:
                     away_score=None if not sets else sets[1],
                     home_games=None if not games else games[0],
                     away_games=None if not games else games[1],
+                    period_scores=set_scores,
                     status=row["status"],
                 )
             )
@@ -329,12 +344,15 @@ def upsert(session: Session, rows: list[dict]) -> dict:
             # Keep the stored orientation: map the result onto whichever slot each player holds.
             a_sets, b_sets = row["sets"]
             a_games, b_games = row["games"]
+            periods = row.get("set_scores")
             if existing.home_team_id == a.id:
                 existing.home_score, existing.away_score = a_sets, b_sets
                 existing.home_games, existing.away_games = a_games, b_games
+                existing.period_scores = periods
             else:
                 existing.home_score, existing.away_score = b_sets, a_sets
                 existing.home_games, existing.away_games = b_games, a_games
+                existing.period_scores = flip_tennis(periods)
             existing.status = "completed"
             counts["completed"] += 1
     session.flush()

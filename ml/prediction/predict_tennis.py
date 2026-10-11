@@ -27,6 +27,7 @@ from datetime import datetime
 import numpy as np
 
 from ml.feature_engineering.tennis import FEATURE_COLUMNS, SurfaceElo, build_match_features
+from ml.tennis_markets import price_match
 
 # Offered total-games lines, from the ingested ATP+WTA distribution (mean
 # 23.9, median 22): 21.5 splits it closest to even at 53.8% over, with one
@@ -68,6 +69,9 @@ class TennisPrediction:
     confidence_label: str = "Low"
     # True when a player has too little recent history to be priced; no picks are stored.
     thin_history: bool = False
+    # Set betting, handicaps, first set, tiebreak: see `ml.tennis_markets`. Empty when the
+    # format is unknown or the match is too thinly covered to price.
+    extra_markets: list[dict] = field(default_factory=list)
 
 
 def build_surface_elo(history: list[dict]) -> SurfaceElo:
@@ -115,6 +119,7 @@ def predict_match(
     winner_model=None,
     winner_scaler_params: dict | None = None,
     total_models: dict[float, tuple] | None = None,
+    tour: str | None = None,
 ) -> TennisPrediction:
     """Full tennis prediction for one match, from prior matches only."""
     elo = elo or build_surface_elo(history)
@@ -173,6 +178,10 @@ def predict_match(
         )
 
     confidence = round(abs(home_win - 0.5) * 200, 1)
+    thin = (
+        features["home_matches_played"] < MIN_PRIOR_MATCHES
+        or features["away_matches_played"] < MIN_PRIOR_MATCHES
+    )
 
     return TennisPrediction(
         home_player=home_player,
@@ -190,8 +199,6 @@ def predict_match(
         elo_surface_away=round(features["elo_surface_away"], 1),
         confidence=confidence,
         confidence_label=_confidence_label(confidence),
-        thin_history=(
-            features["home_matches_played"] < MIN_PRIOR_MATCHES
-            or features["away_matches_played"] < MIN_PRIOR_MATCHES
-        ),
+        thin_history=thin,
+        extra_markets=([] if thin else price_match(home_win, best_of, surface, tour)),
     )

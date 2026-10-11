@@ -62,6 +62,7 @@ from sqlalchemy import or_
 from app.database.session import SessionLocal
 from app.models.match import Match
 from app.models.team import Team
+from ml.period_scores import flip_tennis, tennis_from_row, tennis_sets
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -171,7 +172,19 @@ def rows_from_frame(df: pd.DataFrame, tour: str, year: int) -> list[dict]:
         if winner_sets <= loser_sets:
             continue
 
+        winner_first = tennis_from_row(row)
         swap = _slot_swap(tour, year, int(index), str(winner), str(loser))
+        # Set-by-set games from the home slot's point of view (the loser sits at home on a swap).
+        set_games = list(winner_first)
+        if swap:
+            set_games = [(lost, won) for won, lost in winner_first]
+        period_scores = tennis_sets(set_games)
+        # Set scores that contradict the recorded result (a retirement logged oddly) are not
+        # used for set markets: better no detail than detail that disagrees with the result.
+        sets_by_winner = sum(1 for won, lost in winner_first if won > lost)
+        sets_by_loser = sum(1 for won, lost in winner_first if lost > won)
+        if (sets_by_winner, sets_by_loser) != (winner_sets, loser_sets):
+            period_scores = None
         if swap:
             home, away = str(loser).strip(), str(winner).strip()
             home_games, away_games = loser_games, winner_games
@@ -202,6 +215,7 @@ def rows_from_frame(df: pd.DataFrame, tour: str, year: int) -> list[dict]:
                 "away_score": away_sets,
                 "home_games": home_games,
                 "away_games": away_games,
+                "period_scores": period_scores,
                 "odds_home_win": _float_or_none(home_odds),
                 "odds_away_win": _float_or_none(away_odds),
             }
@@ -260,6 +274,8 @@ def _adopt_espn_row(session, row: dict, home: Team, away: Team) -> bool:
     existing.best_of = row["best_of"] or existing.best_of
     existing.tournament = row.get("tournament") or existing.tournament
     existing.status = "completed"
+    periods = row.get("period_scores")
+    existing.period_scores = periods if same_orientation else flip_tennis(periods)
     if same_orientation:
         existing.home_score, existing.away_score = row["home_score"], row["away_score"]
         existing.home_games, existing.away_games = row["home_games"], row["away_games"]
@@ -307,6 +323,7 @@ def load_rows(session, rows: list[dict]) -> int:
                 away_score=row["away_score"],
                 home_games=row["home_games"],
                 away_games=row["away_games"],
+                period_scores=row.get("period_scores"),
                 odds_home_win=row["odds_home_win"],
                 odds_away_win=row["odds_away_win"],
                 status="completed",

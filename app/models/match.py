@@ -138,6 +138,10 @@ class Match(Base):
     # "scheduled" | "completed"
     status: Mapped[str] = mapped_column(String(20), default="scheduled", nullable=False)
 
+    # Per-period scores, for the markets that need them (a basketball quarter or half, a tennis
+    # set): see `ml/period_scores.py` for the exact shape. Null where the source gave no detail.
+    period_scores: Mapped[dict | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+
     # The in-play view of a football fixture, from API-Football's live feed. Kept apart from
     # home_score/away_score on purpose: those mean "the final result" everywhere (grading, Elo,
     # history), and a half-played 1-0 must never be read as one. Display-only, goes stale on

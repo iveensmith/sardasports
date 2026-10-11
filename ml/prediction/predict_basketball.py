@@ -31,6 +31,7 @@ from datetime import datetime
 
 import numpy as np
 
+from ml.basketball_markets import price_game
 from ml.elo.engine import EloEngine
 from ml.feature_engineering.basketball import FEATURE_COLUMNS, build_game_features
 from ml.feature_engineering.features import TeamHistoryIndex, _team_matches_before
@@ -102,6 +103,9 @@ class BasketballPrediction:
     # that the winner probability was pulled towards 50%.
     ratings_age_days: int | None = None
     stale_ratings: bool = False
+    # Team totals, halves, quarters and the spread: see `ml.basketball_markets`. Empty when the
+    # league has no profile or the game is too thinly covered to price.
+    extra_markets: list[dict] = field(default_factory=list)
 
 
 def _apply_scaler(values: list[float], scaler_params: dict | None) -> np.ndarray:
@@ -135,6 +139,7 @@ def predict_game(
     winner_scaler_params: dict | None = None,
     total_models: dict[float, tuple] | None = None,
     league_totals: dict | None = None,
+    competition: str | None = None,
 ) -> BasketballPrediction:
     """Full basketball prediction for one game, from prior games only."""
     features = build_game_features(
@@ -255,4 +260,5 @@ def predict_game(
         thin_history=thin,
         ratings_age_days=age_days if not thin else None,
         stale_ratings=stale,
+        extra_markets=([] if thin else price_game(exp_home, exp_away, home_win, competition)),
     )
