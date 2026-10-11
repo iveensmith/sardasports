@@ -5,10 +5,11 @@
  * The reference's footer also carries social links, app-store badges, a
  * "Company" column (About/Contact/Privacy/Terms), a support email, a named
  * legal entity, and a two-column "Popular Teams" link farm. About, Contact and
- * Privacy now exist and are linked below. The rest does not exist for real here
- * (no social presence, no mobile app, no Terms page, no support inbox), so rather
- * than wire up dead links or invent content for pages that don't exist, it is left
- * out entirely.
+ * Privacy now exist and are linked below, and "Reach us" (WhatsApp, Telegram,
+ * email, X) sits above them: each route there shows "Coming soon" until its real
+ * value is set in `lib/site.ts`, and is never a link before then. The rest does
+ * not exist for real here (no mobile app, no named legal entity), so rather than
+ * wire up dead links or invent content for it, it is left out entirely.
  *
  * Two columns are real. "Top-rated teams" links to team pages under `/teams/`
  * and is ranked by the engine's own rating, not by popularity, because there
@@ -18,8 +19,12 @@
  */
 
 import Link from "next/link";
+import { CountryMark } from "@/components/board/CountryMark";
+import { TeamCrest } from "@/components/board/TeamCrest";
 import { Logo } from "@/components/Logo";
+import { ReachUs } from "@/components/ReachUs";
 import { EngineError, getLeagues, getTopTeams } from "@/lib/api";
+import type { Badge } from "@/lib/board";
 
 const SITE_LINKS = [
   { href: "/matches", label: "Matches" },
@@ -72,12 +77,21 @@ function Column({
 }
 
 export async function SiteFooter() {
-  let topLeagues: { competition: string; slug: string; short_name: string }[] =
-    [];
+  let topLeagues: {
+    competition: string;
+    slug: string;
+    short_name: string;
+    countryCode: string | null;
+  }[] = [];
   try {
     const leagues = await getLeagues();
     topLeagues = leagues.countries
-      .flatMap((c) => c.competitions)
+      .flatMap((c) =>
+        c.competitions.map((entry) => ({
+          ...entry,
+          countryCode: c.country_code,
+        })),
+      )
       .sort((a, b) => b.completed - a.completed)
       .slice(0, 6);
   } catch (e) {
@@ -86,7 +100,7 @@ export async function SiteFooter() {
     if (!(e instanceof EngineError)) throw e;
   }
 
-  let topTeams: { name: string; slug: string }[] = [];
+  let topTeams: { name: string; slug: string; badge: Badge }[] = [];
   try {
     topTeams = await getTopTeams(6);
   } catch (e) {
@@ -141,9 +155,10 @@ export async function SiteFooter() {
                 <li key={team.slug}>
                   <Link
                     href={`/teams/${team.slug}`}
-                    className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+                    className="flex items-center gap-2.5 text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
                   >
-                    {team.name}
+                    <TeamCrest badge={team.badge} name={team.name} size={20} />
+                    <span>{team.name}</span>
                   </Link>
                 </li>
               ))}
@@ -156,14 +171,19 @@ export async function SiteFooter() {
                 <li key={entry.competition}>
                   <Link
                     href={`/leagues/${entry.slug}`}
-                    className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
+                    className="flex items-center gap-2.5 text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
                   >
-                    {entry.short_name}
+                    <CountryMark code={entry.countryCode} />
+                    <span>{entry.short_name}</span>
                   </Link>
                 </li>
               ))}
             </Column>
           )}
+        </div>
+
+        <div className="mt-10 border-t border-[var(--color-line)] pt-8">
+          <ReachUs />
         </div>
 
         <nav

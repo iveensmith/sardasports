@@ -71,7 +71,12 @@ def top_rated_teams(session: Session, limit: int = 8) -> list[dict]:
         .all()
     )
     return [
-        {"name": t.name, "slug": team_slug(t.name), "elo_rating": round(t.elo_rating, 0)}
+        {
+            "name": t.name,
+            "slug": team_slug(t.name),
+            "elo_rating": round(t.elo_rating, 0),
+            "badge": badge_dict(t.name, t.api_football_id),
+        }
         for t in teams
     ]
 
@@ -227,7 +232,7 @@ def build_team_page(session: Session, team: Team) -> dict:
             "name": team.name,
             "slug": team_slug(team.name),
             "elo_rating": round(team.elo_rating, 0),
-            "badge": badge_dict(team.name),
+            "badge": badge_dict(team.name, team.api_football_id),
             "country": meta.country if meta else None,
             # True when its latest matches are national-team fixtures, where the
             # catalogue's "country" is only the competition's ("World").

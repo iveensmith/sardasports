@@ -48,13 +48,15 @@ export interface CompetitionRef {
   tier: number | null;
 }
 
-/** What to render beside a team name: a flag, or initials for a club. */
+/** What to render beside a team name: a flag, a club's crest, or its initials. */
 export interface Badge {
-  kind: "flag" | "monogram";
-  /** Lowercase ISO code — "br", "gb-eng". Null for a monogram. */
+  kind: "flag" | "crest" | "monogram";
+  /** Lowercase ISO code — "br", "gb-eng". Null unless a flag. */
   code: string | null;
-  /** One or two letters. Null for a flag. */
+  /** One or two letters. Null for a flag; the fallback under a crest. */
   initials: string | null;
+  /** The crest image, for a club with a known provider id. */
+  logo?: string | null;
 }
 
 export interface BoardRow {

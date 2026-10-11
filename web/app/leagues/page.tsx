@@ -10,6 +10,7 @@
  */
 
 import Link from "next/link";
+import { CountryMark } from "@/components/board/CountryMark";
 import { LeagueDirectory } from "@/components/league/LeagueDirectory";
 import { EngineError, getLeagues } from "@/lib/api";
 import type { Leagues } from "@/lib/discover";
@@ -54,6 +55,7 @@ export default async function LeaguesPage() {
       country.competitions.map((entry) => ({
         ...entry,
         country: country.country,
+        countryCode: country.country_code,
       })),
     )
     .sort((a, b) => b.completed - a.completed)
@@ -91,8 +93,9 @@ export default async function LeaguesPage() {
               <p className="truncate text-[13.5px] font-semibold">
                 {entry.short_name}
               </p>
-              <p className="mt-1 truncate text-[12px] text-[var(--color-text-faint)]">
-                {entry.country}
+              <p className="mt-1.5 flex items-center gap-2 text-[12px] text-[var(--color-text-faint)]">
+                <CountryMark code={entry.countryCode} />
+                <span className="truncate">{entry.country}</span>
               </p>
               <p className="mt-2 text-[12px] text-[var(--color-text-dim)] tabular-nums">
                 {entry.completed.toLocaleString()} matches

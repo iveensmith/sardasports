@@ -5,16 +5,20 @@ recognises a flag or a badge a good deal faster than they parse a name, and
 on a hundred-fixture card that difference is the whole ergonomics of the
 page.
 
-Two kinds, because football has two kinds of team:
+Three kinds, because football has two kinds of team and not every club's
+crest can be fetched:
 
     flag      a national side. The badge *is* the flag, and the flag is
               derivable from the name, so this needs nothing but a lookup.
-    monogram  everything else. Club crests are per-club artwork; we have no
-              licensed source for them and no identifier to fetch one with
-              (one team row in eight hundred and eighty carries an
-              `api_football_id`). A tinted disc with the club's initials is
-              an honest placeholder — it is obviously a placeholder, it never
-              shows the wrong badge, and it keeps the column aligned.
+    crest     a club whose row carries an `api_football_id`. The provider
+              serves each club's crest from its media server under that id,
+              so the URL is built from the id and nothing is stored. The
+              initials travel with it, so a crest that fails to load falls
+              back to the monogram rather than to a broken image.
+    monogram  a club with no API id yet. A tinted disc with the club's
+              initials is an honest placeholder — it is obviously a
+              placeholder, it never shows the wrong badge, and it keeps the
+              column aligned.
 
 A name we do not recognise falls through to a monogram rather than guessing
 at a country. A wrong flag beside a match is worse than no flag: it is a
@@ -273,11 +277,13 @@ _SUFFIXES = (" U15", " U16", " U17", " U18", " U19", " U20", " U21", " U23", " W
 class Badge:
     """What to render beside a team name."""
 
-    kind: str  # "flag" | "monogram"
-    # Lowercase ISO code for a flag; None for a monogram.
+    kind: str  # "flag" | "crest" | "monogram"
+    # Lowercase ISO code for a flag; None otherwise.
     code: str | None
-    # One or two letters for a monogram; None for a flag.
+    # One or two letters for a monogram (and the fallback under a crest); None for a flag.
     initials: str | None
+    # The crest image for a club with a known provider id; None otherwise.
+    logo: str | None = None
 
 
 def _initials(name: str) -> str:
@@ -296,12 +302,24 @@ def _initials(name: str) -> str:
     return (chosen[0][:2] if chosen else "?").upper()
 
 
-def badge_for(team_name: str | None) -> Badge:
+# The provider's media server: one crest per team id, served without a key.
+CREST_URL = "https://media.api-sports.io/football/teams/{id}.png"
+
+
+def crest_url(api_football_id: int | None) -> str | None:
+    """The crest for a provider team id, or None where the club has no id."""
+    if not api_football_id or api_football_id <= 0:
+        return None
+    return CREST_URL.format(id=int(api_football_id))
+
+
+def badge_for(team_name: str | None, api_football_id: int | None = None) -> Badge:
     """The badge for a team, never None and never a guess.
 
     An unrecognised name gets a monogram rather than a flag chosen by
     resemblance. A wrong flag beside a match is a factual error about who is
-    playing, and worse than no flag at all.
+    playing, and worse than no flag at all. A national side keeps its flag even
+    if it has an id; only a club is given a crest, and only from its own id.
     """
     if not team_name:
         return Badge(kind="monogram", code=None, initials="?")
@@ -319,9 +337,17 @@ def badge_for(team_name: str | None) -> Badge:
 
     if code:
         return Badge(kind="flag", code=code, initials=None)
+    logo = crest_url(api_football_id)
+    if logo:
+        return Badge(kind="crest", code=None, initials=_initials(name), logo=logo)
     return Badge(kind="monogram", code=None, initials=_initials(name))
 
 
-def badge_dict(team_name: str | None) -> dict:
-    badge = badge_for(team_name)
-    return {"kind": badge.kind, "code": badge.code, "initials": badge.initials}
+def badge_dict(team_name: str | None, api_football_id: int | None = None) -> dict:
+    badge = badge_for(team_name, api_football_id)
+    return {
+        "kind": badge.kind,
+        "code": badge.code,
+        "initials": badge.initials,
+        "logo": badge.logo,
+    }

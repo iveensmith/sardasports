@@ -165,8 +165,10 @@ def predict(
     # A flag for a national side, initials for a club — same rule the board
     # uses, so a fixture's crest never differs between the row that links to
     # this page and the page itself.
-    payload["home_badge"] = badge_dict(payload.get("home_team"))
-    payload["away_badge"] = badge_dict(payload.get("away_team"))
+    home_id = getattr(getattr(match, "home_team", None), "api_football_id", None)
+    away_id = getattr(getattr(match, "away_team", None), "api_football_id", None)
+    payload["home_badge"] = badge_dict(payload.get("home_team"), home_id)
+    payload["away_badge"] = badge_dict(payload.get("away_team"), away_id)
 
     # Football is the fall-through, and the football payload does not carry a
     # `sport` key at all — `PredictionOut.sport` defaults it. So this must be

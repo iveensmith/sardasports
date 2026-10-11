@@ -4,21 +4,23 @@
  * A reader recognises a flag faster than they parse a name, and on a
  * hundred-fixture card that difference is most of the page's ergonomics.
  *
- * Two kinds, because football has two kinds of team. National sides get
- * their flag, which is derivable from the name and needs no licensing. Clubs
- * get a tinted disc with their initials, because club crests are per-club
- * artwork we have no licensed source for and no identifier to fetch one with
- * — one team row in eight hundred and eighty carries an `api_football_id`.
+ * Three kinds, because football has two kinds of team and not every club's
+ * crest is known. National sides get their flag, which is derivable from the
+ * name. A club whose row carries a provider id gets its crest, fetched from the
+ * provider's media server under that id (the engine builds the URL; see
+ * `ml/team_badges.py`). A club without one gets a tinted disc with its initials.
  *
  * The monogram is deliberately a monogram rather than a generic ball or
  * shield icon. It is obviously a placeholder, it is different per club so
- * the column still helps you scan, and it can never show the wrong badge.
+ * the column still helps you scan, and it can never show the wrong badge. A
+ * crest that fails to load falls back to the same disc (see `CrestImage`).
  *
  * Flags come from flagcdn, which is free, keyless and does not track. The
  * URL is built in one place so swapping it for vendored SVGs later is a
  * one-line change.
  */
 
+import { CrestImage } from "@/components/board/CrestImage";
 import type { Badge } from "@/lib/board";
 
 /** Swap this to move off the CDN. Nothing else references it. */
@@ -58,6 +60,17 @@ export function TeamCrest({
         />
         <span className="sr-only">{name}</span>
       </span>
+    );
+  }
+
+  if (badge?.kind === "crest" && badge.logo) {
+    return (
+      <CrestImage
+        src={badge.logo}
+        initials={badge.initials}
+        name={name}
+        size={size}
+      />
     );
   }
 

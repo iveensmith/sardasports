@@ -3109,3 +3109,25 @@ still fills), and the home page's "upcoming" count, which now counts only fixtur
 prediction. The engine's coin-flip numbers for thin matches are discarded rather than shown as picks.
 Football is unchanged (its board still shows a fixture without a prediction, as stated in
 how-it-works). A match is still reachable by its own URL; it is just not listed.
+
+## Club crests beside every team, flags beside every country (11 Oct 2026)
+
+Football clubs now show their real crest. The data already held the provider's team id for
+1,019 of 1,426 clubs (the old note that one in 880 had one was out of date), and the provider's
+media server serves a crest per id without a key, so the engine builds the URL from the id and
+nothing is stored or downloaded (`ml/team_badges.py`: `crest_url`, badge kind `crest`, with the
+initials kept so a crest that fails to load falls back to the monogram in the browser,
+`web/components/board/CrestImage.tsx`). It reaches every board, league and market page through
+`build_row`, the match page and team pages, and the footer's "Top-rated teams" and "Top leagues"
+lists, which also gained crests and flags. The leagues page's "Most match history" tiles gained
+flags; the country sidebar, directory and league pages already had them.
+
+**Coverage.** 813 of the 902 clubs active in the last 13 months have a crest (90%). The 89 without
+carry the football-data.co.uk spelling ("Paris SG", "Sp Lisbon", "Sheffield Weds"), which `--map-teams`
+pairs to a provider id by roster; they keep the initials until that has been run. A club is never
+given a crest by resemblance of name.
+
+**Not covered.** Basketball teams and tennis players: there is no crest or country field for them in
+the data, and inventing one would put a wrong badge beside a name. **Rights:** club crests are the
+clubs' trademarks; the images are the provider's, loaded from its server for use alongside its data.
+Confirm the provider's terms cover a public site before launch.

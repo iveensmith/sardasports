@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from ml.team_badges import NATIONAL_TEAM_CODES, badge_for
+from ml.team_badges import NATIONAL_TEAM_CODES, badge_dict, badge_for, crest_url
 
 # --- national sides -------------------------------------------------------
 
@@ -182,3 +182,36 @@ def test_the_national_teams_actually_on_our_board_are_covered():
     # A few national sides may legitimately fall through; a board that is mostly
     # unresolved means the catalogue has drifted from what the feed is sending.
     assert len(unresolved) / len(names) < 0.5, f"mostly unresolved: {unresolved[:10]}"
+
+
+# --- club crests ----------------------------------------------------------
+
+
+def test_a_club_with_a_provider_id_gets_its_crest_and_keeps_its_initials():
+    badge = badge_for("Manchester City", 50)
+    assert badge.kind == "crest"
+    assert badge.logo == "https://media.api-sports.io/football/teams/50.png"
+    # The monogram travels with it, so a crest that fails to load falls back to it.
+    assert badge.initials == "MC"
+
+
+def test_a_club_without_an_id_stays_a_monogram_and_never_a_guessed_crest():
+    badge = badge_for("Manchester City", None)
+    assert badge.kind == "monogram" and badge.logo is None
+
+
+def test_a_national_side_keeps_its_flag_even_if_it_has_an_id():
+    badge = badge_for("Spain", 9)
+    assert badge.kind == "flag" and badge.code == "es" and badge.logo is None
+
+
+@pytest.mark.parametrize("value", [None, 0, -3])
+def test_no_crest_is_built_from_a_missing_or_nonsense_id(value):
+    assert crest_url(value) is None
+    assert badge_for("Arsenal", value).kind == "monogram"
+
+
+def test_the_payload_carries_the_logo_field_for_every_kind():
+    assert badge_dict("Spain")["logo"] is None
+    assert badge_dict("Arsenal")["logo"] is None
+    assert badge_dict("Arsenal", 42)["logo"].endswith("/42.png")

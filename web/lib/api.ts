@@ -11,7 +11,7 @@
  * the engine returns null for a line, null is what reaches the page.
  */
 
-import type { BoardDates, BoardRow, DayBoard } from "./board";
+import type { Badge, BoardDates, BoardRow, DayBoard } from "./board";
 import type { Bankers, LeagueDetail, Leagues, Slip } from "./discover";
 import { recallRecent, rememberRecent } from "./recentFallback";
 import type { MarketKind, MarketPageData } from "./markets";
@@ -349,9 +349,16 @@ export function getSeoUrls(): Promise<SeoUrls> {
 /** The highest-rated recently active clubs, for navigation links. */
 export async function getTopTeams(
   limit = 8,
-): Promise<Array<{ name: string; slug: string; elo_rating: number }>> {
+): Promise<
+  Array<{ name: string; slug: string; elo_rating: number; badge: Badge }>
+> {
   const body = await engineFetch<{
-    teams: Array<{ name: string; slug: string; elo_rating: number }>;
+    teams: Array<{
+      name: string;
+      slug: string;
+      elo_rating: number;
+      badge: Badge;
+    }>;
   }>(`/teams?limit=${limit}`, { revalidate: 3600 });
   return body.teams;
 }

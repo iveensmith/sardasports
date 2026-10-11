@@ -83,7 +83,7 @@ export function Hero({
           than a photograph. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
+        className="hero-veil pointer-events-none absolute inset-0 -z-10"
         style={{ background: "var(--hero-veil)" }}
       />
 

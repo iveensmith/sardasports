@@ -38,3 +38,26 @@ export const OPERATOR_NAME =
   process.env.NEXT_PUBLIC_OPERATOR_NAME?.trim() || null;
 export const CONTACT_EMAIL =
   process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || null;
+
+/**
+ * Where readers can reach the operator outside the Contact form, shown in the
+ * footer's "Reach us" block. Each is `null` until the real value is supplied, and a
+ * null renders as "Coming soon" with no link: a link is never built from a made-up
+ * number or handle.
+ *
+ * - `whatsapp`: the number in international format, digits only (e.g. "2348012345678")
+ * - `telegram`: the username, without the "@"
+ * - `x`: the handle, without the "@"
+ *
+ * The email shown beside them is `CONTACT_EMAIL` above, so the footer, the Contact
+ * page and the privacy policy always name the same address.
+ */
+export const SOCIAL_CONTACTS: {
+  whatsapp: string | null;
+  telegram: string | null;
+  x: string | null;
+} = {
+  whatsapp: "447741807953",
+  telegram: null,
+  x: null,
+};

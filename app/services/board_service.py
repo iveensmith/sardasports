@@ -268,6 +268,13 @@ def _board_confidence(confidence: float | None) -> float | None:
     return ranked if ranked is not None else confidence_out_of_ten(confidence)
 
 
+def _team_api_id(match, side: str) -> int | None:
+    """The provider id of one side, for its crest. The teams were already loaded to get
+    their names, so this is an identity-map hit and not a query; a match object without
+    the relationship (a test double) simply has no crest."""
+    return getattr(getattr(match, side, None), "api_football_id", None)
+
+
 def build_row(
     match,
     prediction: dict | None,
@@ -304,10 +311,10 @@ def build_row(
         },
         "home_team": home_team,
         "away_team": away_team,
-        # What to render beside each name: a flag for a national side, a
-        # monogram for anything we have no licensed crest for.
-        "home_badge": badge_dict(home_team),
-        "away_badge": badge_dict(away_team),
+        # What to render beside each name: a flag for a national side, the club's
+        # crest where it has a provider id, and a monogram where it does not.
+        "home_badge": badge_dict(home_team, _team_api_id(match, "home_team")),
+        "away_badge": badge_dict(away_team, _team_api_id(match, "away_team")),
         # None until played, rather than 0-0, which is a real scoreline.
         "score": (
             {"home": match.home_score, "away": match.away_score} if result is not None else None

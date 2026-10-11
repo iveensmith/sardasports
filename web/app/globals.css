@@ -300,8 +300,88 @@ html {
   background: var(--color-base);
 }
 
+/*
+  Edge lighting: a strip of gold light down each side of the page, brightest
+  at the screen edge and gone within a hand's width, with a fine highlight
+  line on the edge itself. Both fade out towards the top and bottom, so it
+  reads as a light falling on the page and not as a bar bolted to it.
+
+  A fixed layer under everything (z-index -1): it stays put while the page
+  scrolls, never sits over text, and costs one composited layer. The strip's
+  falloff is eased across several stops rather than a straight line, which
+  is what keeps a wide soft gradient from showing bands. It lands with one
+  soft flash on load; reduced-motion readers get it already settled. `html`
+  carries the page colour and `body` is transparent so the layer can sit
+  between the two.
+*/
+html::before {
+  --sg-w: clamp(84px, 11vw, 190px);
+  --sg-0: rgba(232, 190, 62, 0.26);
+  --sg-1: rgba(232, 190, 62, 0.13);
+  --sg-2: rgba(232, 190, 62, 0.045);
+  --sg-rim: rgba(244, 214, 120, 0.7);
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, var(--sg-rim) 0 1px, transparent 1px),
+    linear-gradient(270deg, var(--sg-rim) 0 1px, transparent 1px),
+    linear-gradient(90deg, var(--sg-0), var(--sg-1) 30%, var(--sg-2) 65%, transparent),
+    linear-gradient(270deg, var(--sg-0), var(--sg-1) 30%, var(--sg-2) 65%, transparent);
+  background-repeat: no-repeat;
+  background-size:
+    1px 100%,
+    1px 100%,
+    var(--sg-w) 100%,
+    var(--sg-w) 100%;
+  background-position:
+    left top,
+    right top,
+    left top,
+    right top;
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 18%,
+    #000 62%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 18%,
+    #000 62%,
+    transparent 100%
+  );
+  animation: side-glow-flash 1.6s cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+:root[data-theme="light"]::before {
+  --sg-0: rgba(238, 176, 24, 0.28);
+  --sg-1: rgba(238, 176, 24, 0.14);
+  --sg-2: rgba(238, 176, 24, 0.05);
+  --sg-rim: rgba(214, 150, 10, 0.6);
+}
+@keyframes side-glow-flash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html::before {
+    animation: none;
+  }
+}
+
 body {
-  background: var(--color-base);
+  background: transparent;
   color: var(--color-text);
   font-family: var(--font-body);
   /*
@@ -651,4 +731,26 @@ table {
     0 0 14px var(--color-base),
     0 0 5px var(--color-base),
     0 0 2px var(--color-base);
+}
+
+/*
+  The hero's veil dissolves the artwork into the page behind the headline. At
+  the left and right edges there is no headline, so it lets go there and the
+  page's side glow (html::before) shows through instead of being washed over.
+*/
+.hero-veil {
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
 }

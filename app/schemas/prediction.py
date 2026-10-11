@@ -15,9 +15,10 @@ class BadgeOut(BaseModel):
     every other field here.
     """
 
-    kind: str  # "flag" | "monogram"
+    kind: str  # "flag" | "crest" | "monogram"
     code: str | None = None
     initials: str | None = None
+    logo: str | None = None
 
 
 class ScorelineOut(BaseModel):
