@@ -214,6 +214,25 @@ export function getCompetitions(sport?: string): Promise<CompetitionsResponse> {
   });
 }
 
+/** Football matches in play right now, each with its minute, live score and stored tip. */
+export interface LiveBoard {
+  count: number;
+  as_of: string;
+  rows: BoardRow[];
+}
+
+/** Never throws: the live page and the home band must render when the engine is slow. */
+export async function getLiveBoard(): Promise<LiveBoard | null> {
+  try {
+    return await engineFetch<LiveBoard>("/board/live", {
+      revalidate: 10,
+      timeoutMs: 8_000,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** The newest graded best tips across recent days, for the home results strip. */
 export interface RecentSettled {
   count: number;

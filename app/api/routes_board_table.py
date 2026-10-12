@@ -258,6 +258,59 @@ def board_dates(
     }
 
 
+# Matches in play, as they are right now. Cached for seconds, not minutes: the point of the
+# page that reads this is that a goal shows up within the poll that saw it.
+LIVE_CACHE_SECONDS = 10.0
+_live_cache = CoalescingCache(LIVE_CACHE_SECONDS, stale_seconds=60.0)
+
+
+def _build_live_isolated() -> dict:
+    from app.services.live_scores import FRESH_FOR
+
+    session = SessionLocal()
+    try:
+        now = datetime.now(UTC).replace(tzinfo=None)
+        matches = (
+            session.query(Match)
+            .filter(
+                Match.sport == "football",
+                Match.status == "scheduled",
+                Match.live_home.is_not(None),
+                Match.live_updated_at >= now - FRESH_FOR,
+            )
+            .order_by(Match.match_date.asc(), Match.id.asc())
+            .all()
+        )
+        team_ids = {m.home_team_id for m in matches} | {m.away_team_id for m in matches}
+        names = (
+            {t.id: t.name for t in session.query(Team).filter(Team.id.in_(team_ids)).all()}
+            if team_ids
+            else {}
+        )
+        predictions = predict_with_stored_fallback(session, matches, allow_stored=True)
+        rows = [
+            build_row(
+                match,
+                prediction,
+                competition_base_rates(session, match.competition),
+                names.get(match.home_team_id, ""),
+                names.get(match.away_team_id, ""),
+            )
+            for match, prediction in zip(matches, predictions, strict=True)
+        ]
+        # Only rows whose live view is really there (a stale one reads as not live).
+        rows = [r for r in rows if r.get("live")]
+        return {"count": len(rows), "as_of": now.isoformat(), "rows": rows}
+    finally:
+        session.close()
+
+
+@router.get("/board/live")
+def board_live() -> dict:
+    """Football matches in play right now, with minute and score, each with its stored tip."""
+    return _live_cache.get_or_compute("live", _build_live_isolated)
+
+
 @router.get("/board/recent-settled")
 def board_recent_settled(
     limit: int = Query(DEFAULT_LIMIT, ge=1, le=MAX_LIMIT),

@@ -322,7 +322,9 @@ def test_a_paid_account_gets_the_busier_cadence(monkeypatch, fresh_scheduler):
     monkeypatch.setattr(scheduler, "is_paid_plan", lambda s: True)
     hours = _hours(scheduler.start_scheduler())
     assert hours["fetch_upcoming_fixtures"] == "*/4"
-    assert hours["fetch_results"] == "*/3"
+    # Results run every 15 minutes (a cron on the minute, so the hour field is "any").
+    assert hours["fetch_results"] == "*"
+    assert scheduler.PROFILES["paid"]["results"]["cron"] == {"minute": "*/15"}
 
 
 # --- the daily refresh keeps the free data current ---------------------------------

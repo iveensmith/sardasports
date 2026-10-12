@@ -19,6 +19,7 @@ import {
   EngineError,
   getDayBoard,
   getLeagues,
+  getLiveBoard,
   getProgress,
   getRecentSettled,
   getSportBoardQuick,
@@ -35,6 +36,7 @@ import { FeaturedPredictions } from "@/components/home/FeaturedPredictions";
 import { BrowseSports } from "@/components/home/BrowseSports";
 import { RecordPanel } from "@/components/home/RecordPanel";
 import { LatestResults } from "@/components/home/LatestResults";
+import { LiveNow } from "@/components/home/LiveNow";
 import { pickFeatured } from "@/lib/featured";
 import { AboutTheEngine } from "@/components/home/AboutTheEngine";
 import { HowItWorks } from "@/components/home/HowItWorks";
@@ -212,6 +214,7 @@ export default async function HomePage() {
     basketballTomorrow,
     tennisToday,
     tennisTomorrow,
+    liveBoard,
   ] = await Promise.all([
     getDayBoard({ date: isoDay(-1) }).catch(() => null),
     settle(getDayBoard({})),
@@ -225,6 +228,7 @@ export default async function HomePage() {
     getSportBoardQuick("basketball", isoDay(1)),
     getSportBoardQuick("tennis", isoDay(0)),
     getSportBoardQuick("tennis", isoDay(1)),
+    getLiveBoard(),
   ]);
   yesterday = yesterdayBoard;
   today = todayResult.value;
@@ -266,6 +270,7 @@ export default async function HomePage() {
       {/* The landing sections, each a self-contained block with its own heading
           and spacing. Below them, the day's boards: the product itself. */}
       <div className="mx-auto w-full max-w-[1200px] space-y-14 px-4 pt-12 sm:px-6 lg:px-10">
+        <LiveNow rows={liveBoard?.rows ?? []} />
         <FeaturedPredictions cards={featured} />
         <BrowseSports sports={sportsData?.sports ?? null} />
         <RecordPanel

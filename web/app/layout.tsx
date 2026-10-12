@@ -115,6 +115,7 @@ export const metadata: Metadata = {
 const NAV = [
   { href: "/", label: "Home" },
   { href: "/matches", label: "Predictions" },
+  { href: "/live", label: "Live" },
   { href: "/bankers", label: "Bankers" },
   { href: "/slip", label: "Slip builder" },
   { href: "/leagues", label: "Leagues" },

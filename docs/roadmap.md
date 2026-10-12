@@ -3159,3 +3159,38 @@ then the existing day boards, leagues, how-it-works and FAQ. The header has a ye
 **Featured cards** show only matches still to play, so a card is never a result. Basketball had no
 priced game on the day this was built (the NBA season starts later in October), so that card is absent
 rather than filled; the row simply has three cards.
+
+## The API plan upgraded to Pro: crests for every club, live matches, fast settlement (12 Oct 2026)
+
+Plan read from the account's own `/status`: **Pro, 7,500 requests a day**. The scheduler's paid
+profile switched on by itself (it reads the limit), and three things were built on it.
+
+**Club ids and crests.** `fetch_api_competitions --map-teams --seasons 2016-2025` used 323 requests
+and lifted football clubs with a provider id from 1,019 to 1,329 of 1,426. 34 more were set by hand
+where the provider's roster still carries a club's former name (the Chinese Super League mostly),
+each checked against its roster or a search result. **Every one of the 1,361 ids was then audited:**
+the provider's own name for each id was fetched (`data/processed/team_id_audit.csv`) and compared with
+ours. That audit found, and fixed, three wrong ones the mapping had produced: Paris SG had been paired
+with Paris FC (114; Paris Saint-Germain is 85), and Guangzhou FC / Cangzhou had taken the ids of
+Guangzhou R&F and Hangzhou Greentown. The remaining 50 spelling differences were read by eye and are all
+the same club. 860 of the 902 clubs active in the last 13 months had a crest before the by-hand pass;
+now 99%. The ids travel as `ml/team_api_ids.csv` (`scripts/team_api_ids.py export|apply`), which only
+ever fills a gap and reports a conflict instead of overwriting.
+Why the audit matters: a one-to-one pairing is right almost always, and a wrong crest beside a team is
+a factual error; the provider's name for the id is the only check that does not trust the pairing.
+
+**Live matches.** `/board/live` and a `/live` page (refreshes every 20 seconds while open), plus a
+"Live now" band on the home page that exists only while something is in play. Paid cadence is a poll
+every 2 minutes.
+
+**Settled within a poll of full time.** The live feed lists only matches in play, so a match that ends
+just vanishes from it. On a paid plan each poll now looks up, by id, every fixture that dropped out of
+the feed or kicked off long enough ago to be over (`ended_candidates`, 20 ids per request), and settles
+it there and then, with Elo. The by-date results job runs every 15 minutes instead of every 3 hours.
+A free plan never makes the by-id lookup (it would be refused).
+
+**Not done yet, and why.** The lower divisions, domestic cups, UEFA competitions and the extra
+internationals (runbook steps 2 to 5 above): the data pull is one run (1,248 requests of history,
+650 for 2022-2026), but turning those competitions on widens the models' feature vector, so it needs
+the 12 football models retrained and checked against the current ones before it goes anywhere near the
+live site. That is its own piece of work and was not started without a go-ahead.

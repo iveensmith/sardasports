@@ -13,9 +13,11 @@ import pytest
 
 from app.models import Match, Team
 from app.services.board_service import build_row
+from app.services import live_scores
 from app.services.live_scores import (
     FRESH_FOR,
     apply_live,
+    ended_candidates,
     live_payload,
     needs_live_poll,
     parse_live,
@@ -235,3 +237,99 @@ def test_nothing_is_requested_when_no_fixture_could_be_in_play(db_session, teams
     scheduler.fetch_live_job()
 
     assert calls == []
+
+
+# --- a match that has ended is settled within a poll, not at the next results run -----------
+
+
+def _finished_item(fixture_id, home=2, away=1, status="FT"):
+    return {
+        "fixture": {"id": fixture_id, "status": {"short": status, "elapsed": 90}},
+        "goals": {"home": home, "away": away},
+        "score": {"fulltime": {"home": home, "away": away}, "halftime": {"home": 1, "away": 0}},
+    }
+
+
+def test_a_fixture_that_left_the_live_feed_is_a_candidate_to_be_looked_up(db_session, teams):
+    now = _utc_now()
+    vanished = _match(
+        db_session, teams, "apif-1", now - timedelta(minutes=70),
+        live_status="2H", live_home=1, live_away=0, live_updated_at=now - timedelta(minutes=2),
+    )  # fmt: skip
+    over = _match(db_session, teams, "apif-2", now - timedelta(minutes=130))
+    too_soon = _match(db_session, teams, "apif-3", now - timedelta(minutes=40))
+    still_live = _match(db_session, teams, "apif-4", now - timedelta(minutes=60))
+    long_gone = _match(db_session, teams, "apif-5", now - timedelta(hours=9))
+    db_session.flush()
+
+    found = ended_candidates(db_session, {"apif-4": {}}, now=now)
+
+    assert sorted(found) == ["1", "2"]
+    assert {vanished.id, over.id} and too_soon.id and still_live.id and long_gone.id
+
+
+def test_a_finished_match_is_settled_in_the_same_poll_it_leaves_the_feed(
+    db_session, teams, monkeypatch
+):
+    now = _utc_now()
+    match = _match(
+        db_session, teams, "apif-9", now - timedelta(minutes=115),
+        live_status="2H", live_home=2, live_away=1, live_updated_at=now - timedelta(minutes=2),
+    )  # fmt: skip
+    db_session.commit()
+    requests_made = []
+    monkeypatch.setattr(live_scores, "fetch_live_items", lambda *a, **k: [])
+    monkeypatch.setattr(
+        live_scores,
+        "fetch_fixtures_by_id",
+        lambda key, url, ids, **k: requests_made.append(ids) or [_finished_item(9)],
+    )
+
+    result = live_scores.refresh_live_scores(db_session, "k", "u", lookup_ended=True)
+
+    db_session.refresh(match)
+    assert result["settled"] == 1 and result["looked_up"] == 1
+    assert (match.status, match.home_score, match.away_score) == ("completed", 2, 1)
+    assert match.live_home is None  # the live view is gone once it is a result
+    assert requests_made == [["9"]]
+
+
+def test_a_free_plan_never_looks_fixtures_up_by_id(db_session, teams, monkeypatch):
+    now = _utc_now()
+    _match(db_session, teams, "apif-9", now - timedelta(minutes=130))
+    db_session.commit()
+    monkeypatch.setattr(live_scores, "fetch_live_items", lambda *a, **k: [])
+
+    def boom(*args, **kwargs):  # pragma: no cover - must not be called
+        raise AssertionError("a by-id lookup was attempted on the free plan")
+
+    monkeypatch.setattr(live_scores, "fetch_fixtures_by_id", boom)
+
+    result = live_scores.refresh_live_scores(db_session, "k", "u", lookup_ended=False)
+
+    assert result["looked_up"] == 0 and result["settled"] == 0
+
+
+def test_the_live_route_lists_only_matches_in_play_with_their_score(client, db_session, teams):
+    now = _utc_now()
+    _match(
+        db_session, teams, "apif-31", now - timedelta(minutes=55),
+        live_status="2H", live_minute=57, live_home=1, live_away=0,
+        live_updated_at=now - timedelta(minutes=1),
+    )  # fmt: skip
+    _match(db_session, teams, "apif-32", now - timedelta(minutes=55))  # no live view
+    _match(
+        db_session, teams, "apif-33", now - timedelta(minutes=300),
+        live_status="2H", live_minute=88, live_home=3, live_away=3,
+        live_updated_at=now - timedelta(minutes=45),
+    )  # fmt: skip
+
+    from app.api import routes_board_table
+
+    routes_board_table._live_cache.clear()
+    body = client.get("/board/live").json()
+
+    assert body["count"] == 1
+    row = body["rows"][0]
+    assert row["live"]["home"] == 1 and row["live"]["away"] == 0 and row["live"]["label"] == "57'"
+    assert row["score"] is None  # a live score is never the result

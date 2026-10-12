@@ -82,8 +82,11 @@ logger = logging.getLogger(__name__)
 # the two teams play.
 FINISHED = frozenset({"FT", "AET", "PEN"})
 
-# The free plan allows 10 requests a minute; 6.5s keeps clear of it.
+# The free plan allows 10 requests a minute; 6.5s keeps clear of it. A paid plan allows
+# hundreds a minute, so `main` shortens this when the account is positively on one (a run
+# of 600 requests is then minutes instead of over an hour).
 REQUEST_SPACING_SECONDS = 6.5
+PAID_REQUEST_SPACING_SECONDS = 0.3
 
 REPORT_DIR = Path(__file__).resolve().parent.parent / "data" / "processed"
 
@@ -384,6 +387,14 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--competition-id", type=int, default=None, help="With --from-file")
     parser.add_argument("--season", type=int, default=None, help="With --from-file")
     args = parser.parse_args(argv)
+
+    if not args.plan and not args.from_file:
+        from app.services.api_budget import is_paid_plan
+
+        global REQUEST_SPACING_SECONDS
+        if is_paid_plan(get_settings()):
+            REQUEST_SPACING_SECONDS = PAID_REQUEST_SPACING_SECONDS
+            logger.info("paid plan: %.1fs between requests", REQUEST_SPACING_SECONDS)
 
     wanted = None
     if args.seasons:

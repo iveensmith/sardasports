@@ -168,23 +168,97 @@ def fetch_live_items(api_key: str, base_url: str, timeout: int = 40) -> list[dic
     return payload.get("response", [])
 
 
-def refresh_live_scores(session: Session, api_key: str, base_url: str) -> dict:
-    """One poll: store the live view, and settle any fixture the feed reports as just finished.
+# A fixture that left the live feed is looked up by id so its final score lands within a poll of
+# the whistle. Only fixtures that kicked off within this window are considered: older ones belong
+# to the results job.
+ENDED_LOOKBACK = timedelta(hours=5)
+# A fixture that never showed as live is only asked about once it could plausibly be over.
+COULD_BE_OVER_AFTER = timedelta(minutes=100)
+# API-Football accepts up to 20 ids per `ids` request.
+IDS_PER_REQUEST = 20
 
-    The live feed is not a results feed, but a fixture can appear in it with a finished status
-    in the moment between full-time and the next results run; those are settled here rather
-    than left for hours (same rule as `scripts.fetch_results`).
+
+def ended_candidates(session: Session, live: dict, now: datetime | None = None) -> list[str]:
+    """Fixtures that should now have finished but are not in the live feed.
+
+    Either they were showing as live and have dropped out of the feed (full time), or they
+    kicked off long enough ago to be over. Their ids, without the `apif-` prefix.
+    """
+    now = now or _utcnow()
+    query = session.query(Match.external_id, Match.live_updated_at, Match.match_date).filter(
+        Match.sport == "football",
+        Match.status == "scheduled",
+        Match.external_id.like("apif-%"),
+        Match.match_date >= now - ENDED_LOOKBACK,
+        Match.match_date <= now,
+    )
+    out = []
+    for external_id, live_at, kickoff in query.all():
+        if external_id in live:
+            continue
+        if live_at is not None or kickoff <= now - COULD_BE_OVER_AFTER:
+            out.append(external_id.removeprefix("apif-"))
+    return out
+
+
+def fetch_fixtures_by_id(
+    api_key: str, base_url: str, ids: list[str], timeout: int = 40
+) -> list[dict]:
+    """The given fixtures, in as few requests as the id limit allows. Needs a paid plan."""
+    items: list[dict] = []
+    for start in range(0, len(ids), IDS_PER_REQUEST):
+        batch = ids[start : start + IDS_PER_REQUEST]
+        response = requests.get(
+            f"{base_url}/fixtures",
+            headers={"x-apisports-key": api_key},
+            params={"ids": "-".join(batch)},
+            timeout=timeout,
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("errors"):
+            logger.warning("Fixtures by id not available: %s", payload["errors"])
+            break
+        items.extend(payload.get("response", []))
+    return items
+
+
+def refresh_live_scores(
+    session: Session, api_key: str, base_url: str, *, lookup_ended: bool = False
+) -> dict:
+    """One poll: store the live view, and settle any fixture that has just finished.
+
+    The live feed lists only matches in play, so a match that ends simply vanishes from it. On a
+    paid plan (`lookup_ended`) every fixture that vanished, or kicked off long enough ago to be
+    over, is looked up by id in the same poll, so the final score and the graded tip land
+    within a couple of minutes of full time and not at the next results run. A fixture can also
+    appear in the live feed itself with a finished status; those are settled here too.
     """
     from app.services.prediction_service import _WRITE_LOCK
     from scripts.fetch_results import apply_results, results_from_fixtures
 
     items = fetch_live_items(api_key, base_url)
     live = parse_live(items)
+    ended: list[str] = []
+    if lookup_ended:
+        # Before `apply_live` clears the live view of whatever is no longer in the feed.
+        ended = ended_candidates(session, live)
+    ended_items: list[dict] = []
+    if ended:
+        try:
+            ended_items = fetch_fixtures_by_id(api_key, base_url, ended)
+        except requests.RequestException as exc:
+            logger.warning("Looking up ended fixtures failed: %s", exc)
     # SQLite takes one writer at a time and a board storing predictions is a writer too. Taking
     # the engine's own write lock first makes this queue in Python, where waiting is free, rather
     # than spend the database's busy timeout (see `prediction_service._WRITE_LOCK`).
     with _WRITE_LOCK:
         updated = apply_live(session, live)
-        settled = apply_results(session, results_from_fixtures(items))
+        settled = apply_results(session, results_from_fixtures(items + ended_items))
         session.commit()
-    return {"in_play": len(live), "updated": updated, "settled": settled}
+    return {
+        "in_play": len(live),
+        "updated": updated,
+        "settled": settled,
+        "looked_up": len(ended),
+    }

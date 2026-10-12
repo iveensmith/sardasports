@@ -134,7 +134,7 @@ PROFILES: dict[str, dict] = {
     "paid": {
         "fixtures": {"days": 7, "cron": {"hour": "*/4"}},
         "odds": {"days": 3, "backfill": 40, "cron": {"hour": "*/4", "minute": 15}},
-        "results": {"days": 3, "cron": {"hour": "*/3"}},
+        "results": {"days": 2, "cron": {"minute": "*/15"}},
         "live": {"minutes": 2, "reserve": 0},
         "stats": {"fixtures": 40, "cron": {"hour": "*/3", "minute": 10}},
         "injuries": {"teams": 100},
@@ -399,7 +399,12 @@ def fetch_live_job() -> None:
         if profile is None:
             return
         result = refresh_live_scores(
-            session, settings.api_football_key, settings.api_football_base_url
+            session,
+            settings.api_football_key,
+            settings.api_football_base_url,
+            # Only a paid plan may look a fixture up by id; that is what settles a match
+            # within a poll of full time.
+            lookup_ended=profile is PROFILES["paid"],
         )
         logger.info("fetch_live_job: %s", result)
         if result["settled"]:
