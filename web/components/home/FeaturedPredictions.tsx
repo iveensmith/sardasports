@@ -6,13 +6,15 @@
  * its probability, its price where one exists. A price the engine had to derive (no
  * bookmaker quoted it) is shown with a "≈", and basketball and tennis show no price at
  * all because there is no odds feed for them: the row is omitted, never zero-filled.
- * Kick-off times are UTC and say so.
+ * Kick-off times are shown in the reader's own time zone (see `LocalTime`), and read as UTC
+ * until the browser has converted them.
  */
 
 import Link from "next/link";
 import { CountryMark } from "@/components/board/CountryMark";
 import { TeamCrest } from "@/components/board/TeamCrest";
 import { ArrowRight, Trophy } from "@/components/home/icons";
+import { LocalTime } from "@/components/LocalTime";
 import { SportMark } from "@/components/sport/SportMark";
 import type { FeaturedCard } from "@/lib/featured";
 
@@ -28,23 +30,6 @@ const SPORT_STYLE: Record<
   },
   tennis: { label: "Tennis", color: "#c8e41c", bg: "rgba(200,228,28,0.14)" },
 };
-
-function when(iso: string): string {
-  const at = new Date(iso);
-  const date = at.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-  const time = at.toLocaleTimeString("en-GB", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-  });
-  return `${date} · ${time} UTC`;
-}
 
 function Card({ card }: { card: FeaturedCard }) {
   const style = SPORT_STYLE[card.sport];
@@ -85,7 +70,7 @@ function Card({ card }: { card: FeaturedCard }) {
         </div>
 
         <p className="mt-4 text-center text-[12px] text-[var(--color-text-dim)] tabular-nums">
-          {when(card.kickoff)}
+          <LocalTime iso={card.kickoff} withDate utcSuffix />
         </p>
 
         <p className="mt-3 rounded-md bg-[var(--color-gold)] px-2 py-2 text-center text-[12.5px] leading-tight font-extrabold tracking-[0.02em] text-[var(--color-ink-on-accent)] uppercase">

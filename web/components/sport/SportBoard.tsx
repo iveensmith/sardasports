@@ -13,9 +13,9 @@ import Link from "next/link";
 import { CountryMark } from "@/components/board/CountryMark";
 import { SportMarkets } from "@/components/sport/SportMarkets";
 import { matchPath } from "@/lib/seo";
+import { LocalTime } from "@/components/LocalTime";
 import {
   ageLabel,
-  kickoffTime,
   shortDate,
   type OtherSportKey,
   type SportBoard as Board,
@@ -132,7 +132,7 @@ function Row({
     <>
       <tr className="border-t border-[var(--color-line)] align-top">
         <td className="px-4 py-3 whitespace-nowrap text-[13px] tabular-nums text-[var(--color-text-dim)]">
-          {kickoffTime(match.kickoff)}
+          <LocalTime iso={match.kickoff} utcSuffix />
         </td>
         <td className="px-4 py-3">
           <Link

@@ -14,6 +14,7 @@
  * that was ever exposed to being wrong in public.
  */
 
+import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
 import { FaqItem } from "@/components/FaqItem";
 import { JsonLd } from "@/components/seo/JsonLd";
@@ -54,11 +55,7 @@ function verdictColor(outcome: Outcome) {
 
 function kickoff(row: MarketPickRow) {
   if (row.score) return "FT";
-  return new Date(row.match_date).toLocaleTimeString(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  return <LocalTime iso={row.match_date} />;
 }
 
 function pct(value: number | null) {

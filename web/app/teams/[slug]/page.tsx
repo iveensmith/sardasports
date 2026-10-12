@@ -10,6 +10,8 @@
  * Next 16: `params` is a Promise and must be awaited.
  */
 
+import { LocalTime } from "@/components/LocalTime";
+import { utcDate } from "@/lib/time";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { TeamCrest } from "@/components/board/TeamCrest";
@@ -153,16 +155,16 @@ function RecentRow({ match }: { match: TeamRecentMatch }) {
 }
 
 function UpcomingRow({ match }: { match: TeamUpcoming }) {
-  const at = new Date(match.match_date);
+  const at = utcDate(match.match_date);
   return (
     <li className="flex items-center gap-3 border-t border-[var(--color-line)] py-2.5 text-[13px] first:border-t-0">
       <span className="w-24 shrink-0 text-[11.5px] text-[var(--color-text-faint)]">
-        {at.toLocaleDateString("en-GB", { day: "numeric", month: "short" })},{" "}
-        {at.toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
+        {at.toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          timeZone: "UTC",
         })}
+        , <LocalTime iso={match.match_date} />
       </span>
       <Link
         href={`/match/${match.slug}`}

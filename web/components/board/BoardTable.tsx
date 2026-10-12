@@ -31,6 +31,7 @@
 
 import Link from "next/link";
 import type { BoardRow, Outcome, Tip } from "@/lib/board";
+import { LocalTime } from "@/components/LocalTime";
 import { kickoffLabel } from "@/lib/board";
 import { TeamCrest } from "@/components/board/TeamCrest";
 
@@ -358,7 +359,11 @@ function Row({ row }: { row: BoardRow }) {
             </span>
           ) : (
             <span className="text-[11.5px] leading-tight text-[var(--color-text-faint)]">
-              {kickoffLabel(row)}
+              {row.score ? (
+                kickoffLabel(row)
+              ) : (
+                <LocalTime iso={row.match_date} />
+              )}
             </span>
           )}
         </div>
@@ -441,7 +446,12 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
         <table className="w-full border-collapse sm:min-w-[760px]">
           <thead>
             <tr className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
-              <th className="px-1.5 pb-2 text-left font-medium">Time</th>
+              <th
+                className="px-1.5 pb-2 text-left font-medium"
+                title="Kick-off, in your own time zone"
+              >
+                Time
+              </th>
               <th className="px-2 pb-2 text-left font-medium sm:w-full">
                 Match
               </th>

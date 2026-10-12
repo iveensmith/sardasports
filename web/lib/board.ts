@@ -12,6 +12,8 @@
  * failed. Three states, three renderings, no coercion between them.
  */
 
+import { utcDate } from "@/lib/time";
+
 /** "won" | "lost" | "void" once played, null before kick-off. */
 export type Outcome = "won" | "lost" | "void" | null;
 
@@ -160,11 +162,12 @@ export function allRows(board: DayBoard): BoardRow[] {
  */
 export function kickoffLabel(row: BoardRow): string {
   if (row.score) return "FT";
-  const at = new Date(row.match_date);
-  return at.toLocaleTimeString(undefined, {
+  // As UTC, said so: a timestamp with no zone marker would be read as the server's own time.
+  return utcDate(row.match_date).toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    timeZone: "UTC",
   });
 }
 
