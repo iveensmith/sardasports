@@ -17,11 +17,11 @@
 @theme {
   /* Base. A deep blue-black rather than a neutral near-black: the
      probability blues sit on it without turning muddy. */
-  --color-base: #090d12;
-  --color-surface: #111820;
-  --color-surface-raised: #18212c;
-  --color-line: #1e2833;
-  --color-line-strong: #2b3846;
+  --color-base: #06090f;
+  --color-surface: #0c121b;
+  --color-surface-raised: #131b27;
+  --color-line: #1b2431;
+  --color-line-strong: #2b3747;
 
   /*
     Text steps, measured against the lightest surface (#18212c) rather than
@@ -41,9 +41,9 @@
 
   /* Brass, not costume-jewellery gold. Reserved for confidence and the
      primary action. */
-  --color-gold: #c9a227;
-  --color-gold-bright: #e3bc45;
-  --color-gold-dim: #6b5616;
+  --color-gold: #f5c000;
+  --color-gold-bright: #ffd43b;
+  --color-gold-dim: #6b5400;
 
   /*
     Outcome hues — computed, not chosen by eye.
@@ -101,23 +101,23 @@
   --hero-glow:
     radial-gradient(
       58% 62% at 50% 24%,
-      rgba(227, 188, 69, 0.16),
-      rgba(201, 162, 39, 0.055) 45%,
+      rgba(245, 192, 0, 0.16),
+      rgba(245, 192, 0, 0.055) 45%,
       transparent 72%
     ),
     /* Light on the floor, full width, so the legs stand against something. */
       radial-gradient(
         70% 34% at 50% 100%,
-        rgba(227, 188, 69, 0.14),
-        rgba(201, 162, 39, 0.04) 55%,
+        rgba(245, 192, 0, 0.14),
+        rgba(245, 192, 0, 0.04) 55%,
         transparent 78%
       );
   /* Closes only partway at the foot: the figure's legs are meant to be seen. */
   --hero-veil: linear-gradient(
     180deg,
-    rgba(9, 13, 18, 0.3) 0%,
-    rgba(9, 13, 18, 0.46) 58%,
-    rgba(9, 13, 18, 0.12) 100%
+    rgba(6, 9, 15, 0.3) 0%,
+    rgba(6, 9, 15, 0.46) 58%,
+    rgba(6, 9, 15, 0.12) 100%
   );
   --hero-figure-opacity: 1;
 
@@ -146,19 +146,19 @@
   work without touching anything outside that one section.
 */
 [data-theme="dark"] {
-  --color-base: #090d12;
-  --color-surface: #111820;
-  --color-surface-raised: #18212c;
-  --color-line: #1e2833;
-  --color-line-strong: #2b3846;
+  --color-base: #06090f;
+  --color-surface: #0c121b;
+  --color-surface-raised: #131b27;
+  --color-line: #1b2431;
+  --color-line-strong: #2b3747;
 
   --color-text: #f4f7fa;
   --color-text-dim: #a3b0c0;
   --color-text-faint: #8593a3;
 
-  --color-gold: #c9a227;
-  --color-gold-bright: #e3bc45;
-  --color-gold-dim: #6b5616;
+  --color-gold: #f5c000;
+  --color-gold-bright: #ffd43b;
+  --color-gold-dim: #6b5400;
 
   --color-home: #3987e5;
   --color-draw: #199e70;
@@ -174,23 +174,23 @@
   --hero-glow:
     radial-gradient(
       58% 62% at 50% 24%,
-      rgba(227, 188, 69, 0.16),
-      rgba(201, 162, 39, 0.055) 45%,
+      rgba(245, 192, 0, 0.16),
+      rgba(245, 192, 0, 0.055) 45%,
       transparent 72%
     ),
     /* Light on the floor, full width, so the legs stand against something. */
     radial-gradient(
         70% 34% at 50% 100%,
-        rgba(227, 188, 69, 0.14),
-        rgba(201, 162, 39, 0.04) 55%,
+        rgba(245, 192, 0, 0.14),
+        rgba(245, 192, 0, 0.04) 55%,
         transparent 78%
       );
   /* Closes only partway at the foot: the figure's legs are meant to be seen. */
   --hero-veil: linear-gradient(
     180deg,
-    rgba(9, 13, 18, 0.3) 0%,
-    rgba(9, 13, 18, 0.46) 58%,
-    rgba(9, 13, 18, 0.12) 100%
+    rgba(6, 9, 15, 0.3) 0%,
+    rgba(6, 9, 15, 0.46) 58%,
+    rgba(6, 9, 15, 0.12) 100%
   );
   --hero-figure-opacity: 1;
 }
@@ -301,7 +301,7 @@ html {
 }
 
 /*
-  Edge lighting: a strip of gold light down each side of the page, brightest
+  Edge lighting (light theme only): a strip of gold light down each side of the page, brightest
   at the screen edge and gone within a hand's width, with a fine highlight
   line on the edge itself. Both fade out towards the top and bottom, so it
   reads as a light falling on the page and not as a bar bolted to it.
@@ -321,6 +321,9 @@ html::before {
   --sg-2: rgba(232, 190, 62, 0.045);
   --sg-rim: rgba(244, 214, 120, 0.7);
   content: "";
+  /* Off in the dark theme, where the page is left as its plain background; the
+     light theme turns it on (see the attribute rule below). */
+  display: none;
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -358,6 +361,7 @@ html::before {
   animation: side-glow-flash 1.6s cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 :root[data-theme="light"]::before {
+  display: block;
   --sg-0: rgba(238, 176, 24, 0.28);
   --sg-1: rgba(238, 176, 24, 0.14);
   --sg-2: rgba(238, 176, 24, 0.05);
@@ -572,10 +576,13 @@ table {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.72rem 1.4rem;
-  border-radius: var(--radius-md);
-  font-size: 14.5px;
-  font-weight: 600;
+  gap: 0.6rem;
+  padding: 0.8rem 1.35rem;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
   border: 1px solid transparent;
   transition:
     transform 160ms cubic-bezier(0.23, 1, 0.32, 1),
@@ -593,7 +600,7 @@ table {
   color: var(--color-ink-on-accent);
   /* A contained glow, not a halo: it marks the primary action on a dark
      page without competing with the figure behind it. */
-  box-shadow: 0 10px 30px -12px rgba(201, 162, 39, 0.65);
+  box-shadow: 0 10px 30px -12px rgba(245, 192, 0, 0.65);
 }
 
 .nt-cta--primary:hover {
@@ -601,13 +608,13 @@ table {
 }
 
 .nt-cta--ghost {
-  border-color: var(--color-line-strong);
-  color: var(--color-text);
+  border-color: var(--color-gold);
+  color: var(--color-gold-bright);
 }
 
 .nt-cta--ghost:hover {
-  border-color: var(--color-text-faint);
-  background: var(--color-surface);
+  border-color: var(--color-gold-bright);
+  background: rgba(245, 192, 0, 0.1);
 }
 
 @media (hover: none) {
@@ -616,7 +623,7 @@ table {
     background: var(--color-gold);
   }
   .nt-cta--ghost:hover {
-    border-color: var(--color-line-strong);
+    border-color: var(--color-gold);
     background: transparent;
   }
 }
@@ -633,124 +640,4 @@ table {
  */
 .overflow-x-auto {
   position: relative;
-}
-
-/*
-  The hero emblem (components/home/HeroEmblem.tsx): the SARDASPORTS logo,
-  large and lit, with a burst of rays behind it. It arrives with a single
-  soft flash on load and then holds still. The drawing is the site's own
-  artwork, so there is nothing to license; opacity is set per theme because
-  the logo's gold is made for a dark ground.
-*/
-.hero-emblem {
-  --he-logo: 0.17;
-  --he-rays: 0.4;
-  --he-ray-color: rgba(240, 217, 138, 0.16);
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  align-items: center;
-  justify-content: center;
-}
-:root[data-theme="light"] .hero-emblem {
-  --he-logo: 0.95;
-  --he-rays: 1;
-  --he-ray-color: rgba(150, 117, 26, 0.2);
-}
-.hero-emblem__rays {
-  position: absolute;
-  left: 50%;
-  top: 48%;
-  width: min(160vw, 1500px);
-  aspect-ratio: 1;
-  transform: translate(-50%, -50%);
-  background: repeating-conic-gradient(
-    from 4deg at 50% 50%,
-    var(--he-ray-color) 0deg 3.5deg,
-    transparent 3.5deg 11deg
-  );
-  -webkit-mask-image: radial-gradient(closest-side, #000 0%, transparent 74%);
-  mask-image: radial-gradient(closest-side, #000 0%, transparent 74%);
-  opacity: var(--he-rays);
-  animation: hero-emblem-rays 1.5s cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-.hero-emblem__logo {
-  position: relative;
-  width: min(90vw, 780px);
-  height: auto;
-  margin-top: 5%;
-  opacity: var(--he-logo);
-  filter: drop-shadow(0 0 36px rgba(227, 188, 69, 0.22));
-  animation: hero-emblem-flash 1.3s cubic-bezier(0.23, 1, 0.32, 1) both;
-}
-:root[data-theme="light"] .hero-emblem__logo {
-  filter: drop-shadow(0 0 1px rgba(17, 22, 33, 0.55))
-    drop-shadow(0 8px 28px rgba(150, 117, 26, 0.3));
-}
-@keyframes hero-emblem-flash {
-  0% {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  16% {
-    opacity: min(1, calc(var(--he-logo) * 2.6));
-  }
-  100% {
-    opacity: var(--he-logo);
-    transform: scale(1);
-  }
-}
-@keyframes hero-emblem-rays {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.7);
-  }
-  16% {
-    opacity: 1;
-  }
-  100% {
-    opacity: var(--he-rays);
-    transform: translate(-50%, -50%) scale(1);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hero-emblem__rays,
-  .hero-emblem__logo {
-    animation: none;
-  }
-}
-
-/*
-  Type that sits over the hero artwork. A halo in the page's own colour (not a
-  visible shadow) keeps each letter's edge clean where the logo or its rays
-  pass behind it, and costs nothing where there is plain background.
-*/
-.hero-copy {
-  text-shadow:
-    0 0 14px var(--color-base),
-    0 0 5px var(--color-base),
-    0 0 2px var(--color-base);
-}
-
-/*
-  The hero's veil dissolves the artwork into the page behind the headline. At
-  the left and right edges there is no headline, so it lets go there and the
-  page's side glow (html::before) shows through instead of being washed over.
-*/
-.hero-veil {
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    #000 12%,
-    #000 88%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    #000 12%,
-    #000 88%,
-    transparent 100%
-  );
 }

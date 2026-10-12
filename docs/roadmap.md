@@ -3131,3 +3131,31 @@ given a crest by resemblance of name.
 the data, and inventing one would put a wrong badge beside a name. **Rights:** club crests are the
 clubs' trademarks; the images are the provider's, loaded from its server for use alongside its data.
 Confirm the provider's terms cover a public site before launch.
+
+## Interface revamp to the client's mock-up (12 Oct 2026)
+
+**What changed.** The look follows the supplied home-page mock-up: near-black ground (`#06090f`),
+one bright yellow (`#f5c000` / `#ffd43b`), squared uppercase buttons, yellow-framed panels. Dark is
+now the default theme for a first-time visitor whatever their system prefers (the toggle and a
+stored choice still win). The tokens are in `app/globals.css`, so every page inherits them.
+
+**Home page, top to bottom** (`app/page.tsx`): `HomeHero` (wordmark, claim, two buttons, drawn
+football/basketball/tennis picture in `HeroArt`), `FeatureStrip` (five promises), `FeaturedPredictions`
+(the engine's most likely picks still to play: two football, one basketball, one tennis, from
+`lib/featured.ts`), `BrowseSports`, `RecordPanel`, `LatestResults` with "Why you can trust it", and
+then the existing day boards, leagues, how-it-works and FAQ. The header has a yellow active-page pill
+(`NavLinks`) and a "Today's picks" button; the footer gained an 18+ "Play responsibly" bar.
+
+**Deliberately not copied from the mock-up, because there is nothing real behind it:**
+- Premium plans and prices, "Join Premium", Login and Join Now: the site is free and has no accounts.
+  The framed panel holds the record instead.
+- "What our members say": no member reviews exist and none are invented. The space says why the
+  record can be believed (picks saved before kick-off, losses stay, live and rebuilt kept apart).
+- American football / NFL: not covered. The tile reads "More sports, coming soon" and is not a link.
+- Photographed athletes and a "Bet smart" slogan: no rights to the photographs, and this site gives
+  probabilities, not betting advice. The picture is drawn.
+- Blog, Live Scores page, Statistics page, search box: these pages/features do not exist.
+
+**Featured cards** show only matches still to play, so a card is never a result. Basketball had no
+priced game on the day this was built (the NBA season starts later in October), so that card is absent
+rather than filled; the row simply has three cards.

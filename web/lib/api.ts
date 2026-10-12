@@ -328,6 +328,26 @@ export function getSportBoard(
   });
 }
 
+/**
+ * The same board, for a page that must not wait on it: a short timeout, and a null
+ * instead of a throw. The home page's featured picks use this, so a slow basketball
+ * or tennis board costs that page one card and not the page.
+ */
+export async function getSportBoardQuick(
+  sport: OtherSportKey,
+  date?: string,
+): Promise<SportBoard | null> {
+  const query = date ? `?on_date=${encodeURIComponent(date)}` : "";
+  try {
+    return await engineFetch<SportBoard>(`/sports/${sport}/board${query}`, {
+      revalidate: 120,
+      timeoutMs: 6_000,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** Graded predictions stored before the match, apart from reconstructed ones. */
 export function getSportRecord(sport: OtherSportKey): Promise<SportRecord> {
   return engineFetch<SportRecord>(`/sports/${sport}/record`, {

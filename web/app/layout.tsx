@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Logo } from "@/components/Logo";
+import { NavLinks } from "@/components/NavLinks";
 import { SportTabs } from "@/components/sport/SportTabs";
 import { organizationLd, websiteLd } from "@/lib/seo";
 import { IS_LIVE_SITE, SITE_NAME, SITE_URL } from "@/lib/site";
@@ -112,28 +113,28 @@ export const metadata: Metadata = {
 // is the argument for the rest and belongs where someone goes looking for it
 // rather than where it can be mistaken for a headline claim.
 const NAV = [
-  { href: "/matches", label: "Matches" },
+  { href: "/", label: "Home" },
+  { href: "/matches", label: "Predictions" },
   { href: "/bankers", label: "Bankers" },
   { href: "/slip", label: "Slip builder" },
   { href: "/leagues", label: "Leagues" },
   { href: "/progress", label: "Track record" },
-  { href: "/leaderboard", label: "Models" },
-  { href: "/how-it-works", label: "How it works" },
+  { href: "/leaderboard", label: "Models", wideOnly: true },
+  { href: "/how-it-works", label: "How it works", wideOnly: true },
+  { href: "/contact", label: "Contact" },
 ];
 
 // Runs before paint, outside React's tree, so the theme is correct on the
 // very first frame — a script that ran after hydration would still show one
-// frame of the wrong theme. Reads the stored choice, falling back to the
-// system preference for a first-time visitor; a stored choice always wins
-// over the system, since the toggle exists precisely to let someone
-// override it.
+// frame of the wrong theme. Reads the stored choice; a first-time visitor gets
+// the dark theme whatever their system prefers, because dark is the brand's own
+// look (black and yellow) and the toggle is there for anyone who wants paper.
+// A stored choice always wins.
 const THEME_INIT_SCRIPT = `
 (function () {
   try {
     var stored = localStorage.getItem("theme");
-    var theme = stored === "light" || stored === "dark"
-      ? stored
-      : (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    var theme = stored === "light" ? "light" : "dark";
     if (theme === "light") {
       document.documentElement.setAttribute("data-theme", "light");
     }
@@ -160,19 +161,15 @@ export default function RootLayout({
             <Link href="/" className="shrink-0" aria-label={SITE_NAME}>
               <Logo priority />
             </Link>
-            <div className="hidden flex-1 items-center gap-6 text-[14px] lg:flex">
-              {NAV.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)]"
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </div>
+            <NavLinks items={NAV} />
             <div className="ml-auto flex items-center gap-3 lg:ml-0">
               <ThemeToggle />
+              <Link
+                href="/matches"
+                className="hidden rounded-md bg-[var(--color-gold)] px-4 py-2.5 text-[12.5px] font-extrabold tracking-[0.04em] whitespace-nowrap text-[var(--color-ink-on-accent)] uppercase transition-colors hover:bg-[var(--color-gold-bright)] active:scale-[0.97] xl:inline-flex"
+              >
+                Today&rsquo;s picks
+              </Link>
               <MobileNav items={NAV} />
             </div>
           </nav>

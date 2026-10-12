@@ -21,6 +21,7 @@ import {
   getLeagues,
   getProgress,
   getRecentSettled,
+  getSportBoardQuick,
   getSportsSummary,
 } from "@/lib/api";
 import { allRows, type DayBoard } from "@/lib/board";
@@ -28,14 +29,18 @@ import type { RecentSettled } from "@/lib/api";
 import type { LeagueCountry } from "@/lib/discover";
 import type { Progress } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
-import { Hero } from "@/components/home/Hero";
-import { ResultsTicker } from "@/components/home/ResultsTicker";
+import { HomeHero } from "@/components/home/HomeHero";
+import { FeatureStrip } from "@/components/home/FeatureStrip";
+import { FeaturedPredictions } from "@/components/home/FeaturedPredictions";
+import { BrowseSports } from "@/components/home/BrowseSports";
+import { RecordPanel } from "@/components/home/RecordPanel";
+import { LatestResults } from "@/components/home/LatestResults";
+import { pickFeatured } from "@/lib/featured";
 import { AboutTheEngine } from "@/components/home/AboutTheEngine";
 import { HowItWorks } from "@/components/home/HowItWorks";
 import { TopLeagues } from "@/components/home/TopLeagues";
 import { Faq } from "@/components/home/Faq";
 import { GoodSite } from "@/components/home/GoodSite";
-import { MoreSports } from "@/components/home/MoreSports";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 180;
@@ -203,6 +208,10 @@ export default async function HomePage() {
     record,
     leaguesData,
     sportsData,
+    basketballToday,
+    basketballTomorrow,
+    tennisToday,
+    tennisTomorrow,
   ] = await Promise.all([
     getDayBoard({ date: isoDay(-1) }).catch(() => null),
     settle(getDayBoard({})),
@@ -210,6 +219,12 @@ export default async function HomePage() {
     getProgress().catch(() => null),
     getLeagues().catch(() => null),
     getSportsSummary().catch(() => null),
+    // The featured row's basketball and tennis picks. Each has its own short
+    // timeout and a null on failure, so a slow board costs a card, not the page.
+    getSportBoardQuick("basketball", isoDay(0)),
+    getSportBoardQuick("basketball", isoDay(1)),
+    getSportBoardQuick("tennis", isoDay(0)),
+    getSportBoardQuick("tennis", isoDay(1)),
   ]);
   yesterday = yesterdayBoard;
   today = todayResult.value;
@@ -228,31 +243,43 @@ export default async function HomePage() {
       ? progress!.backtest.record
       : null;
 
+  const strongRecord = progress?.strong
+    ? {
+        record: progress.strong.record,
+        minProbability: progress.strong.min_probability,
+      }
+    : null;
+
+  const featured = pickFeatured({
+    footballToday: today,
+    footballTomorrow: tomorrow,
+    basketball: [basketballToday, basketballTomorrow],
+    tennis: [tennisToday, tennisTomorrow],
+  });
+
   return (
     <>
-      <Hero
-        live={hasLive ? progress!.live.record : null}
-        backtest={backtestRecord}
-        liveSince={progress?.live.span?.first ?? null}
-        fixturesToday={today?.counts.fixtures ?? 0}
-        strong={
-          progress?.strong
-            ? {
-                record: progress.strong.record,
-                minProbability: progress.strong.min_probability,
-              }
-            : null
-        }
-      />
+      <HomeHero fixturesToday={today?.counts.fixtures ?? 0} />
 
-      <ResultsTicker
-        rows={recent?.rows ?? []}
-        from={recent?.from ?? null}
-        to={recent?.to ?? null}
-        minProbability={
-          recent?.strong_only ? (recent.min_probability ?? 70) : null
-        }
-      />
+      <FeatureStrip />
+
+      {/* The landing sections, each a self-contained block with its own heading
+          and spacing. Below them, the day's boards: the product itself. */}
+      <div className="mx-auto w-full max-w-[1200px] space-y-14 px-4 pt-12 sm:px-6 lg:px-10">
+        <FeaturedPredictions cards={featured} />
+        <BrowseSports sports={sportsData?.sports ?? null} />
+        <RecordPanel
+          live={hasLive ? progress!.live.record : null}
+          strong={strongRecord}
+          backtest={backtestRecord}
+        />
+        <LatestResults
+          rows={recent?.rows ?? []}
+          minProbability={
+            recent?.strong_only ? (recent.min_probability ?? 70) : null
+          }
+        />
+      </div>
 
       {/* One rule for the page's rhythm: every section after the first is set
           off by a hairline and the same breathing room above and below it, so no
@@ -296,8 +323,6 @@ export default async function HomePage() {
         />
 
         <TopLeagues countries={leagueCountries} />
-
-        <MoreSports sports={sportsData?.sports ?? null} />
 
         <AboutTheEngine
           gradedPicks={progress?.overall.settled ?? 0}

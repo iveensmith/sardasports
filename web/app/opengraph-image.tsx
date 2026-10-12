@@ -31,7 +31,7 @@ export default async function OpengraphImage() {
         justifyContent: "space-between",
         padding: "72px 80px",
         background:
-          "radial-gradient(ellipse 70% 90% at 78% 0%, rgba(227,188,69,0.28), rgba(9,13,18,0) 60%), #090d12",
+          "radial-gradient(ellipse 70% 90% at 78% 0%, rgba(245,192,0,0.3), rgba(6,9,15,0) 60%), #06090f",
         color: "#f4f7fa",
         fontFamily: "sans-serif",
       }}
@@ -60,7 +60,7 @@ export default async function OpengraphImage() {
             fontWeight: 800,
             lineHeight: 1.04,
             letterSpacing: -2,
-            color: "#e3bc45",
+            color: "#ffd43b",
           }}
         >
           every one graded.

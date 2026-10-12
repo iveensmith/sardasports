@@ -108,7 +108,7 @@ export async function SiteFooter() {
   }
 
   return (
-    <footer className="mt-24 border-t border-[var(--color-line)]">
+    <footer className="mt-24 border-t-2 border-[var(--color-gold)]/60 bg-[var(--color-surface)]">
       <div className="mx-auto w-full max-w-[1200px] px-4 py-12 sm:px-6 lg:px-10">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr_1fr]">
           <div>
@@ -201,15 +201,33 @@ export async function SiteFooter() {
           ))}
         </nav>
 
-        <div className="mt-6 text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
-          <p className="max-w-[68ch]">
-            18+ &middot; For information only, not betting advice. Every number
-            on this site is computed by the prediction engine from ingested
-            match data; where a market cannot be priced, it is shown as
-            unavailable rather than estimated. Predictions describe probability,
-            not certainty, and nothing here links out to a bookmaker.
+        <div className="mt-6 flex flex-col gap-5 sm:flex-row sm:items-start">
+          <span
+            aria-hidden
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-[3px] border-[var(--color-lost)] text-[17px] font-black text-[var(--color-text)]"
+          >
+            18+
+          </span>
+          <div className="text-[12.5px] leading-relaxed text-[var(--color-text-faint)]">
+            <p className="text-[14px] font-bold text-[var(--color-text)]">
+              Play responsibly
+            </p>
+            <p className="mt-1 max-w-[72ch]">
+              For information only, not betting advice. Every number on this
+              site is computed by the prediction engine from ingested match
+              data; where a market cannot be priced, it is shown as unavailable
+              rather than estimated. Predictions describe probability, not
+              certainty, and nothing here links out to a bookmaker. Only bet
+              what you can afford to lose.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--color-line)] pt-5 text-[12.5px] text-[var(--color-text-faint)]">
+          <p>&copy; {new Date().getFullYear()} SARDASPORTS. All rights reserved.</p>
+          <p className="font-bold text-[var(--color-gold-bright)]">
+            Sport. Analysis. Graded in public.
           </p>
-          <p className="mt-3">&copy; {new Date().getFullYear()} SARDASPORTS</p>
         </div>
       </div>
     </footer>
