@@ -252,11 +252,18 @@ def _match_entry(match: Match, names: dict[int, str], row, fresh: dict | None) -
     return entry
 
 
-def build_board(session: Session, sport: str, day: datetime) -> dict:
-    """One day's matches in a sport, grouped by competition, with predictions."""
+def build_board(session: Session, sport: str, day: datetime, *, stored_only: bool = False) -> dict:
+    """One day's matches in a sport, grouped by competition, with predictions.
+
+    `stored_only` serves only predictions already written to the database and never
+    asks the engine to price a match. That is the cheap read: pricing loads a sport's
+    whole match history, so a page that only wants "what has been priced" (the home
+    page's featured picks) uses this, and a match with no stored prediction is simply
+    not listed, the same as any match the engine could not price.
+    """
     if sport not in SPORTS:
         raise KeyError(sport)
-    key = (sport, day.date().isoformat())
+    key = (sport, day.date().isoformat(), stored_only)
     cached = _board_cache.get(key)
     if cached is not None and monotonic() - cached[0] < BOARD_TTL_SECONDS:
         return cached[1]
@@ -285,7 +292,7 @@ def build_board(session: Session, sport: str, day: datetime) -> dict:
     }
     missing = [m for m in matches if m.id not in stored]
     fresh: dict[int, dict | None] = {}
-    if missing:
+    if missing and not stored_only:
         try:
             fresh = {
                 m.id: p for m, p in zip(missing, predict_for_matches(session, missing), strict=True)

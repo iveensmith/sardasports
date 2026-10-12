@@ -41,6 +41,7 @@ from app.api import (
 from app.scheduler import start_scheduler, stop_scheduler
 from app.utils.config import get_settings
 from app.utils.logging import configure_logging, get_logger
+from app.utils.memory import rss_mb
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -90,7 +91,9 @@ async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONR
 
 @app.get("/health", tags=["meta"])
 def health() -> dict:
-    return {"status": "ok", "env": settings.app_env}
+    # `rss_mb` is what the engine holds right now: the number to look at when the
+    # server gets slow (it was 3 GB, and then the kernel killed the process).
+    return {"status": "ok", "env": settings.app_env, "rss_mb": rss_mb()}
 
 
 app.include_router(routes_fixtures.router)

@@ -35,6 +35,11 @@ services:
       # The scheduler keeps data, results and models current, and runs only while this
       # process does. See docs/deployment.md "Backups" before relying on it.
       ENABLE_SCHEDULER: "true"
+      # The API runs its sync endpoints on a pool of threads, and glibc gives each
+      # thread its own allocation arena and does not hand the memory back. Left alone
+      # that inflates the process well past what it actually uses (it reached 3 GB and
+      # was killed). Two arenas is the standard cure and costs nothing measurable here.
+      MALLOC_ARENA_MAX: "2"
     volumes:
       # Everything the engine writes or needs that is not code lives on the server's
       # disk under ${DATA_DIR}, so a rebuilt image never loses it.
@@ -50,8 +55,11 @@ services:
       retries: 3
       start_period: 60s
     # The engine holds the match history and its model fits in memory (about 0.5 GB
-    # idle, more while a board is computed). Capped so a leak cannot take the box down.
-    mem_limit: 3g
+    # idle, more while a board is computed). Capped well under the box's 4 GB so that
+    # a runaway restarts only this container and never starves SSH, the web server and
+    # the kernel (a 3 GB cap on a 4 GB box is how the server froze). Rebuilding the
+    # images needs memory too, so stop the api for the build if the box is small.
+    mem_limit: 2300m
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "5"}
@@ -78,7 +86,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 20s
-    mem_limit: 1g
+    mem_limit: 512m
     logging:
       driver: json-file
       options: {max-size: "10m", max-file: "5"}

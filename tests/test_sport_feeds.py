@@ -580,6 +580,36 @@ def test_a_match_with_no_prediction_is_left_off_the_board(db_session, priced):
     assert empty["competitions"] == [] and empty["counts"]["fixtures"] == 0
 
 
+def test_a_stored_only_board_never_prices_a_match(db_session, priced, monkeypatch):
+    a, b = _basketball_pair(db_session)
+    day = (_now() + timedelta(days=1)).replace(hour=18, minute=0, second=0, microsecond=0)
+    stored = _bb_match(db_session, a, b, day, status="scheduled")
+    unstored = _bb_match(db_session, b, a, day + timedelta(hours=2), status="scheduled")
+    db_session.add(
+        SportPrediction(
+            match_id=stored.id, sport="basketball", created_at=_now(), updated_at=_now(),
+            home_win_pct=65.0, away_win_pct=35.0, payload={},
+        )
+    )  # fmt: skip
+    db_session.commit()
+    calls = []
+    monkeypatch.setattr(
+        sport_predictions, "predict_for_matches", lambda *args, **kwargs: calls.append(1) or []
+    )
+    sport_predictions.clear_cache()
+
+    board = sport_predictions.build_board(db_session, "basketball", day, stored_only=True)
+
+    listed = [e["match_id"] for c in board["competitions"] for e in c["matches"]]
+    assert listed == [stored.id] and unstored.id not in listed
+    assert calls == []  # pricing loads a sport's whole history: it must not run
+
+
+def test_health_reports_the_memory_the_engine_holds(client):
+    body = client.get("/health").json()
+    assert body["status"] == "ok" and "rss_mb" in body
+
+
 def test_the_board_and_record_routes(client, db_session, priced):
     a, b = _basketball_pair(db_session)
     day = _now() + timedelta(days=1)

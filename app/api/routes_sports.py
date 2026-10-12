@@ -31,13 +31,19 @@ def sport_page(sport: str, db: Session = Depends(get_db)) -> dict:
 def sport_board(
     sport: str,
     on_date: date | None = Query(None, description="Defaults to today (UTC)"),
+    stored_only: bool = Query(
+        False,
+        description="Serve only predictions already stored; never price a match now",
+    ),
     db: Session = Depends(get_db),
 ) -> dict:
     """One day's matches in a sport, grouped by competition, each with its prediction."""
     if sport not in SPORTS:
         raise HTTPException(status_code=404, detail=f"No board for sport '{sport}'")
     target = on_date or datetime.now(UTC).date()
-    return build_board(db, sport, datetime.combine(target, datetime.min.time()))
+    return build_board(
+        db, sport, datetime.combine(target, datetime.min.time()), stored_only=stored_only
+    )
 
 
 @router.get("/sports/{sport}/record")

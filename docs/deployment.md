@@ -225,3 +225,32 @@ serves every page against the live engine, the compose file parses, the backup s
 and the engine runs from the same lockfile. The first `up --build` on the server is the real
 test; if it fails, the likeliest places are the engine image's system libraries (the Dockerfile
 installs `libgomp1` for XGBoost/LightGBM) and file ownership of `/srv/sardasports`.
+
+## Memory: what froze the server on 12 Oct 2026, and the guard rails
+
+The 4 GB box stopped answering SSH ("timed out during banner exchange"). The Hetzner console showed
+the kernel's `Out of memory: Killed process (uvicorn) ... anon-rss:3059800kB`: the engine had grown to
+about 3 GB, the container's cap was 3 GB on a 4 GB machine, and nothing was left for SSH, the web
+server or the kernel. Its CPU sat at ~155% (the engine being killed, restarting and growing again).
+
+What changed in response:
+- The api container is capped at 2.3 GB and web at 512 MB (`docker-compose.prod.yml`), so a runaway
+  restarts that container and not the box.
+- `MALLOC_ARENA_MAX=2` for the api: threaded Python on glibc otherwise holds on to far more memory
+  than it uses.
+- The home page's featured picks read stored predictions only (`/sports/{sport}/board?stored_only=true`),
+  so a page view never makes the engine load a sport's whole history.
+- `/health` now returns `rss_mb`, the engine's resident memory. Check it from the server:
+  `curl -s http://127.0.0.1:8000/health` inside the api container, or
+  `docker compose ... exec -T api curl -s localhost:8000/health`. If it climbs steadily with no
+  traffic, that is a leak and worth reporting with the timestamps.
+
+Add swap once, as a cushion (on the server):
+
+    sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile
+    sudo mkswap /swapfile && sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    free -h
+
+Build the images with the api stopped on this size of box (`docker compose ... stop api`, build,
+then `up -d`): a build and a running engine together are what pushed it over.

@@ -337,7 +337,12 @@ export async function getSportBoardQuick(
   sport: OtherSportKey,
   date?: string,
 ): Promise<SportBoard | null> {
-  const query = date ? `?on_date=${encodeURIComponent(date)}` : "";
+  // `stored_only`: read what has already been priced and never make the engine load
+  // a sport's whole history to price a match. A featured pick that has not been
+  // stored yet is simply not featured.
+  const query = date
+    ? `?on_date=${encodeURIComponent(date)}&stored_only=true`
+    : "?stored_only=true";
   try {
     return await engineFetch<SportBoard>(`/sports/${sport}/board${query}`, {
       revalidate: 120,
