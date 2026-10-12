@@ -23,7 +23,7 @@ import { StatTiles } from "@/components/board/StatTiles";
 import { MarketGlossary } from "@/components/MarketGlossary";
 import { pageMetadata } from "@/lib/seo";
 
-export const revalidate = 120;
+export const revalidate = 30;
 
 /** A real YYYY-MM-DD, or null. Anything else in the URL is ignored, not echoed. */
 function validDate(value: string | string[] | undefined): string | null {

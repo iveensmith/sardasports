@@ -585,7 +585,9 @@ export function getDayBoard(
   if (options.competition) query.set("competition", options.competition);
   if (options.sport) query.set("sport", options.sport);
   const suffix = query.toString() ? `?${query}` : "";
-  return engineFetch<DayBoard>(`/board${suffix}`, { revalidate: 120 });
+  // Short on purpose: this board carries the LIVE badge and the score as it changes, and a
+  // board that is minutes old shows a match as not started long after kick-off.
+  return engineFetch<DayBoard>(`/board${suffix}`, { revalidate: 30 });
 }
 
 /**

@@ -45,7 +45,7 @@ import { Faq } from "@/components/home/Faq";
 import { GoodSite } from "@/components/home/GoodSite";
 import { pageMetadata } from "@/lib/seo";
 
-export const revalidate = 180;
+export const revalidate = 60;
 
 export const metadata = pageMetadata({
   title: "Best AI Prediction Site: Football, Basketball & Tennis",

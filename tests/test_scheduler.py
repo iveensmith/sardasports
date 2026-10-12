@@ -32,7 +32,6 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "fetch_results",
             "fetch_match_stats",
             "evaluate_predictions",
-            "weekly_retrain",
             "monthly_archive",
             "results_strip_canary",
             "sports_pages_warm",
@@ -41,6 +40,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "tennis_feed",
             "engine_warm",
             "fetch_live",
+            "plan_watch",
         }
 
         # Calling start again while already running is a no-op, not a second scheduler.

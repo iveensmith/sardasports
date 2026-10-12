@@ -52,7 +52,10 @@ BOARD_CACHE_SECONDS = 30.0
 # it. Rebuilding is cheap on its own (about a second) but the engine is one process that is also
 # running the scheduler's jobs, and a request that landed on a rebuild during one of them waited
 # 40 seconds. A visitor now sees a board at most this much older than fresh, never a wait.
-BOARD_STALE_SECONDS = 600.0
+# Four minutes, the interval of the warm-up job that rebuilds the boards: a score or a LIVE badge
+# now reaches the page within one warm-up, where ten minutes of staleness showed a match as not
+# started long after it had.
+BOARD_STALE_SECONDS = 240.0
 _board_cache = CoalescingCache(BOARD_CACHE_SECONDS, stale_seconds=BOARD_STALE_SECONDS)
 
 

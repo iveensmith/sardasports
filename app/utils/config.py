@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # season, and the API jobs follow the account's own plan and remaining quota
     # (see app/services/api_budget.py).
     enable_scheduler: bool = False
+    # Retrains every model inside the engine's process, Mondays 04:00. Off by default: it is
+    # heavy enough to freeze a small server (see app/scheduler.py), and models are normally
+    # trained elsewhere and uploaded.
+    enable_weekly_retrain: bool = False
 
     # Injuries (scripts/sync_injuries.py) — requires your own key from
     # dashboard.api-football.com. Unset by default; get_injuries stays

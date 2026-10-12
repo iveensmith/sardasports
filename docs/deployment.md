@@ -233,6 +233,12 @@ the kernel's `Out of memory: Killed process (uvicorn) ... anon-rss:3059800kB`: t
 about 3 GB, the container's cap was 3 GB on a 4 GB machine, and nothing was left for SSH, the web
 server or the kernel. Its CPU sat at ~155% (the engine being killed, restarting and growing again).
 
+**The cause, found afterwards:** the 12 Oct freeze was a Monday, and the scheduler's weekly retrain
+(`retrain_models_job`, Mondays 04:00 UTC) trains about thirty models *inside the web engine's own
+process*. The server's CPU graph sat at ~155% from about 04:00, and the process grew to 3 GB. That job
+is now off unless `ENABLE_WEEKLY_RETRAIN=true`; train models on a development machine and upload them
+(`ml/models/` to `/srv/sardasports/models`). The home page's extra board requests were not the cause.
+
 What changed in response:
 - The api container is capped at 2.3 GB and web at 512 MB (`docker-compose.prod.yml`), so a runaway
   restarts that container and not the box.

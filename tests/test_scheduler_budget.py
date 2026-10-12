@@ -455,3 +455,56 @@ def test_the_injury_sync_is_skipped_without_an_api_key(monkeypatch, job_env, db_
     monkeypatch.setattr(scheduler, "get_settings", lambda: _settings(key=None))
     scheduler.sync_injuries_job()
     assert synced == []
+
+
+# --- the retrain is not run inside the web process unless asked for --------------------------
+
+
+def test_the_weekly_retrain_is_off_unless_it_is_asked_for(monkeypatch, fresh_scheduler):
+    monkeypatch.setattr(scheduler, "get_settings", lambda: _settings())
+    monkeypatch.setattr(scheduler, "is_paid_plan", lambda s: True)
+    started = scheduler.start_scheduler()
+    assert "weekly_retrain" not in {job.id for job in started.get_jobs()}
+
+
+def test_the_weekly_retrain_can_still_be_switched_on(monkeypatch, fresh_scheduler):
+    settings = _settings()
+    settings.enable_weekly_retrain = True
+    monkeypatch.setattr(scheduler, "get_settings", lambda: settings)
+    monkeypatch.setattr(scheduler, "is_paid_plan", lambda s: True)
+    started = scheduler.start_scheduler()
+    assert "weekly_retrain" in {job.id for job in started.get_jobs()}
+
+
+# --- a start-up that could not read the plan is corrected, not stranded ----------------------
+
+
+def _live_minutes(started):
+    job = next(j for j in started.get_jobs() if j.id == "fetch_live")
+    return job.trigger.interval.total_seconds() / 60
+
+
+def test_a_plan_read_wrongly_at_start_is_corrected_by_the_watcher(monkeypatch, fresh_scheduler):
+    monkeypatch.setattr(scheduler, "get_settings", lambda: _settings())
+    monkeypatch.setattr(scheduler, "is_paid_plan", lambda s: False)  # the start-up read failed
+    started = scheduler.start_scheduler()
+    assert _live_minutes(started) == scheduler.PROFILES["free"]["live"]["minutes"]
+
+    monkeypatch.setattr(
+        scheduler, "api_status", lambda s: {"used": 5, "limit": 7500, "plan": "Pro"}
+    )
+    scheduler.plan_watch_job()
+
+    assert _live_minutes(started) == scheduler.PROFILES["paid"]["live"]["minutes"]
+
+
+def test_the_watcher_changes_nothing_when_the_plan_cannot_be_read(monkeypatch, fresh_scheduler):
+    monkeypatch.setattr(scheduler, "get_settings", lambda: _settings())
+    monkeypatch.setattr(scheduler, "is_paid_plan", lambda s: True)
+    started = scheduler.start_scheduler()
+    before = _live_minutes(started)
+
+    monkeypatch.setattr(scheduler, "api_status", lambda s: None)
+    scheduler.plan_watch_job()
+
+    assert _live_minutes(started) == before

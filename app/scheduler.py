@@ -724,6 +724,52 @@ def sports_warm_job() -> None:
         session.close()
 
 
+# The job ids whose cadence follows the API plan, and how each is triggered for a profile.
+def _plan_triggers(profile: dict) -> dict[str, object]:
+    return {
+        "fetch_upcoming_fixtures": CronTrigger(**profile["fixtures"]["cron"]),
+        "fetch_odds": CronTrigger(**profile["odds"]["cron"]),
+        "fetch_results": CronTrigger(**profile["results"]["cron"]),
+        "fetch_match_stats": CronTrigger(**profile["stats"]["cron"]),
+        "fetch_live": IntervalTrigger(minutes=profile["live"]["minutes"]),
+    }
+
+
+# Which profile the running jobs were scheduled with ("free" or "paid").
+_active_profile_key: str | None = None
+
+
+def plan_watch_job() -> None:
+    """Re-read the account's plan and re-time the API jobs if it no longer matches.
+
+    The cadence is chosen once, at start-up, from the plan the API reports. If that read failed
+    (the network was not up yet right after a boot, the API was briefly down) the engine would
+    have fallen back to the free-plan cadence and stayed there until the next restart, with live
+    scores every half hour on a paid plan. This re-checks every half hour and fixes it in place.
+    """
+    global _active_profile_key
+    scheduler = _scheduler
+    if scheduler is None:
+        return
+    settings = get_settings()
+    status = api_status(settings)
+    if status is None:
+        return  # cannot tell; keep what is running rather than guess
+    wanted = "paid" if status["limit"] >= PAID_DAILY_LIMIT else "free"
+    if wanted == _active_profile_key:
+        return
+    triggers = _plan_triggers(PROFILES[wanted])
+    for job_id, trigger in triggers.items():
+        try:
+            scheduler.reschedule_job(job_id, trigger=trigger)
+        except Exception:  # noqa: BLE001 - one missing job must not stop the rest
+            logger.exception("plan_watch could not reschedule %s", job_id)
+    logger.warning(
+        "plan_watch: API plan is %s, jobs re-timed (was %s)", wanted, _active_profile_key
+    )
+    _active_profile_key = wanted
+
+
 def start_scheduler() -> BackgroundScheduler | None:
     """Start the background scheduler if enabled. Idempotent — calling twice is a no-op."""
     global _scheduler
@@ -736,7 +782,10 @@ def start_scheduler() -> BackgroundScheduler | None:
 
     # The cadence follows the account's plan, read from the API itself: a free
     # plan gets the quota-safe one, a paid plan the busier one. See PROFILES.
-    profile = PROFILES["paid" if is_paid_plan(settings) else "free"]
+    global _active_profile_key
+    _active_profile_key = "paid" if is_paid_plan(settings) else "free"
+    profile = PROFILES[_active_profile_key]
+    triggers = _plan_triggers(profile)
 
     scheduler = BackgroundScheduler()
     scheduler.add_job(refresh_data_job, CronTrigger(hour=3, minute=0), id="daily_refresh_data")
@@ -746,36 +795,47 @@ def start_scheduler() -> BackgroundScheduler | None:
     # script by hand.
     scheduler.add_job(
         fetch_upcoming_fixtures_job,
-        CronTrigger(**profile["fixtures"]["cron"]),
+        triggers["fetch_upcoming_fixtures"],
         id="fetch_upcoming_fixtures",
     )
     # After fixtures in the day, so newly-ingested rows have prices by the time
     # anyone loads the board.
-    scheduler.add_job(fetch_odds_job, CronTrigger(**profile["odds"]["cron"]), id="fetch_odds")
+    scheduler.add_job(fetch_odds_job, triggers["fetch_odds"], id="fetch_odds")
     # Runs ahead of evaluate_predictions_job's */6 cadence so a completed
     # match's result is already in the database by the time that job looks
     # for one to backfill.
-    scheduler.add_job(
-        fetch_results_job, CronTrigger(**profile["results"]["cron"]), id="fetch_results"
-    )
+    scheduler.add_job(fetch_results_job, triggers["fetch_results"], id="fetch_results")
     # Only ever sees fixtures that already have a score, so it has nothing to do
     # for one that isn't completed yet.
-    scheduler.add_job(
-        fetch_match_stats_job, CronTrigger(**profile["stats"]["cron"]), id="fetch_match_stats"
-    )
+    scheduler.add_job(fetch_match_stats_job, triggers["fetch_match_stats"], id="fetch_match_stats")
     # Live scores for matches in play. Cadence follows the plan (see PROFILES): coarse on the
     # free plan, every couple of minutes on a paid one.
     scheduler.add_job(
         fetch_live_job,
-        IntervalTrigger(minutes=profile["live"]["minutes"]),
+        triggers["fetch_live"],
         id="fetch_live",
         coalesce=True,
         max_instances=1,
     )
-    scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
+    # Re-reads the plan so a start-up that could not read it does not strand the cadence.
     scheduler.add_job(
-        retrain_models_job, CronTrigger(day_of_week="mon", hour=4, minute=0), id="weekly_retrain"
+        plan_watch_job,
+        IntervalTrigger(minutes=30),
+        id="plan_watch",
+        coalesce=True,
+        max_instances=1,
     )
+    scheduler.add_job(evaluate_predictions_job, CronTrigger(hour="*/6"), id="evaluate_predictions")
+    # Off unless `ENABLE_WEEKLY_RETRAIN` is set. Training about thirty models inside the web
+    # engine's own process held the CPU near 150% for an hour and grew the process to 3 GB on the
+    # 4 GB server, until the kernel killed it (12 Oct 2026, a Monday, at 04:00). Models are
+    # trained on a development machine and uploaded; see docs/deployment.md.
+    if getattr(settings, "enable_weekly_retrain", False):
+        scheduler.add_job(
+            retrain_models_job,
+            CronTrigger(day_of_week="mon", hour=4, minute=0),
+            id="weekly_retrain",
+        )
     scheduler.add_job(
         archive_and_cleanup_job, CronTrigger(day=1, hour=5, minute=0), id="monthly_archive"
     )
