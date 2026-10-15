@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -15,7 +17,7 @@ from app.database.session import get_db
 from app.models.account import AuditLog, AuthSession, AuthToken, EmailOutbox, User
 from app.models.content import STATUS_PUBLISHED, ManualPick, Post
 from app.models.premium import Plan, Subscription
-from app.services import content_service, mailer, premium_service
+from app.services import content_service, mailer, media_service, premium_service
 from app.services.content_service import ContentError
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -129,9 +131,12 @@ def delete_member(
 class PostIn(BaseModel):
     title: str = Field(max_length=200)
     excerpt: str = Field(default="", max_length=600)
-    body: str = Field(default="", max_length=100_000)
+    body: str = Field(default="", max_length=200_000)
     premium_only: bool = False
     publish: bool = False
+    category: str | None = Field(default=None, max_length=60)
+    tags: list[str] = Field(default_factory=list, max_length=20)
+    featured_image: str | None = Field(default=None, max_length=200)
 
 
 @router.get("/posts")
@@ -166,6 +171,9 @@ def create_post(
             body=body.body,
             premium_only=body.premium_only,
             publish=body.publish,
+            category=body.category,
+            tags=body.tags,
+            featured_image=body.featured_image,
         )
     except ContentError as error:
         raise _wrap(error) from None
@@ -187,6 +195,9 @@ def update_post(
             body=body.body,
             premium_only=body.premium_only,
             publish=body.publish,
+            category=body.category,
+            tags=body.tags,
+            featured_image=body.featured_image,
         )
     except ContentError as error:
         raise _wrap(error) from None
@@ -216,6 +227,56 @@ def delete_post(
         raise _wrap(error) from None
     db.commit()
     return {"ok": True}
+
+
+@router.post("/media")
+async def upload_media(request: Request, admin: User = Depends(admin_user)) -> Response:
+    """Store one image for a post. Accepts the file itself or a multipart form with one file.
+
+    The answer is JSON, except when the editor's image dialog asks for its own callback format
+    (it sends `CKEditorFuncNum` and no `responseType=json`), where it is the small HTML page that
+    dialog expects.
+    """
+    query = request.query_params
+    callback = query.get("CKEditorFuncNum")
+    if callback is not None and not callback.isdigit():
+        callback = None
+    wants_html = callback is not None and query.get("responseType") != "json"
+
+    def refuse(code: str, message: str, status: int) -> Response:
+        if wants_html:
+            text = json.dumps(message)
+            page = (
+                "<script>window.parent.CKEDITOR.tools.callFunction("
+                f"{callback}, '', {text});</script>"
+            )
+            return HTMLResponse(page, status_code=200)
+        return JSONResponse(
+            {
+                "uploaded": 0,
+                "error": {"message": message},
+                "detail": {"code": code, "message": message},
+            },
+            status_code=status,
+        )
+
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > media_service.MAX_UPLOAD_BYTES + 65_536:
+        return refuse("too_large", "That file is too large.", 413)
+    body = await request.body()
+    try:
+        data = media_service.extract_upload(request.headers.get("content-type", ""), body)
+        name = media_service.save_image(data)
+    except media_service.MediaError as error:
+        return refuse(error.code, error.message, error.status)
+    url = media_service.public_url(name)
+    if wants_html:
+        page = (
+            "<script>window.parent.CKEDITOR.tools.callFunction("
+            f"{callback}, {json.dumps(url)});</script>"
+        )
+        return HTMLResponse(page)
+    return JSONResponse({"uploaded": 1, "fileName": name, "url": url})
 
 
 # --- picks --------------------------------------------------------------------------------

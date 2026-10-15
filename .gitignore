@@ -68,3 +68,6 @@ web/out/
 web/.env*.local
 *.db-wal
 *.db-shm
+
+# blog images uploaded through the admin editor (kept on the server's data volume)
+data/uploads/

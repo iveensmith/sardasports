@@ -3,8 +3,6 @@ import type { Post } from "@/lib/content";
 import { engineCall } from "@/lib/session";
 import { pageMetadata } from "@/lib/seo";
 
-export const revalidate = 120;
-
 export const metadata = pageMetadata({
   title: "Blog: football, basketball and tennis analysis",
   description:
@@ -20,11 +18,23 @@ function day(iso: string | null): string {
   );
 }
 
-export default async function BlogPage() {
-  const { data } = await engineCall<{ total: number; posts: Post[] }>(
-    "/content/posts?limit=50",
-  );
-  const posts = data?.posts ?? [];
+export default async function BlogPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string | string[] }>;
+}) {
+  const raw = (await searchParams).category;
+  const wanted = (Array.isArray(raw) ? raw[0] : raw)?.slice(0, 60) || null;
+
+  const [list, cats] = await Promise.all([
+    engineCall<{ total: number; posts: Post[] }>(
+      `/content/posts?limit=50${wanted ? `&category=${encodeURIComponent(wanted)}` : ""}`,
+    ),
+    engineCall<{ categories: string[] }>("/content/categories"),
+  ]);
+  const posts = list.data?.posts ?? [];
+  const categories = cats.data?.categories ?? [];
+
   return (
     <div className="mx-auto w-full max-w-[860px] px-4 py-12 sm:px-6 sm:py-16">
       <header>
@@ -44,32 +54,72 @@ export default async function BlogPage() {
         </p>
       </header>
 
+      {categories.length > 0 && (
+        <nav aria-label="Categories" className="mt-8 flex flex-wrap gap-2">
+          {[null, ...categories].map((name) => {
+            const active = (name ?? null) === wanted;
+            return (
+              <Link
+                key={name ?? "all"}
+                href={name ? `/blog?category=${encodeURIComponent(name)}` : "/blog"}
+                aria-current={active ? "true" : undefined}
+                className={`rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+                  active
+                    ? "border-[var(--color-gold)] bg-[var(--color-gold)] text-[var(--color-ink-on-accent)]"
+                    : "border-[var(--color-line-strong)] text-[var(--color-text-dim)] hover:border-[var(--color-gold)]/60 hover:text-[var(--color-text)]"
+                }`}
+              >
+                {name ?? "All"}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
+
       {posts.length === 0 ? (
         <p className="mt-10 rounded-[14px] border border-dashed border-[var(--color-line-strong)] p-6 text-[14.5px] text-[var(--color-text-dim)]">
-          No posts yet. They will appear here as they are published.
+          {wanted
+            ? "No articles in this category yet."
+            : "No posts yet. They will appear here as they are published."}
         </p>
       ) : (
-        <ul className="mt-10 space-y-4">
+        <ul className="mt-8 space-y-4">
           {posts.map((post) => (
             <li key={post.id}>
               <Link
                 href={`/blog/${post.slug}`}
-                className="block rounded-[14px] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-5 transition-colors hover:border-[var(--color-gold)]/60"
+                className="flex flex-col gap-4 rounded-[14px] border border-[var(--color-line-strong)] bg-[var(--color-surface)] p-4 transition-colors hover:border-[var(--color-gold)]/60 sm:flex-row sm:p-5"
               >
-                <p className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-faint)]">
-                  <span>{day(post.published_at)}</span>
-                  {post.premium_only && (
-                    <span className="rounded bg-[var(--color-gold)] px-1.5 py-0.5 text-[10px] font-extrabold tracking-wider text-[var(--color-ink-on-accent)] uppercase">
-                      Premium
-                    </span>
-                  )}
-                </p>
-                <h2 className="mt-1.5 text-[20px] leading-snug font-bold tracking-[-0.01em]">
-                  {post.title}
-                </h2>
-                <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
-                  {post.excerpt}
-                </p>
+                {post.featured_image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.featured_image}
+                    alt=""
+                    loading="lazy"
+                    className="h-44 w-full shrink-0 rounded-[10px] object-cover sm:h-28 sm:w-44"
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--color-text-faint)]">
+                    <span>{day(post.published_at)}</span>
+                    {post.category && (
+                      <span className="font-semibold text-[var(--color-text-dim)]">
+                        {post.category}
+                      </span>
+                    )}
+                    {post.premium_only && (
+                      <span className="rounded bg-[var(--color-gold)] px-1.5 py-0.5 text-[10px] font-extrabold tracking-wider text-[var(--color-ink-on-accent)] uppercase">
+                        Premium
+                      </span>
+                    )}
+                  </p>
+                  <h2 className="mt-1.5 text-[20px] leading-snug font-bold tracking-[-0.01em]">
+                    {post.title}
+                  </h2>
+                  <p className="mt-2 text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
+                    {post.excerpt}
+                  </p>
+                </div>
               </Link>
             </li>
           ))}

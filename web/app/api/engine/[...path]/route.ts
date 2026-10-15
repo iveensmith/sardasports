@@ -5,6 +5,11 @@
  * not an administrator, whatever this route does), the premium plans, checkout and cancellation,
  * and the public content. Anything else gets a 404, so a new engine endpoint is never exposed to
  * browsers by accident.
+ *
+ * Almost everything is JSON. The one exception is the administrator's image upload
+ * (`admin/media`): its body is the file itself (or a multipart form from the editor's image
+ * dialog), so it is forwarded as bytes with its own content type, and the editor's dialog gets
+ * the small HTML reply it expects.
  */
 
 import { NextResponse } from "next/server";
@@ -16,8 +21,10 @@ const ALLOWED = [
   /^premium\/plans$/,
   /^premium\/checkout$/,
   /^premium\/cancel$/,
-  /^content\/(posts|picks)/,
+  /^content\/(posts|picks|categories)/,
 ];
+
+const UPLOAD = /^admin\/media$/;
 
 function sameOrigin(request: Request): boolean {
   const origin = request.headers.get("origin");
@@ -54,18 +61,31 @@ async function handle(
   const token = jar.get(SESSION_COOKIE)?.value;
   const search = new URL(request.url).search;
   const hasBody = !["GET", "HEAD", "DELETE"].includes(method);
+  const isUpload = UPLOAD.test(joined) && method === "POST";
   let upstream: Response;
   try {
     upstream = await fetch(`${ENGINE_URL}/${joined}${search}`, {
       method,
       headers: {
-        accept: "application/json",
-        ...(hasBody ? { "content-type": "application/json" } : {}),
+        accept: isUpload ? "application/json, text/html" : "application/json",
+        ...(isUpload
+          ? {
+              "content-type":
+                request.headers.get("content-type") ??
+                "application/octet-stream",
+            }
+          : hasBody
+            ? { "content-type": "application/json" }
+            : {}),
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      body: hasBody ? await request.text() : undefined,
+      body: isUpload
+        ? await request.arrayBuffer()
+        : hasBody
+          ? await request.text()
+          : undefined,
       cache: "no-store",
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(isUpload ? 60_000 : 20_000),
     });
   } catch {
     return NextResponse.json(
@@ -77,6 +97,15 @@ async function handle(
       },
       { status: 503 },
     );
+  }
+  if ((upstream.headers.get("content-type") ?? "").startsWith("text/html")) {
+    return new NextResponse(await upstream.text(), {
+      status: upstream.status,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "x-content-type-options": "nosniff",
+      },
+    });
   }
   const data = await upstream.json().catch(() => ({}));
   return NextResponse.json(data, { status: upstream.status });

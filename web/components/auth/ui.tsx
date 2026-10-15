@@ -5,15 +5,67 @@
 
 "use client";
 
+import { useState } from "react";
 import type { InputHTMLAttributes, ReactNode } from "react";
 
 export const inputClass =
   "w-full rounded-[var(--radius-md)] border border-[var(--color-line-strong)] bg-[var(--color-surface)] px-3.5 py-2.5 text-[15px] text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-gold)] focus:outline-none";
 
+function EyeIcon({ off }: { off: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width={20}
+      height={20}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+      {off && <path d="M4 4l16 16" />}
+    </svg>
+  );
+}
+
+/**
+ * A password box with an eye button to show or hide what was typed. The input stays a normal
+ * uncontrolled field (so forms read it by name as before); only its `type` is switched.
+ */
+export function PasswordInput({
+  className = "",
+  ...input
+}: Omit<InputHTMLAttributes<HTMLInputElement>, "type">) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        {...input}
+        type={visible ? "text" : "password"}
+        className={`${className} pr-12`}
+      />
+      <button
+        type="button"
+        onClick={() => setVisible((v) => !v)}
+        aria-label={visible ? "Hide password" : "Show password"}
+        aria-pressed={visible}
+        title={visible ? "Hide password" : "Show password"}
+        className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[var(--radius-md)] text-[var(--color-text-dim)] transition-colors hover:text-[var(--color-text)] focus-visible:text-[var(--color-gold-bright)] focus-visible:outline-none"
+      >
+        <EyeIcon off={visible} />
+      </button>
+    </div>
+  );
+}
+
 export function Field({
   label,
   hint,
   id,
+  type,
   ...input
 }: {
   label: string;
@@ -25,7 +77,13 @@ export function Field({
       <label htmlFor={id} className="text-[13px] font-semibold">
         {label}
       </label>
-      <input id={id} className={`${inputClass} mt-1.5`} {...input} />
+      {type === "password" ? (
+        <div className="mt-1.5">
+          <PasswordInput id={id} className={inputClass} {...input} />
+        </div>
+      ) : (
+        <input id={id} type={type} className={`${inputClass} mt-1.5`} {...input} />
+      )}
       {hint && (
         <p className="mt-1 text-[12px] text-[var(--color-text-faint)]">{hint}</p>
       )}

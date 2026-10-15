@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# the rich-text editor, copied out of node_modules by scripts/copy-ckeditor.mjs
+/public/ckeditor

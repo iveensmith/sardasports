@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # How many nightly database snapshots to keep (see `nightly_backup_job`). One a night, so
     # this is also how many nights back a mistake can be undone.
     backup_keep: int = 14
+    # Where uploaded blog images are kept. Empty means an `uploads` folder beside the database,
+    # which in production is the mounted data volume (see app/services/media_service.py).
+    uploads_dir: str = ""
 
     # Injuries (scripts/sync_injuries.py) — requires your own key from
     # dashboard.api-football.com. Unset by default; get_injuries stays

@@ -195,7 +195,12 @@ edit or a corrupt write, not against losing the server. Pull them to your own co
 ```powershell
 mkdir C:\backups\sardasports -Force
 scp "deploy@YOUR_SERVER_IP:/srv/sardasports/data/backups/uniquepredict-*.db" C:\backups\sardasports\
+scp -r "deploy@YOUR_SERVER_IP:/srv/sardasports/data/uploads" C:\backups\sardasports\
 ```
+
+The second command copies the **blog images** (`/srv/sardasports/data/uploads`). They are files, not
+rows, so the database snapshot does not contain them: restore the database without them and the
+articles come back with broken pictures.
 
 Hetzner's own paid server backups (a snapshot of the whole disk) are a second layer, if you want one.
 
@@ -323,3 +328,25 @@ Without a provider you can still grant premium by hand from `/admin/members`.
 - The session cookie is `sd_session` (HttpOnly, SameSite=Lax, Secure in production).
 
 **Back up the database before launch and after.** It now holds members.
+
+## The article editor
+
+`/admin/posts/new` is a rich-text editor (title, category, tags, featured image, content). Notes:
+
+- **The editor is CKEditor 4.22.1**, served from this site (`web/public/ckeditor`, copied out of
+  `node_modules` by `web/scripts/copy-ckeditor.mjs` at build; nothing is loaded from a third
+  party). 4.22.1 is the last release under its open-source licence and no longer receives
+  security fixes. It is used only on the administrator-only page, and its output is never trusted:
+  the engine rebuilds every article from an allow-list of tags, attributes and styles before
+  storing it (`app/services/html_sanitize.py`, with tests). Do not loosen that list.
+- **Buttons left off** the reference toolbar because they cannot work or would put unsafe or
+  external things in a post: Save and PDF export (a cloud service), the form-field buttons, Flash,
+  Iframe, and spell-check-as-you-type (it sends the text to a third party).
+- **Images** are checked, resized (longest side 2000 px) and re-encoded on upload, then stored in
+  `/srv/sardasports/data/uploads/blog` and served at `/media/<name>`. JPEG, PNG and WebP, up to
+  6 MB. They are not in the database snapshot: back that folder up too (see Backups).
+- **Categories** are a fixed list in `app/services/content_service.py` (`CATEGORIES`).
+- After pulling this change run `alembic upgrade head` (it adds four columns to `posts`; articles
+  written before it keep their old format and still display).
+- To use the brand yellow for the main button instead of the reference's blue, change
+  `--ae-accent` at the top of `web/components/admin/article-editor.css`.

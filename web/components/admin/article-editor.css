@@ -1,0 +1,379 @@
+/*
+ * The article editor page: a light, paper-white form on a light page, as designed by the owner
+ * (title, category, tags, featured image, the rich-text editor, one blue Publish button).
+ *
+ * It is deliberately independent of the site's dark theme: the colours here are fixed, so the form
+ * looks the same whichever theme the admin is browsing in. The public pages keep the site's own.
+ * To use the brand yellow for the main button instead of blue, change --ae-accent below.
+ */
+
+.ae-page {
+  --ae-accent: #1558ff;
+  --ae-accent-ink: #ffffff;
+  --ae-ink: #0f172a;
+  --ae-text: #1f2937;
+  --ae-muted: #64748b;
+  --ae-faint: #9ca3af;
+  --ae-line: #d1d5db;
+  --ae-soft: #f3f4f6;
+  --ae-page: #f9fafb;
+
+  background: var(--ae-page);
+  color: var(--ae-text);
+  border-radius: 20px;
+  padding: 28px 24px 40px;
+}
+
+.ae-heading {
+  font-size: clamp(1.9rem, 4vw, 2.35rem);
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ae-ink);
+}
+
+.ae-sub {
+  margin-top: 6px;
+  font-size: 15px;
+  color: var(--ae-muted);
+}
+
+.ae-back {
+  display: inline-block;
+  margin-bottom: 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ae-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ae-card {
+  margin-top: 26px;
+  max-width: 1000px;
+  overflow: hidden;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 24px;
+  box-shadow: 0 18px 50px -24px rgba(15, 23, 42, 0.22);
+}
+
+.ae-body {
+  padding: 32px;
+}
+
+.ae-field + .ae-field {
+  margin-top: 26px;
+}
+
+.ae-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ae-text);
+}
+
+.ae-input,
+.ae-select,
+.ae-textarea,
+.ae-tags {
+  width: 100%;
+  border: 2px solid var(--ae-line);
+  border-radius: 16px;
+  background: #ffffff;
+  color: var(--ae-ink);
+  font-size: 15px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ae-input,
+.ae-select {
+  height: 50px;
+  padding: 0 18px;
+}
+
+.ae-select {
+  appearance: auto;
+}
+
+.ae-textarea {
+  min-height: 84px;
+  padding: 12px 18px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.ae-input::placeholder,
+.ae-textarea::placeholder,
+.ae-tags input::placeholder {
+  color: var(--ae-faint);
+}
+
+.ae-input:focus,
+.ae-select:focus,
+.ae-textarea:focus,
+.ae-tags:focus-within {
+  outline: none;
+  border-color: var(--ae-accent);
+  box-shadow: 0 0 0 4px rgba(21, 88, 255, 0.12);
+}
+
+.ae-tags {
+  display: flex;
+  min-height: 50px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+}
+
+.ae-tags input {
+  min-width: 160px;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 6px;
+  font-size: 14px;
+  color: var(--ae-ink);
+  outline: none;
+}
+
+.ae-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: #e8eefc;
+  padding: 4px 6px 4px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.ae-chip button {
+  display: inline-flex;
+  height: 20px;
+  width: 20px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 15px;
+  line-height: 1;
+  color: #1e3a8a;
+}
+
+.ae-chip button:hover {
+  background: rgba(30, 58, 138, 0.14);
+}
+
+.ae-help {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ae-muted);
+}
+
+.ae-drop {
+  display: flex;
+  height: 160px;
+  width: 100%;
+  cursor: pointer;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 2px dashed var(--ae-line);
+  border-radius: 16px;
+  background: var(--ae-soft);
+  color: #374151;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.ae-drop:hover,
+.ae-drop[data-over="true"],
+.ae-drop:focus-visible {
+  border-color: var(--ae-accent);
+  background: #eef2ff;
+  outline: none;
+}
+
+.ae-drop .ae-plus {
+  font-size: 54px;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.ae-drop .ae-drop-note {
+  font-size: 12.5px;
+  color: var(--ae-muted);
+}
+
+.ae-preview {
+  position: relative;
+  display: flex;
+  height: 300px;
+  margin-top: 16px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--ae-line);
+  border-radius: 16px;
+  background: var(--ae-soft);
+  font-size: 12px;
+  color: var(--ae-faint);
+}
+
+.ae-preview img {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.ae-remove {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.78);
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.ae-remove:hover {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.ae-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ae-text);
+}
+
+.ae-check input {
+  margin-top: 3px;
+  height: 18px;
+  width: 18px;
+  accent-color: var(--ae-accent);
+}
+
+.ae-notice {
+  margin-top: 22px;
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.ae-notice--ok {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.ae-notice--error {
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.ae-notice--info {
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.ae-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid #e5e7eb;
+  background: var(--ae-page);
+  padding: 22px 32px;
+}
+
+.ae-footer .ae-spacer {
+  margin-right: auto;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ae-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.ae-button {
+  border-radius: 14px;
+  padding: 14px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  transition: transform 140ms cubic-bezier(0.23, 1, 0.32, 1), background-color 140ms ease,
+    box-shadow 140ms ease;
+}
+
+.ae-button:active {
+  transform: scale(0.97);
+}
+
+.ae-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ae-button--primary {
+  background: var(--ae-accent);
+  color: var(--ae-accent-ink);
+  box-shadow: 0 10px 24px -10px rgba(21, 88, 255, 0.65);
+}
+
+.ae-button--primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.ae-button--ghost {
+  border: 2px solid var(--ae-line);
+  background: #ffffff;
+  color: var(--ae-text);
+}
+
+.ae-button--ghost:hover:not(:disabled) {
+  background: var(--ae-soft);
+}
+
+.ae-editor-note {
+  margin-bottom: 8px;
+  font-size: 13.5px;
+  color: var(--ae-muted);
+}
+
+.ae-editor-note--error {
+  color: #991b1b;
+}
+
+/* The editor's own chrome is left as it ships; only its frame is aligned with the form. */
+.ae-page .cke {
+  border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  .ae-page {
+    padding: 20px 12px 28px;
+    border-radius: 16px;
+  }
+  .ae-body {
+    padding: 20px 16px;
+  }
+  .ae-footer {
+    padding: 18px 16px;
+  }
+  .ae-footer .ae-button {
+    flex: 1;
+  }
+  .ae-preview {
+    height: 200px;
+  }
+}

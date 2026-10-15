@@ -374,3 +374,146 @@ def test_a_premium_posts_automatic_summary_never_copies_its_body(client, admin):
     assert "whole short analysis" not in post["excerpt"]
     visitor = client.get(f"/content/posts/{post['slug']}").json()["post"]
     assert visitor["locked"] and "whole short analysis" not in str(visitor)
+
+
+# --- the rich-text blog editor ---------------------------------------------------------------
+
+
+@pytest.fixture
+def uploads(tmp_path, monkeypatch):
+    from app.services import media_service
+
+    monkeypatch.setattr(media_service, "media_dir", lambda: tmp_path)
+    return tmp_path
+
+
+def _png(size=(40, 30), color=(200, 30, 30)) -> bytes:
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _post(client, admin, **over):
+    body = {"title": "Preview", "body": "<p>Hello</p>", "publish": True}
+    body.update(over)
+    return client.post("/admin/posts", json=body, headers=admin)
+
+
+def test_a_post_body_is_cleaned_before_it_is_stored(client, admin):
+    dirty = (
+        '<p onclick="steal()">Hi <b>there</b></p><script>alert(1)</script>'
+        '<a href="javascript:alert(1)">x</a><img src="/media/a.png" onerror="alert(1)">'
+        '<iframe src="https://evil.example"></iframe>'
+    )
+    post = _post(client, admin, body=dirty).json()["post"]
+
+    assert "script" not in post["body"] and "onclick" not in post["body"]
+    assert "javascript:" not in post["body"] and "onerror" not in post["body"]
+    assert "iframe" not in post["body"]
+    assert "<b>there</b>" in post["body"] and "<p>" in post["body"]
+    stored = client.get(f"/admin/posts/{post['id']}", headers=admin).json()["post"]
+    assert stored["body"] == post["body"] and stored["body_format"] == "html"
+
+
+def test_the_automatic_summary_is_plain_text_from_the_body(client, admin):
+    post = _post(client, admin, body="<h2>Heading</h2><p>First <b>point</b>.</p>").json()["post"]
+
+    assert post["excerpt"] == "Heading First point."
+
+
+def test_a_post_carries_a_category_and_tidy_tags(client, admin):
+    post = _post(
+        client,
+        admin,
+        category="Match previews",
+        tags=["  Arsenal ", "arsenal", "Premier League", "", "<b>x</b>", "a" * 80],
+    ).json()["post"]
+
+    assert post["category"] == "Match previews"
+    assert post["tags"][:2] == ["Arsenal", "Premier League"]
+    assert len(post["tags"]) == len(set(t.lower() for t in post["tags"]))
+    assert all(len(t) <= 30 and "<" not in t for t in post["tags"])
+
+
+def test_a_category_must_come_from_the_list(client, admin):
+    response = _post(client, admin, category="Made up")
+
+    assert response.status_code == 400
+    assert "Match previews" in client.get("/content/categories").json()["categories"]
+
+
+def test_posts_can_be_listed_by_category(client, admin):
+    _post(client, admin, title="One", category="News")
+    _post(client, admin, title="Two", category="Match previews")
+
+    listed = client.get("/content/posts", params={"category": "News"}).json()["posts"]
+
+    assert [p["title"] for p in listed] == ["One"]
+
+
+def test_an_uploaded_image_is_stored_and_served(client, admin, uploads):
+    sent = client.post(
+        "/admin/media", content=_png(), headers={**admin, "Content-Type": "image/png"}
+    )
+    assert sent.status_code == 200
+    url = sent.json()["url"]
+    assert url.startswith("/media/") and url.endswith(".png")
+
+    post = _post(client, admin, featured_image=url).json()["post"]
+    assert post["featured_image"] == url
+
+    served = client.get(f"/content{url}")
+    assert served.status_code == 200 and served.headers["content-type"] == "image/png"
+    assert "immutable" in served.headers["cache-control"]
+    assert served.headers["x-content-type-options"] == "nosniff"
+
+
+def test_a_file_that_is_not_an_image_is_refused(client, admin, uploads):
+    response = client.post(
+        "/admin/media",
+        content=b"<script>alert(1)</script>",
+        headers={**admin, "Content-Type": "image/png"},
+    )
+
+    assert response.status_code == 415
+    assert list(uploads.iterdir()) == []
+
+
+def test_only_an_administrator_can_upload(client, member, uploads):
+    anonymous = client.post("/admin/media", content=_png(), headers={"Content-Type": "image/png"})
+    as_member = client.post(
+        "/admin/media", content=_png(), headers={**member, "Content-Type": "image/png"}
+    )
+
+    assert anonymous.status_code in (401, 403) and as_member.status_code == 403
+
+
+def test_the_editors_image_dialog_gets_the_reply_it_expects(client, admin, uploads):
+    boundary = "xBOUNDARYx"
+    body = (
+        (
+            f"--{boundary}\r\n"
+            'Content-Disposition: form-data; name="upload"; filename="pic.png"\r\n'
+            "Content-Type: image/png\r\n\r\n"
+        ).encode()
+        + _png()
+        + f"\r\n--{boundary}--\r\n".encode()
+    )
+    response = client.post(
+        "/admin/media?CKEditorFuncNum=3",
+        content=body,
+        headers={**admin, "Content-Type": f"multipart/form-data; boundary={boundary}"},
+    )
+
+    assert response.status_code == 200
+    assert "CKEDITOR.tools.callFunction(3," in response.text and "/media/" in response.text
+
+
+def test_only_names_an_upload_could_have_are_served_or_attached(client, admin, uploads):
+    assert client.get("/content/media/..%2Fsecret.png").status_code in (404, 422)
+    assert client.get("/content/media/notanupload.png").status_code == 404
+    assert _post(client, admin, featured_image="/media/../../etc/passwd").status_code == 400

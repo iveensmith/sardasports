@@ -9,6 +9,12 @@ export interface Post {
   excerpt: string;
   /** Empty when `locked`. */
   body: string;
+  /** `html` is sanitised on the engine and shown as stored; `markdown` is the older format. */
+  body_format: "html" | "markdown";
+  category: string | null;
+  tags: string[];
+  /** The public address of the featured image (`/media/<name>`), if there is one. */
+  featured_image: string | null;
   locked: boolean;
   premium_only: boolean;
   status: "draft" | "published";

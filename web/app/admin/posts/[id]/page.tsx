@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { PostEditor } from "@/components/admin/PostsAdmin";
+import { ArticleEditor } from "@/components/admin/ArticleEditor";
 
 export default async function EditPostPage({
   params,
@@ -9,5 +9,5 @@ export default async function EditPostPage({
   const { id } = await params;
   const postId = Number(id);
   if (!Number.isInteger(postId) || postId < 1) notFound();
-  return <PostEditor postId={postId} />;
+  return <ArticleEditor postId={postId} />;
 }

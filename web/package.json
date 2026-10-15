@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-ckeditor.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-ckeditor.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "ckeditor4": "4.22.1",
     "framer-motion": "^13.4.4",
     "next": "16.3.8",
     "react": "19.2.8",

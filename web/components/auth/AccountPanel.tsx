@@ -12,6 +12,7 @@ import {
   Check,
   Field,
   Message,
+  PasswordInput,
   SubmitButton,
   inputClass,
 } from "@/components/auth/ui";
@@ -276,14 +277,15 @@ export function AccountPanel({
               <label htmlFor="delete-password" className="text-[13px] font-semibold">
                 Enter your password to confirm
               </label>
-              <input
-                id="delete-password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                className={`${inputClass} mt-1.5`}
-              />
+              <div className="mt-1.5">
+                <PasswordInput
+                  id="delete-password"
+                  name="password"
+                  autoComplete="current-password"
+                  required
+                  className={inputClass}
+                />
+              </div>
             </div>
             {deleteError && <Message tone="error">{deleteError}</Message>}
             <div className="flex flex-wrap gap-3">

@@ -10,24 +10,53 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps_auth import optional_user
 from app.database.session import get_db
 from app.models.account import User
 from app.models.content import STATUS_PUBLISHED, ManualPick, Post
-from app.services import content_service, premium_service
+from app.services import content_service, media_service, premium_service
 
 router = APIRouter(prefix="/content", tags=["content"])
+
+
+@router.get("/categories")
+def categories() -> dict:
+    return {"categories": list(content_service.CATEGORIES)}
+
+
+@router.get("/media/{name}")
+def media(name: str) -> FileResponse:
+    """An uploaded blog image. Immutable: a name is never reused for different bytes."""
+    path = media_service.path_for(name)
+    if path is None:
+        raise HTTPException(
+            status_code=404, detail={"code": "not_found", "message": "No such image."}
+        )
+    return FileResponse(
+        path,
+        media_type=media_service.CONTENT_TYPES.get(
+            path.suffix.lstrip("."), "application/octet-stream"
+        ),
+        headers={
+            "Cache-Control": "public, max-age=31536000, immutable",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/posts")
 def posts(
     limit: int = Query(20, ge=1, le=100),
     offset: int = Query(0, ge=0),
+    category: str | None = Query(None, max_length=60),
     db: Session = Depends(get_db),
 ) -> dict:
     query = db.query(Post).filter(Post.status == STATUS_PUBLISHED)
+    if category:
+        query = query.filter(Post.category == category)
     total = query.count()
     rows = query.order_by(Post.published_at.desc()).offset(offset).limit(limit).all()
     return {

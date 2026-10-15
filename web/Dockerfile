@@ -28,6 +28,9 @@ ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL \
     NEXT_PUBLIC_CONTACT_EMAIL=$NEXT_PUBLIC_CONTACT_EMAIL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# The admin's rich-text editor is served from this site (public/ckeditor), copied out of
+# node_modules. `next build` is called directly below, so npm's prebuild hook does not run.
+RUN node scripts/copy-ckeditor.mjs
 RUN npx next build --experimental-build-mode compile
 
 FROM node:22-bookworm-slim AS run

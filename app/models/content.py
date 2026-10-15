@@ -14,6 +14,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.base import Base
 
+FORMAT_HTML = "html"
+FORMAT_MARKDOWN = "markdown"
+
 STATUS_DRAFT = "draft"
 STATUS_PUBLISHED = "published"
 
@@ -30,8 +33,18 @@ class Post(Base):
     slug: Mapped[str] = mapped_column(String(120), unique=True, index=True, nullable=False)
     title: Mapped[str] = mapped_column(String(160), nullable=False)
     excerpt: Mapped[str] = mapped_column(String(400), default="", nullable=False)
-    # Markdown, rendered by the website with a small safe subset (no raw HTML).
+    # `html`: written in the rich-text editor and sanitised on save (app/services/html_sanitize),
+    # so it is shown as stored. `markdown`: the earlier format, rendered by the website with a
+    # small safe subset. Existing posts keep `markdown`; new ones are `html`.
     body: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    body_format: Mapped[str] = mapped_column(
+        String(10), default=FORMAT_HTML, server_default=FORMAT_MARKDOWN, nullable=False
+    )
+    category: Mapped[str | None] = mapped_column(String(60), nullable=True, index=True)
+    # Comma-separated, at most a handful, no commas inside one.
+    tags: Mapped[str] = mapped_column(String(500), default="", server_default="", nullable=False)
+    # File name of the featured image (see app/services/media_service.py), not a path.
+    featured_image: Mapped[str | None] = mapped_column(String(80), nullable=True)
     status: Mapped[str] = mapped_column(String(12), default=STATUS_DRAFT, nullable=False)
     # Members with an active premium plan can read it; everyone else sees the excerpt.
     premium_only: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

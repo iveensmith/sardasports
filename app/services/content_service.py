@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import AuditLog, User
 from app.models.content import (
+    FORMAT_HTML,
     RESULT_LOST,
     RESULT_PENDING,
     RESULT_VOID,
@@ -27,8 +28,24 @@ from app.models.content import (
     ManualPick,
     Post,
 )
+from app.services.html_sanitize import html_to_text, sanitize_html
+from app.services.media_service import NAME_PATTERN, public_url
 
 SPORTS = ("football", "basketball", "tennis")
+
+# The blog's categories. A short fixed list the editor picks from, so the same topic is never
+# filed under three spellings; add to it here.
+CATEGORIES = (
+    "Football predictions",
+    "Basketball predictions",
+    "Tennis predictions",
+    "Match previews",
+    "Betting guides",
+    "How the engine works",
+    "News",
+)
+MAX_TAGS = 8
+MAX_TAG_LENGTH = 30
 
 
 class ContentError(Exception):
@@ -70,6 +87,24 @@ def _unique_slug(db: Session, base: str, exclude_id: int | None = None) -> str:
         n += 1
 
 
+def split_tags(value: str | None) -> list[str]:
+    return [t for t in (value or "").split(",") if t]
+
+
+def clean_tags(raw: list[str] | str | None) -> str:
+    """Tags as stored: trimmed, no commas or markup, de-duplicated ignoring case, capped."""
+    items = raw.split(",") if isinstance(raw, str) else list(raw or [])
+    seen: set[str] = set()
+    kept: list[str] = []
+    for item in items:
+        tag = re.sub(r"[<>,]", "", str(item)).strip()
+        tag = re.sub(r"\s+", " ", tag)[:MAX_TAG_LENGTH].strip()
+        if tag and tag.lower() not in seen:
+            seen.add(tag.lower())
+            kept.append(tag)
+    return ",".join(kept[:MAX_TAGS])
+
+
 def post_view(post: Post, *, include_body: bool = True, locked: bool = False) -> dict:
     return {
         "id": post.id,
@@ -77,6 +112,10 @@ def post_view(post: Post, *, include_body: bool = True, locked: bool = False) ->
         "title": post.title,
         "excerpt": post.excerpt,
         "body": post.body if include_body and not locked else "",
+        "body_format": post.body_format,
+        "category": post.category,
+        "tags": split_tags(post.tags),
+        "featured_image": public_url(post.featured_image),
         "locked": locked,
         "premium_only": post.premium_only,
         "status": post.status,
@@ -96,6 +135,9 @@ def save_post(
     body: str,
     premium_only: bool,
     publish: bool,
+    category: str | None = None,
+    tags: list[str] | str | None = None,
+    featured_image: str | None = None,
 ) -> Post:
     title = (title or "").strip()
     if not title:
@@ -104,6 +146,18 @@ def save_post(
         raise ContentError("title_too_long", "Keep the title under 160 characters.")
     if len(body or "") > 100_000:
         raise ContentError("body_too_long", "The post is too long.")
+    category = (category or "").strip() or None
+    if category is not None and category not in CATEGORIES:
+        raise ContentError("bad_category", "Pick a category from the list.")
+    featured_image = (featured_image or "").strip() or None
+    if featured_image is not None:
+        # The page sends back the public address it was given (`/media/<name>`); only the name
+        # is kept, and only if it is the shape an upload gets, so nothing else can be linked.
+        featured_image = featured_image.rsplit("/", 1)[-1]
+        if not NAME_PATTERN.match(featured_image):
+            raise ContentError("bad_image", "That featured image is not valid.")
+    # Rich text is rebuilt from an allow-list before it is stored; never trusted as sent.
+    body = sanitize_html(body or "")
     excerpt = (excerpt or "").strip()[:400]
     if not excerpt:
         if premium_only:
@@ -111,8 +165,7 @@ def save_post(
             # short post would be given away whole.
             excerpt = "Members-only analysis. Join premium to read the full post."
         else:
-            plain = re.sub(r"[#*_`>\[\]()]", "", body or "").strip().replace("\n", " ")
-            excerpt = plain[:200]
+            excerpt = html_to_text(body)[:200]
 
     now = _now()
     if post_id is None:
@@ -127,7 +180,11 @@ def save_post(
         action = "post.update"
     post.title = title
     post.excerpt = excerpt
-    post.body = body or ""
+    post.body = body
+    post.body_format = FORMAT_HTML
+    post.category = category
+    post.tags = clean_tags(tags)
+    post.featured_image = featured_image
     post.premium_only = bool(premium_only)
     if publish and post.status != STATUS_PUBLISHED:
         post.status = STATUS_PUBLISHED

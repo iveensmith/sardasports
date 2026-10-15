@@ -1,5 +1,5 @@
-import { PostEditor } from "@/components/admin/PostsAdmin";
+import { ArticleEditor } from "@/components/admin/ArticleEditor";
 
 export default function NewPostPage() {
-  return <PostEditor postId={null} />;
+  return <ArticleEditor postId={null} />;
 }
