@@ -53,7 +53,7 @@ export function HomeHero({ fixturesToday }: { fixturesToday: number }) {
             </span>
             <span
               aria-hidden
-              className="block origin-left -skew-x-[8deg] font-black tracking-[-0.035em] text-[clamp(2.7rem,9.2vw,5.5rem)] leading-[0.92] whitespace-nowrap"
+              className="block origin-left -skew-x-[8deg] font-black tracking-[-0.035em] text-[clamp(2.4rem,9.2vw,5.5rem)] leading-[0.92] whitespace-nowrap"
             >
               <span className="text-white">SARDA</span>
               <span className="text-[var(--color-gold)]">SPORTS</span>
@@ -83,7 +83,8 @@ export function HomeHero({ fixturesToday }: { fixturesToday: number }) {
                 board
               </>
             ) : null}
-            . Basketball and tennis too, with no account needed.
+            . Basketball and tennis too. Create a free account to unlock premium
+            and keep your preferences.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-3">
@@ -97,6 +98,12 @@ export function HomeHero({ fixturesToday }: { fixturesToday: number }) {
             <Link href="/progress" className="nt-cta nt-cta--ghost">
               <Trophy size={18} />
               Check the record
+            </Link>
+            <Link
+              href="/signup"
+              className="px-1 text-[13.5px] font-bold text-white underline decoration-[var(--color-gold)] decoration-2 underline-offset-[6px] transition-colors hover:text-[var(--color-gold-bright)]"
+            >
+              Create a free account
             </Link>
           </div>
         </div>

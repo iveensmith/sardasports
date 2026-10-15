@@ -33,6 +33,7 @@ def test_scheduler_registers_expected_jobs_when_enabled(monkeypatch):
             "fetch_match_stats",
             "evaluate_predictions",
             "monthly_archive",
+            "nightly_backup",
             "results_strip_canary",
             "sports_pages_warm",
             "basketball_feed",

@@ -175,18 +175,34 @@ untouched.
 
 ### Backups
 
-The database is the one thing that cannot be rebuilt (stored pre-kick-off predictions and the live
-record are in it). Take a verified snapshot every night:
+The database is the one thing that cannot be rebuilt: the stored pre-kick-off predictions and the
+live record are in it, and so are the members, blog posts, editor's picks and subscriptions.
+
+**Nightly, automatic.** The engine takes a verified snapshot at 02:10 server time with SQLite's
+own backup API (consistent while the engine is writing, checked with `integrity_check`) and writes
+it to `/srv/sardasports/data/backups/uniquepredict-YYYYMMDD-HHMMSS.db`. The newest 14 are kept
+(`BACKUP_KEEP` in `.env.production` changes that). It skips, and says so in `docker compose logs
+api`, if the disk could not hold the copy twice over. No cron entry is needed. To take one now:
 
 ```bash
-# crontab -e   (on the server, as deploy)
-30 2 * * * cd /opt/sardasports && docker compose -f docker-compose.prod.yml exec -T api python -m scripts.backup_db >> /var/log/sardasports-backup.log 2>&1
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T api python -m scripts.backup_db --keep 14
 ```
 
-Snapshots land in `/srv/sardasports/data/backups` (the newest 7 are kept). That is the same disk,
-so also copy them off the server, for example to a Cloudflare R2 bucket with `rclone`, or just
-`scp` them down weekly. To restore: stop the api, put a snapshot at
-`/srv/sardasports/data/uniquepredict.db`, `chown 1000:1000` it, start the api.
+**Get a copy off the server.** Those snapshots are on the same disk, so they protect against a bad
+edit or a corrupt write, not against losing the server. Pull them to your own computer
+(PowerShell on your PC; it copies only what is new, so run it weekly or daily):
+
+```powershell
+mkdir C:\backups\sardasports -Force
+scp "deploy@YOUR_SERVER_IP:/srv/sardasports/data/backups/uniquepredict-*.db" C:\backups\sardasports\
+```
+
+Hetzner's own paid server backups (a snapshot of the whole disk) are a second layer, if you want one.
+
+**Restore.** Stop the api, put a snapshot at `/srv/sardasports/data/uniquepredict.db`,
+`chown 1000:1000` it, delete any `uniquepredict.db-wal` and `uniquepredict.db-shm` beside it, and
+start the api. Anything written after that snapshot (members who signed up since, picks settled
+since) is gone, which is why the copy should be recent.
 
 ### What keeps itself current
 
@@ -260,3 +276,50 @@ Add swap once, as a cushion (on the server):
 
 Build the images with the api stopped on this size of box (`docker compose ... stop api`, build,
 then `up -d`): a build and a running engine together are what pushed it over.
+
+## Accounts, the admin dashboard and premium
+
+**One-off, after pulling the code** (on the server, from `/opt/sardasports`):
+
+```bash
+# 1. add the new tables (safe to run twice)
+docker compose -f docker-compose.prod.yml --env-file .env.production exec -T api alembic upgrade head
+
+# 2. create your administrator account (it asks for a password; it is not shown or stored in
+#    the clear). This one is interactive, so it has no -T:
+docker compose -f docker-compose.prod.yml --env-file .env.production exec api python -m scripts.create_admin you@yourdomain.com
+```
+
+Then sign in at `/login` and open `/admin`.
+
+**Mail.** Set `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` and `SMTP_FROM` in
+`.env.production` and restart the api. Until then every account e-mail is written to
+`/admin/mail` and not sent. Authenticate the sending domain (SPF, DKIM, DMARC) with your mail
+provider before launch, or confirmation mails will land in spam.
+
+**Premium.**
+
+1. Sign in, open `/admin/premium` and create a plan (the code `monthly`, the price you chose,
+   the currency, "a month"), and switch it on. Nothing is pre-filled: the price is yours.
+2. Add a payment provider's keys to `.env.production` and restart the api:
+   - **Stripe:** `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET`. In the Stripe dashboard add a
+     webhook endpoint `https://YOURDOMAIN/api/webhooks/stripe` listening for
+     `checkout.session.completed`.
+   - **Paystack:** `PAYSTACK_SECRET_KEY`. In the Paystack dashboard set the webhook URL to
+     `https://YOURDOMAIN/api/webhooks/paystack`.
+3. Test with the provider's **test keys** first: make a payment, confirm the member gets premium,
+   repeat the same notification (it must not extend access twice), then switch to live keys.
+
+Without a provider you can still grant premium by hand from `/admin/members`.
+
+**What protects it:**
+- A payment notification is accepted only with a valid signature from the provider, is applied
+  once however many times it is sent, and buys access only if the amount is at least the plan's
+  price. Card details never reach this server.
+- A published pick cannot be edited, and can be deleted only until its match kicks off; a premium
+  pick is visible to everyone from kick-off. See `app/services/content_service.py`.
+- Passwords are stored as salted scrypt hashes and sessions and e-mail links as SHA-256 hashes.
+  Sign-in, sign-up and reset requests are rate-limited.
+- The session cookie is `sd_session` (HttpOnly, SameSite=Lax, Secure in production).
+
+**Back up the database before launch and after.** It now holds members.

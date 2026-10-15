@@ -15,6 +15,8 @@
 
 import type { MetadataRoute } from "next";
 import { getSeoUrls } from "@/lib/api";
+import type { Post } from "@/lib/content";
+import { engineCall } from "@/lib/session";
 import { absoluteUrl } from "@/lib/site";
 
 // Rendered per request, not cached as a whole. The league, team and match lists
@@ -61,6 +63,9 @@ const FIXED: Array<{
     changeFrequency: "monthly",
     priority: 0.7,
   },
+  { path: "/blog", changeFrequency: "daily", priority: 0.6 },
+  { path: "/picks", changeFrequency: "daily", priority: 0.6 },
+  { path: "/premium", changeFrequency: "monthly", priority: 0.4 },
   { path: "/leaderboard", changeFrequency: "weekly", priority: 0.4 },
   { path: "/about", changeFrequency: "monthly", priority: 0.4 },
   { path: "/contact", changeFrequency: "yearly", priority: 0.3 },
@@ -79,15 +84,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: page.priority,
   }));
 
+  // Published posts, each dated by when it was published or last changed.
+  const posts = await engineCall<{ posts: Post[] }>("/content/posts?limit=100");
+  const postEntries: MetadataRoute.Sitemap = (posts.data?.posts ?? []).map(
+    (post): Entry => ({
+      url: absoluteUrl(`/blog/${post.slug}`),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      ...dated(post.updated_at ?? post.published_at),
+    }),
+  );
+
   let urls;
   try {
     urls = await getSeoUrls();
   } catch {
-    return fixed;
+    return [...fixed, ...postEntries];
   }
 
   return [
     ...fixed,
+    ...postEntries,
     ...urls.leagues.map((entry): Entry => ({
       url: absoluteUrl(`/leagues/${entry.slug}`),
       changeFrequency: "daily",

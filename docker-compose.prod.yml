@@ -35,6 +35,9 @@ services:
       # The scheduler keeps data, results and models current, and runs only while this
       # process does. See docs/deployment.md "Backups" before relying on it.
       ENABLE_SCHEDULER: "true"
+      # The public address, for the links in account e-mails (confirm your address, reset a
+      # password). Never taken from a request, so a forged Host header cannot redirect them.
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-${NEXT_PUBLIC_SITE_URL:-}}
       # The API runs its sync endpoints on a pool of threads, and glibc gives each
       # thread its own allocation arena and does not hand the memory back. Left alone
       # that inflates the process well past what it actually uses (it reached 3 GB and

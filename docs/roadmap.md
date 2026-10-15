@@ -3194,3 +3194,44 @@ internationals (runbook steps 2 to 5 above): the data pull is one run (1,248 req
 650 for 2022-2026), but turning those competitions on widens the models' feature vector, so it needs
 the 12 football models retrained and checked against the current ones before it goes anywhere near the
 live site. That is its own piece of work and was not started without a go-ahead.
+
+## Accounts, admin dashboard and premium plan (14 Oct 2026)
+
+Built from the plan in `docs/plan-accounts-and-premium.md`, using the recommended defaults where
+the owner had not yet decided, and self-hosted accounts because no Supabase credentials exist.
+
+**Accounts** (`app/services/auth_service.py`, `/auth/*`, pages `/signup`, `/login`,
+`/verify-email`, `/forgot-password`, `/reset-password`, `/account`): sign-up needs a confirmed
+18+ box and accepted Terms, both stored with a date; the e-mail address must be confirmed before
+sign-in; reset and change password; "sign out everywhere"; the member can delete their own account
+with their password. Passwords are salted scrypt (standard library, no new dependency). Sessions
+and e-mail tokens are stored only as SHA-256 hashes, single use, expiring. Sign-up, sign-in and
+reset are rate-limited. Registering a known address and asking to reset an unknown one answer
+exactly as the normal case does, so addresses cannot be discovered.
+
+**Admin dashboard** (`/admin/*`, role `admin`, created with `scripts/create_admin.py`): overview
+with what still needs setting up; **picks** (write, save as draft, publish, delete, settle as won,
+lost or void with a reason); **blog** (Markdown editor with live preview, publish, unpublish,
+delete, premium-only); **members** (search, give or end premium, delete); **premium plans**; the
+**mail outbox** (every e-mail is written there first, so until SMTP is set the owner can read and
+pass on a confirmation link); and an **audit log** of every change.
+
+**Integrity rules** (tested): a published pick is never edited; it can be deleted only until its
+match kicks off, after which it stays on the record and can only be settled or voided with a
+reason. A premium pick is hidden from non-members only until kick-off. A premium post's summary
+is never copied from its body.
+
+**Premium** (`app/services/premium_service.py`, `payments.py`, `/premium`): one payment buys one
+period, with no automatic renewal. Stripe Checkout and Paystack are implemented against signed
+notifications (signature verified, each event applied once, amount checked against the plan). Both
+are untested against the real providers: they need test keys, which do not exist yet. **No plan or
+price is pre-filled**; the owner sets them in `/admin/premium`.
+
+**Changed on the way:** the Privacy and Terms pages said "no accounts, no cookies"; they now
+describe accounts, the one session cookie, payments, e-mail and the club-crest image server.
+Dark-theme header gained a compact account control; the blog, picks and premium pages were added
+to the sitemap.
+
+**Not built (still on the plan):** e-mail digests and Telegram alerts, member dashboards (watchlist,
+saved slips), automatic renewal and reminders, per-provider refunds from the dashboard, a member
+export. Say which next.

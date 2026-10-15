@@ -4,11 +4,15 @@
  * Written from an audit of what this site really does, so that every sentence is a
  * description, not an aspiration:
  *
- * - no accounts, no cookies, no advertising, no analytics (checked in the source);
- * - the only thing kept in a visitor's browser is the light/dark choice, in
- *   localStorage, which never leaves the browser;
- * - the only third-party request a visitor's browser makes is for country flag
- *   images (flagcdn.com); fonts are bundled at build time;
+ * - accounts are optional. A member's record is the e-mail address, an optional name,
+ *   a salted scrypt hash of the password, the date they confirmed they are 18 or over
+ *   and the version of the Terms they accepted, and their premium status. Card details
+ *   are never seen: payment happens on the payment provider's own page;
+ * - one cookie, `sd_session`, only after signing in: an opaque random value, HttpOnly,
+ *   SameSite=Lax, 30 days. No advertising, no analytics;
+ * - the light/dark choice is in localStorage and never leaves the browser;
+ * - the third-party requests a visitor's browser makes are for country flag images
+ *   (flagcdn.com) and club crests (media.api-sports.io); fonts are bundled at build time;
  * - the Contact form stores exactly the topic, name (optional), email and message,
  *   and nothing else, with no IP address or browser string.
  *
@@ -33,16 +37,17 @@ import { CONTACT_EMAIL, OPERATOR_NAME } from "@/lib/site";
 export const metadata = pageMetadata({
   title: "Privacy Policy",
   description:
-    "What SARDASPORTS collects, what it does not, and what is stored in your browser: no accounts, no cookies, no advertising and no analytics.",
+    "What SARDASPORTS collects, what it does not, and what is stored in your browser: accounts are optional, one sign-in cookie, no advertising and no analytics.",
   path: "/privacy",
 });
 
-const LAST_UPDATED = "8 October 2026";
+const LAST_UPDATED = "14 October 2026";
 
 const CONTENTS = [
   ["summary", "The short version"],
   ["who", "Who is responsible"],
   ["collect", "What we collect"],
+  ["accounts", "If you create an account"],
   ["browser", "What is stored in your browser"],
   ["third-parties", "Other services involved"],
   ["use", "How we use information"],
@@ -90,11 +95,12 @@ export default function PrivacyPage() {
         <Section id="summary" title="The short version">
           <List>
             <li>
-              There are no accounts. You do not have to give us anything to use
-              the site.
+              You do not have to give us anything to read the site. An account
+              is optional, and you can delete yours yourself at any time.
             </li>
             <li>
-              The site sets <Strong>no cookies</Strong>, shows{" "}
+              The site sets <Strong>one cookie, and only if you sign in</Strong>,
+              to remember that you are signed in. It shows{" "}
               <Strong>no advertising</Strong> and runs{" "}
               <Strong>no analytics or tracking</Strong>.
             </li>
@@ -157,9 +163,51 @@ export default function PrivacyPage() {
             follow individual visitors.
           </p>
           <p>
-            <Strong>What we do not collect.</Strong> We do not ask you to
-            register, we do not collect payment details (the site sells
-            nothing), and we do not build profiles of visitors.
+            <Strong>What we do not collect.</Strong> We never see or store your
+            card number or bank details: if you buy premium, you pay on the
+            payment provider&rsquo;s own page. We do not build profiles of
+            visitors, and we do not use tracking or advertising technology.
+          </p>
+        </Section>
+
+        <Section id="accounts" title="If you create an account">
+          <p>An account is optional. If you create one we keep:</p>
+          <List>
+            <li>
+              your <Strong>e-mail address</Strong> and, if you give one, a name;
+            </li>
+            <li>
+              your <Strong>password</Strong>, but only as a salted one-way hash.
+              We cannot read it, and neither can anyone who obtains the
+              database;
+            </li>
+            <li>
+              the date you confirmed you are <Strong>18 or over</Strong> and the
+              version of the Terms you accepted;
+            </li>
+            <li>
+              whether you have <Strong>premium</Strong> and until when, and a
+              record that a payment was received (the amount, the date and the
+              provider&rsquo;s reference, never card details);
+            </li>
+            <li>
+              when you last signed in, and a short description of each browser
+              you are signed in on, so you can recognise it.
+            </li>
+          </List>
+          <p>
+            <Strong>E-mail.</Strong> We send the messages an account needs
+            (confirming your address, resetting a password, receipts and notices
+            about your account). We send news about the site only if you tick
+            the box for it, and you can untick it in your account.
+            We keep a copy of messages we send so that a failed delivery can be
+            retried. They are sent through a mail service, which handles them
+            for us.
+          </p>
+          <p>
+            <Strong>Editorial content.</Strong> If you are an administrator,
+            what you publish (posts and picks) and a log of your changes are
+            kept.
           </p>
         </Section>
 
@@ -171,19 +219,38 @@ export default function PrivacyPage() {
               theme
             </code>
             , stays on your device and is never sent to us. Clearing your
-            browser&rsquo;s site data removes it. The site sets no cookies.
+            browser&rsquo;s site data removes it.
+          </p>
+          <p>
+            If you <Strong>sign in</Strong>, the site sets one cookie,{" "}
+            <code className="rounded bg-[var(--color-surface-raised)] px-1.5 py-0.5 text-[13px]">
+              sd_session
+            </code>
+            . It holds a random value that identifies your sign-in, cannot be
+            read by scripts on the page, is sent only to this site, and lasts up
+            to 30 days or until you sign out. It is strictly necessary for
+            being signed in and is not used for anything else. If you never
+            sign in, the site sets no cookie.
           </p>
         </Section>
 
         <Section id="third-parties" title="Other services involved">
           <p>
-            Country flags on the site are loaded directly by your browser from
-            an image service, <Strong>flagcdn.com</Strong>. When your browser
-            fetches a flag, that service can see your IP address and browser
-            details, as with any image loaded from another site. It is the only
-            third-party service your browser contacts while you read the site.
-            The site&rsquo;s fonts are bundled with it and are not loaded from a
-            third party.
+            Country flags are loaded directly by your browser from an image
+            service, <Strong>flagcdn.com</Strong>, and club crests from the
+            data provider&rsquo;s image server,{" "}
+            <Strong>media.api-sports.io</Strong>. When your browser fetches one
+            of these images, that service can see your IP address and browser
+            details, as with any image loaded from another site. They are the
+            only third-party services your browser contacts while you read the
+            site. The site&rsquo;s fonts are bundled with it and are not loaded
+            from a third party.
+          </p>
+          <p>
+            If you buy premium, the payment is taken by a payment provider
+            (Stripe or Paystack) on its own page, under its own privacy policy.
+            They tell us that a payment succeeded; they do not give us your card
+            details. Account e-mails are delivered through a mail service.
           </p>
           <p>
             Some pages link to other websites, such as our data sources and
@@ -196,7 +263,10 @@ export default function PrivacyPage() {
           <p>
             We use what you send us only to read and answer your message, and to
             fix a problem you have reported, such as a wrong result. We use
-            technical logs only to keep the site secure and working. We do not
+            account details only to run your account: signing you in,
+            confirming your address, applying premium and sending you the
+            messages described above. We use technical logs only to keep the
+            site secure and working. We do not
             use any of it for advertising, we do not make decisions about you
             from it, and we do not sell it or share it with third parties for
             their own purposes.
@@ -206,15 +276,22 @@ export default function PrivacyPage() {
         <Section id="keep" title="How long we keep it">
           <p>
             A message is kept for as long as it is needed to deal with it and is
-            deleted when it is no longer needed, or sooner if you ask. Server
-            logs are kept for the period set by the hosting provider.
+            deleted when it is no longer needed, or sooner if you ask. Your
+            account is kept until you delete it. When you do, your account, your
+            sign-ins and your premium access are deleted straight away; a record
+            that a payment was received is kept for as long as accounting rules
+            require, with no personal details attached to it beyond what the
+            provider holds. Server logs are kept for the period set by the
+            hosting provider.
           </p>
         </Section>
 
         <Section id="rights" title="Your choices and rights">
           <p>
-            You can ask us what we hold about you, ask us to correct it, or ask
-            us to delete it. The simplest way is to use the{" "}
+            You can <Strong>delete your account yourself</Strong> from the
+            account page, change your e-mail preferences there, and sign out of
+            every browser. You can also ask us what we hold about you, ask us to
+            correct it, or ask us to delete it. The simplest way is to use the{" "}
             <Link href="/contact" className={linkClass}>
               contact form
             </Link>{" "}
@@ -230,18 +307,21 @@ export default function PrivacyPage() {
 
         <Section id="security" title="Security">
           <p>
-            Messages are stored in the site&rsquo;s database, which is not
-            publicly accessible. No system is perfectly secure, so we keep what
-            we store to the minimum described above.
+            Messages and accounts are stored in the site&rsquo;s database, which
+            is not publicly accessible. Passwords are stored only as salted
+            hashes, sign-in tokens only as hashes, and the site is served over
+            HTTPS. No system is perfectly secure, so we keep what we store to the
+            minimum described above.
           </p>
         </Section>
 
         <Section id="age" title="Age">
           <p>
             The site is intended for people aged 18 and over and is not aimed at
-            children. We do not knowingly collect information from anyone under
-            18; if you believe a child has written to us, tell us and we will
-            delete the message.
+            children. Creating an account requires you to confirm that you are
+            18 or over. We do not knowingly collect information from anyone
+            under 18; if you believe a child has an account or has written to
+            us, tell us and we will delete it.
           </p>
         </Section>
 

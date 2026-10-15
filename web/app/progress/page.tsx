@@ -401,7 +401,7 @@ export default async function ProgressPage() {
         <h2 className="text-[15px] font-semibold">Download the record</h2>
         <p className="mt-1.5 max-w-[68ch] text-[13px] leading-relaxed text-[var(--color-text-dim)]">
           Everything above is counted from these rows, so any figure on this
-          page can be checked against them. No account needed.
+          page can be checked against them. Free to download, no account required.
         </p>
         <div className="mt-4 flex flex-col gap-4 sm:flex-row">
           <DownloadLink

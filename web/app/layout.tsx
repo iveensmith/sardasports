@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Logo } from "@/components/Logo";
+import { AccountMenu } from "@/components/auth/AccountMenu";
 import { NavLinks } from "@/components/NavLinks";
 import { SportTabs } from "@/components/sport/SportTabs";
 import { organizationLd, websiteLd } from "@/lib/seo";
@@ -120,9 +121,11 @@ const NAV = [
   { href: "/slip", label: "Slip builder" },
   { href: "/leagues", label: "Leagues" },
   { href: "/progress", label: "Track record" },
+  { href: "/picks", label: "Editor's picks", wideOnly: true },
+  { href: "/blog", label: "Blog", wideOnly: true },
   { href: "/leaderboard", label: "Models", wideOnly: true },
   { href: "/how-it-works", label: "How it works", wideOnly: true },
-  { href: "/contact", label: "Contact" },
+  { href: "/contact", label: "Contact", xlOnly: true },
 ];
 
 // Runs before paint, outside React's tree, so the theme is correct on the
@@ -158,19 +161,14 @@ export default function RootLayout({
       <body className="min-h-dvh antialiased">
         <JsonLd data={[organizationLd(), websiteLd()]} />
         <header className="sticky top-0 z-50 border-b border-[var(--color-line)] bg-[var(--color-base)]/85 backdrop-blur-md">
-          <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 flex h-16 items-center gap-4 lg:gap-8">
+          <nav className="mx-auto w-full max-w-[1200px] px-4 sm:px-6 lg:px-10 min-[1680px]:max-w-[1640px] flex h-16 items-center gap-3 sm:gap-4 lg:gap-5">
             <Link href="/" className="shrink-0" aria-label={SITE_NAME}>
-              <Logo priority />
+              <Logo priority className="h-5 min-[360px]:h-6 min-[440px]:h-8 sm:h-11 lg:h-9" />
             </Link>
             <NavLinks items={NAV} />
-            <div className="ml-auto flex items-center gap-3 lg:ml-0">
+            <div className="ml-auto flex items-center gap-2 sm:gap-3 lg:ml-0">
               <ThemeToggle />
-              <Link
-                href="/matches"
-                className="hidden rounded-md bg-[var(--color-gold)] px-4 py-2.5 text-[12.5px] font-extrabold tracking-[0.04em] whitespace-nowrap text-[var(--color-ink-on-accent)] uppercase transition-colors hover:bg-[var(--color-gold-bright)] active:scale-[0.97] xl:inline-flex"
-              >
-                Today&rsquo;s picks
-              </Link>
+              <AccountMenu />
               <MobileNav items={NAV} />
             </div>
           </nav>

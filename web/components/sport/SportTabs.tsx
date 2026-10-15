@@ -33,7 +33,7 @@ export function SportTabs() {
   const current = claimed ?? activeSport(pathname);
   return (
     <nav aria-label="Sports" className="border-t border-[var(--color-line)]">
-      <ul className="mx-auto flex h-10 w-full max-w-[1200px] items-center gap-1.5 px-4 sm:px-6 lg:px-10">
+      <ul className="mx-auto flex h-10 w-full max-w-[1200px] items-center gap-1 px-3 min-[400px]:gap-1.5 min-[400px]:px-4 sm:px-6 lg:px-10">
         {ORDER.map((sport) => {
           const active = sport === current;
           return (
@@ -41,7 +41,7 @@ export function SportTabs() {
               <Link
                 href={SPORT_PATHS[sport]}
                 aria-current={active ? "page" : undefined}
-                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1 text-[13px] font-medium transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] min-[400px]:gap-2 min-[400px]:px-3.5 font-medium transition-colors ${
                   active
                     ? "bg-[var(--color-gold)] text-[var(--color-ink-on-accent)]"
                     : "text-[var(--color-text-dim)] hover:bg-[var(--color-surface)] hover:text-[var(--color-text)]"

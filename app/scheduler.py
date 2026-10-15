@@ -12,6 +12,7 @@ background jobs.
 
 from __future__ import annotations
 
+import shutil
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -538,6 +539,44 @@ def archive_and_cleanup_job() -> None:
         session.close()
 
 
+def nightly_backup_job() -> None:
+    """Nightly: a verified snapshot of the database, kept beside it, newest `backup_keep`.
+
+    The database holds what cannot be rebuilt: stored pre-kick-off predictions, the live record,
+    and now the members, posts and subscriptions. This uses SQLite's own backup API (see
+    `scripts/backup_db.py`), so it is consistent while the engine is writing and is checked to
+    open and pass `integrity_check` before an older one is deleted. It is the same disk, so it
+    guards against a bad edit or a corrupt write, not a lost server: a copy still has to leave
+    the machine (docs/deployment.md, "Backups").
+
+    It refuses to run when the disk could not hold the copy twice over, rather than fill the
+    disk the engine itself runs on, and says so in the log.
+    """
+    from scripts.backup_db import backup, sqlite_path
+
+    settings = get_settings()
+    if not settings.is_sqlite:
+        logger.info("nightly_backup_job: not a SQLite database, nothing to do")
+        return
+    try:
+        source = sqlite_path(settings.database_url)
+        out_dir = source.parent / "backups"
+        if shutil.disk_usage(source.parent).free < 2 * source.stat().st_size:
+            logger.error(
+                "nightly_backup_job: not enough free disk space for a copy of %s; skipped",
+                source,
+            )
+            return
+        target = backup(source, out_dir, keep=max(1, settings.backup_keep))
+    except (SystemExit, OSError) as exc:
+        # `backup` exits (rather than raises) when the copy fails its integrity check.
+        logger.error("nightly_backup_job: the backup failed: %s", exc)
+        return
+    logger.info(
+        "nightly_backup_job: wrote %s (%.1f MB)", target, target.stat().st_size / 1_048_576
+    )
+
+
 def strip_canary_job() -> None:
     """Every few minutes: rebuild the home page's results strip and shout if it would vanish.
 
@@ -838,6 +877,15 @@ def start_scheduler() -> BackgroundScheduler | None:
         )
     scheduler.add_job(
         archive_and_cleanup_job, CronTrigger(day=1, hour=5, minute=0), id="monthly_archive"
+    )
+    # Quiet hour, clear of the 02:30 basketball back-fill and the 03:00 refresh.
+    scheduler.add_job(
+        nightly_backup_job,
+        CronTrigger(hour=2, minute=10),
+        id="nightly_backup",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=3600,
     )
     # The strip canary: not a data job, so it has no place in the budget profiles. It
     # also runs once straight away, so the strip's data is warm before the first visit.

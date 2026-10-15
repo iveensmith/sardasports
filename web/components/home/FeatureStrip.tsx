@@ -43,7 +43,7 @@ const ITEMS = [
   {
     icon: ShieldCheck,
     title: "Free to use",
-    text: "No account, no sign-up",
+    text: "Free to read, free to join",
     href: "/about",
   },
 ];

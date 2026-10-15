@@ -2,8 +2,9 @@
  * Terms of use.
  *
  * A plain-language statement of the terms on which the site is offered, written to
- * match what the site really does: it publishes predictions as information, sells
- * nothing, takes no accounts and links to no bookmakers. Like the privacy policy it
+ * match what the site really does: it publishes predictions as information, offers
+ * optional accounts and an optional premium plan, and links to no bookmakers. Like the
+ * privacy policy it
  * is a draft for a qualified person to read before launch. It deliberately names no
  * country, court or company, because none has been decided: the operator's name
  * appears when the site is configured with one (see `lib/site.ts`), and the
@@ -28,7 +29,7 @@ export const metadata = pageMetadata({
   path: "/terms",
 });
 
-const LAST_UPDATED = "8 October 2026";
+const LAST_UPDATED = "14 October 2026";
 
 export default function TermsPage() {
   return (
@@ -56,8 +57,57 @@ export default function TermsPage() {
                 It is operated by <Strong>{OPERATOR_NAME}</Strong>.
               </>
             ) : null}{" "}
-            It is free to read and needs no account.
+            It is free to read and needs no account. An account is optional,
+            and premium is an optional paid extra.
           </p>
+        </Section>
+
+        <Section id="accounts" title="Accounts">
+          <List>
+            <li>
+              You must be <Strong>18 or over</Strong> to create an account, and
+              by creating one you confirm that you are.
+            </li>
+            <li>
+              Give a real e-mail address that you control, keep your password
+              to yourself, and tell us if you think someone else has used your
+              account. You are responsible for what is done with it.
+            </li>
+            <li>
+              You can delete your account yourself at any time from the account
+              page. We may close an account that is used to abuse the site.
+            </li>
+          </List>
+        </Section>
+
+        <Section id="premium" title="Premium">
+          <List>
+            <li>
+              Premium is a <Strong>one-off payment for a period</Strong> (for
+              example a month or a year). It does not renew by itself and we
+              will not charge you again unless you choose to pay again.
+            </li>
+            <li>
+              It gives access to the editor&rsquo;s premium picks before
+              kick-off and to premium posts. Every engine prediction, the record
+              and the boards stay free, and a premium pick is visible to
+              everyone from kick-off, with its result.
+            </li>
+            <li>
+              Payment is taken on the payment provider&rsquo;s own page. If
+              something went wrong with a payment, contact us through the{" "}
+              <Link href="/contact" className={linkClass}>
+                contact page
+              </Link>{" "}
+              and we will look into it. Whether a refund is due is decided by
+              the law that applies to you and the terms stated at the time of
+              purchase.
+            </li>
+            <li>
+              Premium picks are the editor&rsquo;s opinion, not advice or a
+              promise of winnings, like everything else on the site.
+            </li>
+          </List>
         </Section>
 
         <Section id="information" title="Information, not advice">

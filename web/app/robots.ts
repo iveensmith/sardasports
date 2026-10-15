@@ -19,7 +19,13 @@ export default function robots(): MetadataRoute.Robots {
     return { rules: { userAgent: "*", disallow: "/" } };
   }
   return {
-    rules: { userAgent: "*", allow: "/" },
+    // The account, admin and API routes are private by nature and carry no content for a
+    // search result; keeping crawlers off them also keeps them out of the logs.
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/admin", "/account", "/api/", "/login", "/signup"],
+    },
     sitemap: absoluteUrl("/sitemap.xml"),
     host: SITE_URL,
   };

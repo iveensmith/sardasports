@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     # heavy enough to freeze a small server (see app/scheduler.py), and models are normally
     # trained elsewhere and uploaded.
     enable_weekly_retrain: bool = False
+    # How many nightly database snapshots to keep (see `nightly_backup_job`). One a night, so
+    # this is also how many nights back a mistake can be undone.
+    backup_keep: int = 14
 
     # Injuries (scripts/sync_injuries.py) — requires your own key from
     # dashboard.api-football.com. Unset by default; get_injuries stays
@@ -71,6 +74,30 @@ class Settings(BaseSettings):
     # hardcoded year that goes stale every summer. Set explicitly to query a
     # past season instead.
     api_football_season: int | None = None
+
+    # --- Accounts, e-mail and payments -------------------------------------------------
+    # The public address of the website, used to build the links in e-mails (verify your
+    # address, reset your password). It is never taken from a request: a header a caller can
+    # set must not decide where a password-reset link points.
+    public_site_url: str = ""
+    # How long a signed-in browser stays signed in, and how long an e-mailed link works.
+    session_days: int = 30
+    verify_token_hours: int = 48
+    reset_token_hours: int = 1
+
+    # Outgoing mail. Unset: mail is written to the outbox table (the administrator can read
+    # it there) and not sent. Any SMTP service works (Resend, Postmark, the domain's mailbox).
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+
+    # Payment providers. Each is used only when its secret is set; a plan can always be
+    # granted by hand from the admin dashboard.
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    paystack_secret_key: str = ""
 
     # Elo defaults
     elo_k_factor: float = 20.0

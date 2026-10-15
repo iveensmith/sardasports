@@ -14,10 +14,13 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
+    routes_admin,
     routes_analyst,
+    routes_auth,
     routes_board,
     routes_board_table,
     routes_contact,
+    routes_content,
     routes_discover,
     routes_elo,
     routes_fixtures,
@@ -29,6 +32,7 @@ from app.api import (
     routes_model,
     routes_monitoring,
     routes_predict,
+    routes_premium,
     routes_progress,
     routes_retrain,
     routes_roi,
@@ -119,6 +123,11 @@ app.include_router(routes_standings.router)
 app.include_router(routes_roi.router)
 app.include_router(routes_injuries.router)
 app.include_router(routes_matches.router)
+# Accounts, the administrator's area, public content and premium membership.
+app.include_router(routes_auth.router)
+app.include_router(routes_admin.router)
+app.include_router(routes_content.router)
+app.include_router(routes_premium.router)
 
 # Dashboard: plain HTML/CSS/JS served as static files, calling the JSON API
 # above via fetch() — no build step, no extra dependency. See

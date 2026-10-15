@@ -18,6 +18,8 @@ export interface NavItem {
   label: string;
   /** Hidden below the widest breakpoint, where the row runs out of room. */
   wideOnly?: boolean;
+  /** Hidden between lg and xl, where the account controls take the room. */
+  xlOnly?: boolean;
 }
 
 function isCurrent(pathname: string, href: string): boolean {
@@ -36,8 +38,12 @@ export function NavLinks({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href}
             aria-current={current ? "page" : undefined}
-            className={`rounded-md px-3 py-2 font-semibold whitespace-nowrap transition-colors ${
-              item.wideOnly ? "hidden 2xl:block" : ""
+            className={`rounded-md px-2.5 py-2 font-semibold whitespace-nowrap transition-colors ${
+              item.wideOnly
+                ? "hidden min-[1680px]:block"
+                : item.xlOnly
+                  ? "hidden xl:block"
+                  : ""
             } ${
               current
                 ? "bg-[var(--color-gold)] text-[var(--color-ink-on-accent)]"

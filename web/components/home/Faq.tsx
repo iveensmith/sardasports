@@ -69,7 +69,7 @@ export function Faq({
     },
     {
       q: "Do I need an account to see today's picks?",
-      a: "No. Every board on this site is free to read, with no registration.",
+      a: "No. Every board and the full record are free to read without one. A free account (18+, confirmed by e-mail) is where premium lives: early access to the editor's picks and members-only write-ups. Premium never changes the engine's predictions or the record.",
     },
     {
       q: "Can I see the picks that lost?",

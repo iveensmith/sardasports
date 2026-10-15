@@ -34,6 +34,9 @@ const SITE_LINKS = [
   { href: "/progress", label: "Track record" },
   { href: "/leaderboard", label: "Models" },
   { href: "/how-it-works", label: "How it works" },
+  { href: "/picks", label: "Editor's picks" },
+  { href: "/blog", label: "Blog" },
+  { href: "/premium", label: "Premium" },
 ];
 
 const COMPANY_LINKS = [
@@ -117,8 +120,8 @@ export async function SiteFooter() {
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
               The best AI prediction site for football, with basketball and
-              tennis too. Free picks are published every day with no account
-              needed, and every football pick is graded against the final score,
+              tennis too. Free picks are published every day, open to read
+              without an account, and every football pick is graded against the final score,
               wins and losses both, on the public record.
             </p>
           </div>

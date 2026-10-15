@@ -2,7 +2,7 @@
  * The framed panel under "Browse by sport": the record, in numbers.
  *
  * It sits where a paid-plans block would sit on a betting site. There are no plans
- * here (the site is free and has no accounts), so the same visual weight goes to the
+ * here (the site is free; premium is only the editor's own work), so the same visual weight goes to the
  * thing the site actually has to sell: how its picks have done. Each tile is a count
  * the progress page also shows, with the same two kinds of record kept apart: picks
  * stored before kick-off, and picks reconstructed afterwards from history cut off at
