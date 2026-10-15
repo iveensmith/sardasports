@@ -47,6 +47,9 @@ LAST_REFRESH_MARKER = PROCESSED_DIR / "last_refresh.txt"
 CATCH_UP_AFTER_HOURS = 20
 CATCH_UP_DELAY_SECONDS = 90
 
+# How often the basketball and tennis pages' data is rebuilt ahead of visitors.
+SPORTS_WARM_MINUTES = 4
+
 # One refresh at a time. The catch-up and the 03:00 run are the same job and must
 # never overlap: each downloads, rewrites the processed file and rebuilds Elo.
 _refresh_lock = threading.Lock()
@@ -572,9 +575,7 @@ def nightly_backup_job() -> None:
         # `backup` exits (rather than raises) when the copy fails its integrity check.
         logger.error("nightly_backup_job: the backup failed: %s", exc)
         return
-    logger.info(
-        "nightly_backup_job: wrote %s (%.1f MB)", target, target.stat().st_size / 1_048_576
-    )
+    logger.info("nightly_backup_job: wrote %s (%.1f MB)", target, target.stat().st_size / 1_048_576)
 
 
 def strip_canary_job() -> None:
@@ -743,24 +744,50 @@ def engine_warm_job() -> None:
 def sports_warm_job() -> None:
     """Keep the basketball and tennis pages' data warm so no visitor pays for a cold read.
 
-    Pricing the latest tennis matches loads the sport's whole history, which takes
-    several seconds, and the result is cached for an hour. Left to a visitor (or a
-    crawler), the first request after each expiry would wait that long. This reads each
-    sport again whenever its cached answer has expired, and is a cheap no-op otherwise.
-    It uses no API quota. A failure is logged and the next run tries again.
+    Pricing the latest tennis matches loads the sport's whole history, which takes several
+    seconds, and the answer is cached for an hour. Left to a visitor (or a crawler), the first
+    request after each expiry would wait that long. So every few minutes this rebuilds, ahead of
+    expiry: the page overview and summary, the boards for today and tomorrow, and each sport's
+    record (which walks every graded prediction). Boards and records are held stale-while-
+    revalidate (app/api/routes_sports.py), so even a request that lands between two runs is
+    answered from the previous build. It uses no API quota. A failure is logged and the next run
+    tries again.
     """
-    from app.services.sport_service import sport_overview, sports_summary
+    from app.api.routes_sports import board_for, record_for
+    from app.services.sport_service import (
+        CACHE_TTL_SECONDS,
+        SUMMARY_TTL_SECONDS,
+        sport_overview,
+        sports_summary,
+    )
 
+    # Rebuild an answer that would otherwise lapse before this job next runs (plus a margin).
+    ahead = SPORTS_WARM_MINUTES * 60 + 120
     session = SessionLocal()
     try:
-        sports_summary(session)
+        try:
+            sports_summary(session, max_age=SUMMARY_TTL_SECONDS - ahead)
+        except Exception:  # noqa: BLE001
+            logger.exception("sports warm-up: could not refresh the summary")
         for sport in ("basketball", "tennis"):
             try:
-                sport_overview(session, sport)
+                sport_overview(session, sport, max_age=CACHE_TTL_SECONDS - ahead)
             except Exception:  # noqa: BLE001 - one sport failing must not skip the other
                 logger.exception("sports warm-up: could not refresh %s", sport)
     finally:
         session.close()
+
+    today = datetime.now(UTC).date()
+    for sport in ("basketball", "tennis"):
+        for offset in (0, 1):
+            try:
+                board_for(sport, today + timedelta(days=offset))
+            except Exception:  # noqa: BLE001
+                logger.exception("sports warm-up: could not build the %s board", sport)
+        try:
+            record_for(sport)
+        except Exception:  # noqa: BLE001
+            logger.exception("sports warm-up: could not build the %s record", sport)
 
 
 # The job ids whose cadence follows the API plan, and how each is triggered for a profile.
@@ -910,7 +937,7 @@ def start_scheduler() -> BackgroundScheduler | None:
     # (see `sports_warm_job`). The delay keeps it out of the way of startup itself.
     scheduler.add_job(
         sports_warm_job,
-        IntervalTrigger(minutes=20),
+        IntervalTrigger(minutes=SPORTS_WARM_MINUTES),
         id="sports_pages_warm",
         next_run_time=datetime.now() + timedelta(seconds=45),
         coalesce=True,

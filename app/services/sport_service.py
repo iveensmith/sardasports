@@ -97,10 +97,15 @@ def _iso(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
-def sports_summary(db: Session) -> dict:
-    """One row per sport: how much is on record and how recent it is. Cached."""
+def sports_summary(db: Session, *, max_age: float | None = None) -> dict:
+    """One row per sport: how much is on record and how recent it is. Cached.
+
+    `max_age` lets the warm-up job rebuild an answer before it lapses (see `sports_warm_job`),
+    so a visitor is not the one who finds it expired.
+    """
     cached = _cache.get(_SUMMARY_KEY)
-    if cached is not None and monotonic() - cached[0] < SUMMARY_TTL_SECONDS:
+    limit = SUMMARY_TTL_SECONDS if max_age is None else min(SUMMARY_TTL_SECONDS, max_age)
+    if cached is not None and monotonic() - cached[0] < limit:
         return cached[1]
     try:
         result = _summary(db)
@@ -475,12 +480,17 @@ def _compute(db: Session, sport: str) -> dict:
     }
 
 
-def sport_overview(db: Session, sport: str) -> dict:
-    """The full page payload for one sport. Cached; the last good answer survives a failure."""
+def sport_overview(db: Session, sport: str, *, max_age: float | None = None) -> dict:
+    """The full page payload for one sport. Cached; the last good answer survives a failure.
+
+    `max_age` lets the warm-up job rebuild an answer before it lapses: pricing tennis loads the
+    sport's whole history (several seconds), which should happen in that job, not in a request.
+    """
     if sport not in SPORTS or not SPORTS[sport]["models"]:
         raise KeyError(sport)
     cached = _cache.get(sport)
-    if cached is not None and monotonic() - cached[0] < CACHE_TTL_SECONDS:
+    limit = CACHE_TTL_SECONDS if max_age is None else min(CACHE_TTL_SECONDS, max_age)
+    if cached is not None and monotonic() - cached[0] < limit:
         return cached[1]
     try:
         result = _compute(db, sport)

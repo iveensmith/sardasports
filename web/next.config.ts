@@ -22,6 +22,22 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // `/basketball?date=2026-10-15` (links already in the wild, and the day strip) is answered by
+  // `/basketball/d/2026-10-15`, a normal cacheable route. The visitor's address does not change.
+  // An address with a date that is not YYYY-MM-DD does not match and shows today's page.
+  async rewrites() {
+    return ["basketball", "tennis"].map((sport) => ({
+      source: `/${sport}`,
+      has: [
+        {
+          type: "query" as const,
+          key: "date",
+          value: "(?<day>\\d{4}-\\d{2}-\\d{2})",
+        },
+      ],
+      destination: `/${sport}/d/:day`,
+    }));
+  },
   experimental: {
     // Off, not the default `true`. This cache sits in front of every fetch
     // — including ones with `cache: "no-store"` — and only clears on a

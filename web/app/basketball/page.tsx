@@ -2,6 +2,8 @@ import { SportRoute } from "@/components/sport/SportRoute";
 import { pageMetadata } from "@/lib/seo";
 import { SPORT_COPY } from "@/lib/sportContent";
 
+// No query string is read here, so this is an ordinary cached page. A day's board is
+// /basketball/d/YYYY-MM-DD, which next.config.ts serves for /basketball?date=YYYY-MM-DD.
 export const revalidate = 600;
 
 const copy = SPORT_COPY.basketball;
@@ -15,17 +17,6 @@ export const metadata = {
   keywords: copy.keywords,
 };
 
-/** A real YYYY-MM-DD, or null. Anything else in the URL is ignored, not echoed. */
-function validDate(value: string | string[] | undefined): string | null {
-  const first = Array.isArray(value) ? value[0] : value;
-  return first && /^\d{4}-\d{2}-\d{2}$/.test(first) ? first : null;
-}
-
-export default async function BasketballPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const date = validDate((await searchParams).date);
-  return <SportRoute sport="basketball" date={date} />;
+export default function BasketballPage() {
+  return <SportRoute sport="basketball" />;
 }

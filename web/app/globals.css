@@ -753,3 +753,38 @@ table {
   border-top: 1px solid var(--color-line-strong);
   margin: 2em 0;
 }
+
+/*
+ * Loading skeletons (components/PageSkeleton.tsx). Hidden for the first 150 ms so a fast
+ * navigation never flashes one, then faded in; the blocks breathe slowly while they wait, and
+ * stand still for anyone who has asked for less motion.
+ */
+.sk {
+  opacity: 0;
+  animation: sk-in 160ms ease-out 150ms forwards;
+}
+.sk-bar {
+  border-radius: 8px;
+  /* A tint of the text colour, so it shows on a dark page and a light one alike. */
+  background: color-mix(in srgb, var(--color-text) 14%, var(--color-surface));
+  animation: sk-breathe 1.5s ease-in-out infinite;
+}
+@keyframes sk-in {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes sk-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk-bar {
+    animation: none;
+  }
+}
