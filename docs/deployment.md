@@ -144,13 +144,16 @@ the normal command. Stop the quick tunnel first:
 - **Security > WAF > Rate limiting rules:** one rule on `POST /api/contact`, e.g. 5 requests per
   10 minutes per IP, so the contact form cannot be used to flood you.
 - **Caching (once you have a domain):** Cloudflare caches the hashed `/_next/static/*` files by
-  default but never HTML. The site sends `Cache-Control: public, s-maxage=60, stale-while-revalidate=600`
-  on its pages, so add one rule to let Cloudflare keep them: **Caching > Cache Rules > Create rule**,
-  *When* `Hostname` equals your domain **and** `URI Path` does not start with `/api`; *Then* **Eligible
-  for cache**, Edge TTL **Use cache-control header if present**. Pages are then served from the
-  nearest Cloudflare location for up to a minute (and stale for up to ten while refreshing), instead
-  of travelling to your server each time. This does not work on the temporary `trycloudflare.com`
-  address, which has no zone to put a rule on.
+  default but never HTML. The site tells caches what is safe with `Cache-Control` on each page
+  (set in `web/next.config.ts`): most pages `public, s-maxage=60, stale-while-revalidate=600`; the
+  home page, `/matches` and `/match/*` 30 s; `/live` 10 s; and everything that depends on who is
+  looking (`/account`, `/admin/*`, `/login`, `/signup`, the password and e-mail pages, `/premium`,
+  `/picks`, each `/blog/<post>`) `private, no-store`, because a premium post shows its body only to
+  members. To let Cloudflare keep the public ones: **Caching > Cache Rules > Create rule**,
+  *When* `Hostname` equals your domain; *Then* **Eligible for cache**, Edge TTL **Use cache-control
+  header if present, bypass cache if not present**. Do **not** pick "Ignore cache-control header" or
+  "Cache everything" with an override: that would cache the private pages. This does not work on
+  the temporary `trycloudflare.com` address, which has no zone to put a rule on.
 - **Email:** the Contact page stores messages in the engine's database (read them with
   `scripts/list_contact_messages.py`); nothing sends mail.
 
@@ -350,3 +353,18 @@ Without a provider you can still grant premium by hand from `/admin/members`.
   written before it keep their old format and still display).
 - To use the brand yellow for the main button instead of the reference's blue, change
   `--ae-accent` at the top of `web/components/admin/article-editor.css`.
+
+## Connecting a domain bought at Namecheap
+
+1. **Cloudflare:** *Add a domain*, enter it, choose the **Free** plan. Cloudflare shows two
+   nameservers (such as `xxx.ns.cloudflare.com`).
+2. **Namecheap:** *Domain List > Manage > Nameservers* > **Custom DNS**, enter those two, tick to
+   save. Turn **DNSSEC off** in Namecheap if it was on. Wait until Cloudflare says *Active*
+   (minutes, sometimes a few hours).
+3. **Cloudflare Zero Trust > Networks > Tunnels:** create a tunnel, copy its token; add public
+   hostnames `yourdomain.com` (and `www.yourdomain.com`) with service `HTTP` and URL `web:3000`.
+4. **Server `.env.production`:** `CLOUDFLARE_TUNNEL_TOKEN`, `NEXT_PUBLIC_SITE_URL=https://yourdomain.com`
+   (this also turns indexing on) and `PUBLIC_SITE_URL` (the link in account e-mails). The site URL
+   is baked into the website at build time, so rebuild `web`.
+5. Stop the temporary tunnel (`stop quicktunnel`) and start `cloudflared`.
+6. **Cloudflare:** the settings and cache rule in the section above.
