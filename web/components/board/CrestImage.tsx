@@ -15,6 +15,7 @@
  * it fired).
  */
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 export function CrestImage({
@@ -58,16 +59,14 @@ export function CrestImage({
       className="inline-flex shrink-0 items-center justify-center"
       style={{ width: size, height: size }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- a remote crest of unknown shape; the optimiser adds nothing here */}
-      <img
+      {/* The picture is requested through Next's image optimiser, so the browser gets a copy
+          resized to this box (see `images` in next.config.ts), not the provider's full-size file. */}
+      <Image
         ref={ref}
         src={src}
         alt=""
         width={size}
         height={size}
-        loading="lazy"
-        decoding="async"
-        referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
         className="h-full w-full object-contain"
       />

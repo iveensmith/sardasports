@@ -32,6 +32,7 @@ import type { Progress } from "@/lib/progress";
 import { BoardTable } from "@/components/board/BoardTable";
 import { HomeHero } from "@/components/home/HomeHero";
 import { FeatureStrip } from "@/components/home/FeatureStrip";
+import { ResultsTicker } from "@/components/home/ResultsTicker";
 import { FeaturedPredictions } from "@/components/home/FeaturedPredictions";
 import { BrowseSports } from "@/components/home/BrowseSports";
 import { RecordPanel } from "@/components/home/RecordPanel";
@@ -264,6 +265,17 @@ export default async function HomePage() {
   return (
     <>
       <HomeHero fixturesToday={today?.counts.fixtures ?? 0} />
+
+      {/* The scrolling strip of graded picks, under the hero. It has its own
+          request (see recentPromise) so nothing else on the page can take it away. */}
+      <ResultsTicker
+        rows={recent?.rows ?? []}
+        from={recent?.from ?? null}
+        to={recent?.to ?? null}
+        minProbability={
+          recent?.strong_only ? (recent.min_probability ?? 70) : null
+        }
+      />
 
       <FeatureStrip />
 

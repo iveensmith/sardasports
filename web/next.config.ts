@@ -4,6 +4,24 @@ const nextConfig: NextConfig = {
   // A self-contained server (server.js plus only the modules it needs), which is what the
   // production Docker image runs. It does not change `next dev` or `next start`.
   output: "standalone",
+  // Club crests come from the data provider as ~90 KB pictures, and the home page's results
+  // strip alone shows about fifty of them at 20 px. They are served through Next's image
+  // optimiser instead, which resizes each to the size it is drawn at (a kilobyte or two, WebP)
+  // and keeps the copy. The allow-list is exactly the one host and path the engine builds
+  // crest URLs on (`CREST_URL` in ml/team_badges.py); anything else is refused. A crest picture
+  // for a given id does not change, so a copy is kept for a month.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "media.api-sports.io",
+        pathname: "/football/teams/*",
+        search: "",
+      },
+    ],
+    qualities: [75],
+    minimumCacheTTL: 2_678_400,
+  },
   // Public pages carry nothing personal, so a CDN may keep a copy for a minute and serve a
   // stale one while it refreshes (the engine's data is cached for minutes already). Cloudflare
   // only caches HTML when a Cache Rule marks it eligible (see docs/deployment.md).
