@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -13,7 +13,7 @@ from app.api.deps_auth import current_user, fail
 from app.database.session import get_db
 from app.models.account import User
 from app.models.premium import Plan
-from app.services import payments, premium_service
+from app.services import payments, premium_rows, premium_service
 from app.services.auth_service import AuthError
 from app.utils.config import get_settings
 
@@ -33,6 +33,18 @@ def plans(db: Session = Depends(get_db)) -> dict:
         "plans": [premium_service.plan_view(p) for p in premium_service.active_plans(db)],
         "providers": payments.configured_providers(),
     }
+
+
+@router.get("/rows")
+def unlocked_rows(
+    ids: str = Query("", description="Comma-separated match ids."),
+    user: User = Depends(current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Full board rows for a premium member: the predictions the public pages hide."""
+    if not premium_service.entitlement(db, user)["premium"]:
+        raise fail(AuthError("premium_required", "This is for premium members.", 403))
+    return {"rows": premium_rows.rows_for_matches(db, premium_rows.parse_ids(ids))}
 
 
 @router.post("/checkout")

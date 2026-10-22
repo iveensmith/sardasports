@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.api.deps_auth import get_viewer
 from app.api.routes_board import agreement_for
 from app.database.session import get_db
 from app.models.match import Match
 from app.models.match_event import MatchEvent
+from app.models.team import Team
 from app.schemas.prediction import (
     BasketballPredictionOut,
     PredictionOut,
     TennisPredictionOut,
 )
+from app.services import access
 from app.services.base_rates import competition_base_rates
 from app.services.live_scores import live_payload
 from app.services.pick_service import best_pick
@@ -137,7 +141,9 @@ def _completed_matches(db: Session, team_id: int | None) -> int | None:
     response_model=PredictionOut | BasketballPredictionOut | TennisPredictionOut,
 )
 def predict(
-    match_id: int, db: Session = Depends(get_db)
+    match_id: int,
+    db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
 ) -> PredictionOut | BasketballPredictionOut | TennisPredictionOut:
     """The prediction for one match, in that sport's own shape.
 
@@ -147,6 +153,24 @@ def predict(
     value and a not-applicable-in-this-sport value indistinguishable to any
     client. `sport` discriminates the two.
     """
+    # A match still to be played, for a viewer who may not see its prediction: say who is playing
+    # and when, and stop. Checked before the prediction is computed, so none is worked out.
+    gate = db.get(Match, match_id)
+    if gate is not None and access.match_is_locked(db, gate, viewer):
+        home, away = db.get(Team, gate.home_team_id), db.get(Team, gate.away_team_id)
+        home_name, away_name = (home.name if home else ""), (away.name if away else "")
+        return JSONResponse(
+            access.locked_match_payload(
+                gate,
+                home_name,
+                away_name,
+                {
+                    "home_badge": badge_dict(home_name, getattr(home, "api_football_id", None)),
+                    "away_badge": badge_dict(away_name, getattr(away, "api_football_id", None)),
+                },
+            )
+        )
+
     try:
         payload = predict_for_match(db, match_id)
     except MatchNotFoundError as exc:

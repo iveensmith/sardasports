@@ -5,9 +5,11 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps_auth import get_viewer
 from app.database.session import get_db
 from app.models import Match, Team
 from app.schemas.monitoring import ValueDetectionOut
+from app.services import access
 from app.services.prediction_service import MatchNotFoundError, predict_for_match
 from ml.monitoring.value_detection import compute_value_edges
 
@@ -15,10 +17,22 @@ router = APIRouter(tags=["value"])
 
 
 @router.get("/value/{match_id}", response_model=ValueDetectionOut)
-def get_value(match_id: int, db: Session = Depends(get_db)) -> ValueDetectionOut:
+def get_value(
+    match_id: int,
+    db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
+) -> ValueDetectionOut:
     match = db.get(Match, match_id)
     if match is None:
         raise HTTPException(status_code=404, detail=f"Match {match_id} not found")
+    if access.match_is_locked(db, match, viewer):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "locked",
+                "message": "This prediction is for premium members until the match kicks off.",
+            },
+        )
 
     if match.odds_home_win is None or match.odds_draw is None or match.odds_away_win is None:
         raise HTTPException(

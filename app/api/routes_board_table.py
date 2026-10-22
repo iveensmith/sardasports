@@ -25,9 +25,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.deps_auth import get_viewer
 from app.database.session import SessionLocal, get_db
 from app.models.match import Match
 from app.models.team import Team
+from app.services import access
 from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row, is_won
 from app.services.recent_results import DEFAULT_LIMIT, MAX_LIMIT, recent_settled
@@ -76,15 +78,21 @@ def board(
     sport: str | None = Query("football"),
     limit: int = Query(MAX_FIXTURES, ge=1, le=MAX_FIXTURES),
     db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
 ) -> dict:
-    """A day's fixtures, grouped by competition, every market called and graded."""
+    """A day's fixtures, grouped by competition, every market called and graded.
+
+    Predictions for matches still to be played are hidden from anyone who is not a premium
+    member, apart from the day's free ones (see `app.services.access`). The cached board is
+    the full one; hiding is done on a copy of it, per request."""
     target = on_date or datetime.now(UTC).date()
-    return _board_cache.get_or_compute(
+    payload = _board_cache.get_or_compute(
         (target, country, competition, sport, limit),
         # Its own session, not the request's: a stale answer is refreshed after this request
         # has finished and its session has been closed.
         lambda: _build_board_isolated(target, country, competition, sport, limit),
     )
+    return access.protect_payload(db, payload, viewer)
 
 
 def _build_board_isolated(

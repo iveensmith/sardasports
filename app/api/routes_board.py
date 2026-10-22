@@ -30,8 +30,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.deps_auth import get_viewer
 from app.database.session import get_db
 from app.models import Match, Team
+from app.services import access
 from app.services.base_rates import competition_base_rates
 from app.services.pick_service import best_pick, most_likely_outcome
 from app.services.stored_predictions import predict_with_stored_fallback
@@ -119,6 +121,7 @@ def predictions_today(
     min_confidence: float | None = Query(default=None, ge=0, le=100),
     limit: int = Query(default=60, ge=1, le=200),
     db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
 ) -> dict:
     """Fixtures for a date, each with its prediction and estimator split.
 
@@ -263,5 +266,5 @@ def predictions_today(
         "counts": counts,
         "count": len(visible),
         "predicted": sum(1 for e in visible if e["prediction"] is not None),
-        "fixtures": visible,
+        "fixtures": access.hide_entries(db, visible, viewer),
     }

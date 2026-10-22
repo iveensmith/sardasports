@@ -13,9 +13,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.deps_auth import get_viewer
 from app.database.session import get_db
 from app.models.match import Match
 from app.models.team import Team
+from app.services import access
 from app.services.base_rates import competition_base_rates
 from app.services.board_service import build_row
 from app.services.league_service import build_league, competition_for_slug, slug_for
@@ -116,12 +118,14 @@ def leagues(db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/leagues/{slug}")
-def league(slug: str, db: Session = Depends(get_db)) -> dict:
+def league(
+    slug: str, db: Session = Depends(get_db), viewer: access.Viewer = Depends(get_viewer)
+) -> dict:
     """One competition: its rates, table, record, fixtures and latest results."""
     meta = competition_for_slug(slug)
     if meta is None:
         raise HTTPException(status_code=404, detail=f"No competition matches '{slug}'")
-    return build_league(db, meta)
+    return access.protect_payload(db, build_league(db, meta), viewer)
 
 
 def _day_rows(db: Session, target: date):
@@ -169,6 +173,7 @@ def bankers(
     on_date: date | None = Query(None),
     min_probability: float = Query(BANKER_PROBABILITY, ge=50.0, le=99.0),
     db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
 ) -> dict:
     """The day's likeliest picks, and how the settled ones went.
 
@@ -188,6 +193,11 @@ def bankers(
         if row["best_tip"] is not None and row["best_tip"]["probability"] >= min_probability
     ]
     selected.sort(key=lambda r: (-r["best_tip"]["probability"], r["match_date"]))
+    # A banker for a match still to be played is a prediction like any other: left out for
+    # anyone who may not see it, and counted so the page can say how many there are.
+    available = [row for row in selected if not access.row_is_locked(db, row, viewer)]
+    locked_count = len(selected) - len(available)
+    selected = available
 
     record = Record()
     for row in selected:
@@ -204,7 +214,8 @@ def bankers(
         # worth building a slip from a day that is already over.
         "upcoming": sum(1 for row in rows if row["score"] is None),
         "record": record.as_dict(),
-        "rows": selected,
+        "locked_count": locked_count,
+        "rows": access.protect_payload(db, selected, viewer),
     }
 
 
@@ -220,6 +231,7 @@ def slip(
         None, description="Comma-separated markets to draw from. All if omitted."
     ),
     db: Session = Depends(get_db),
+    viewer: access.Viewer = Depends(get_viewer),
 ) -> dict:
     """Assemble an accumulator from the day's picks.
 
@@ -230,6 +242,10 @@ def slip(
     """
     target = on_date or datetime.now(UTC).date()
     rows, ranked_by_match, odds_by_match = _day_rows(db, target)
+    # Legs are drawn only from matches this viewer may see the prediction for.
+    total = len(rows)
+    rows = [row for row in rows if not access.row_is_locked(db, row, viewer)]
+    locked_matches = total - len(rows)
 
     wanted = {m.strip() for m in markets.split(",") if m.strip()} if markets else None
     legs = candidate_legs(
@@ -242,4 +258,5 @@ def slip(
     )
     result = build_slip(legs, target_odds=target_odds, min_legs=min_legs, max_legs=max_legs)
     result["date"] = target.isoformat()
+    result["locked_matches"] = locked_matches
     return result

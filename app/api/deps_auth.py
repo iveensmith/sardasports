@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.database.session import get_db
 from app.models.account import User
-from app.services import auth_service
+from app.services import access, auth_service, premium_service
 from app.services.auth_service import AuthError
 
 
@@ -46,6 +46,14 @@ def optional_user(
     authorization: str | None = Header(default=None), db: Session = Depends(get_db)
 ) -> User | None:
     return auth_service.user_for_session(db, bearer_token(authorization))
+
+
+def get_viewer(
+    user: User | None = Depends(optional_user), db: Session = Depends(get_db)
+) -> access.Viewer:
+    """Whether the caller is a premium member. The website's own requests carry no member,
+    so they are never premium and always get the hidden version of a locked prediction."""
+    return access.Viewer(premium=bool(premium_service.entitlement(db, user)["premium"]))
 
 
 def current_user(user: User | None = Depends(optional_user)) -> User:
