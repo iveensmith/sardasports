@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * A single-market landing page: the day's fixtures ranked on one market, with
  * that market's own track record printed beside them.
@@ -14,8 +16,12 @@
  * that was ever exposed to being wrong in public.
  */
 
+import { useEffect, useState } from "react";
 import { LocalTime } from "@/components/LocalTime";
 import Link from "next/link";
+import { Lock } from "@/components/home/icons";
+import { usePremium } from "@/components/premium/PremiumProvider";
+import { api } from "@/lib/clientApi";
 import { FaqItem } from "@/components/FaqItem";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { breadcrumbLd, faqLd } from "@/lib/seo";
@@ -186,12 +192,30 @@ function HitRow({ hit }: { hit: MarketHit }) {
 }
 
 export function MarketPage({
-  data,
+  data: initial,
   copy,
 }: {
   data: MarketPageData;
   copy: MarketCopy;
 }) {
+  // The page is built from what the engine gives anyone: the picks that are open. A premium
+  // member's browser asks again with the member's token and shows the whole list.
+  const { premium } = usePremium();
+  const [member, setMember] = useState<MarketPageData | null>(null);
+  useEffect(() => {
+    if (premium !== true) return;
+    let live = true;
+    api<MarketPageData>(`/api/engine/markets/${initial.kind}?on_date=${initial.date}`).then(
+      (result) => {
+        if (live && result.ok && result.data) setMember(result.data);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [premium, initial.kind, initial.date]);
+  const data = member ?? initial;
+  const hidden = data.locked_count ?? 0;
   const shown = new Date(data.date).toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -262,7 +286,9 @@ export function MarketPage({
           <div className="mt-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-8">
             <p className="text-[15px] font-medium">{copy.emptyTitle}</p>
             <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
-              {copy.emptyBody}
+              {hidden > 0
+                ? "15 predictions are free every day, and none of this market's picks is among today's. They open for premium members now, and for everyone once the matches kick off."
+                : copy.emptyBody}
             </p>
           </div>
         ) : (
@@ -284,6 +310,23 @@ export function MarketPage({
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+        {hidden > 0 && premium !== true && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-[var(--color-gold)]/40 bg-[var(--color-surface)] px-5 py-4">
+            <p className="flex items-center gap-2.5 text-[13.5px] text-[var(--color-text-dim)]">
+              <span className="text-[var(--color-gold-bright)]">
+                <Lock size={17} />
+              </span>
+              {hidden === 1 ? "1 more pick is locked" : `${hidden} more picks are locked`}
+              : they are for premium members until the matches kick off.
+            </p>
+            <Link
+              href="/premium"
+              className="rounded-[var(--radius-md)] bg-[var(--color-gold)] px-4 py-2 text-[13px] font-extrabold text-[var(--color-ink-on-accent)] transition-colors hover:bg-[var(--color-gold-bright)]"
+            >
+              Unlock all predictions
+            </Link>
           </div>
         )}
         <p className="mt-2 text-[12px] text-[var(--color-text-faint)]">

@@ -269,6 +269,28 @@ export interface TennisPrediction {
 export type Prediction =
   FootballPrediction | BasketballPrediction | TennisPrediction;
 
+/**
+ * What `/predict/{id}` returns for a football match still to be played, outside the day's 15
+ * free ones, to someone who is not a premium member: who is playing and when, and the
+ * bookmaker's prices. Nothing the engine worked out.
+ */
+export interface LockedPrediction {
+  locked: true;
+  sport: "football";
+  match_id: number;
+  home_team: string;
+  away_team: string;
+  home_badge: Badge | null;
+  away_badge: Badge | null;
+  match_date: string;
+  competition: string;
+  match_status: string;
+  odds_1x2: Odds1X2 | null;
+}
+
+export const isLocked = (p: Prediction | LockedPrediction): p is LockedPrediction =>
+  "locked" in p && p.locked === true;
+
 export type ConfidenceLabel = "Low" | "Medium" | "High" | "Very High";
 
 export interface Fixture {
@@ -394,8 +416,8 @@ export const isTennis = (p: Prediction): p is TennisPrediction =>
   p.sport === "tennis";
 
 /** The two sides of a match, whatever the sport calls them. */
-export function competitors(p: Prediction): { home: string; away: string } {
-  return isTennis(p)
+export function competitors(p: Prediction | LockedPrediction): { home: string; away: string } {
+  return !isLocked(p) && isTennis(p)
     ? { home: p.home_player, away: p.away_player }
     : { home: p.home_team, away: p.away_team };
 }

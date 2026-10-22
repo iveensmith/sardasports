@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * The prediction board, as a table.
  *
@@ -30,7 +32,10 @@
  */
 
 import Link from "next/link";
+import { useEffect, useMemo } from "react";
 import type { BoardRow, Outcome, Tip } from "@/lib/board";
+import { LockedBanner } from "@/components/premium/LockedBanner";
+import { usePremium } from "@/components/premium/PremiumProvider";
 import { LocalTime } from "@/components/LocalTime";
 import { kickoffLabel } from "@/lib/board";
 import { TeamCrest } from "@/components/board/TeamCrest";
@@ -326,6 +331,33 @@ function Fixture({ row }: { row: BoardRow }) {
   );
 }
 
+/**
+ * Where a locked row's prediction would be: a blur in the shape of a pick (or of the confidence
+ * ring), linking to the plans. There is nothing behind it: the engine did not send the pick.
+ */
+function LockedCell({ shape }: { shape: "pick" | "ring" }) {
+  return (
+    <td className="px-1.5 py-2 text-center">
+      <Link
+        href="/premium"
+        prefetch={false}
+        title="Premium members only. Unlock all predictions"
+        className="inline-flex flex-col items-center gap-1 select-none"
+      >
+        {shape === "pick" ? (
+          <>
+            <span aria-hidden className="h-[13px] w-[30px] rounded bg-[var(--color-text-faint)]/45 blur-[3.5px]" />
+            <span aria-hidden className="h-[17px] w-[44px] rounded-[5px] bg-[var(--color-text-faint)]/30 blur-[3.5px]" />
+          </>
+        ) : (
+          <span aria-hidden className="h-[28px] w-[28px] rounded-full bg-[var(--color-text-faint)]/35 blur-[3.5px]" />
+        )}
+        <span className="sr-only">Locked. Premium members only.</span>
+      </Link>
+    </td>
+  );
+}
+
 function Row({ row }: { row: BoardRow }) {
   const verdict = row.best_tip?.outcome ?? null;
   const picked = row.tips.match_result?.selection ?? null;
@@ -398,12 +430,24 @@ function Row({ row }: { row: BoardRow }) {
         estimated={row.odds_estimated.away}
       />
 
-      {COLUMNS.map(({ market }) => (
-        <TipCell key={market} tip={row.tips[market]} />
-      ))}
+      {row.locked ? (
+        <>
+          {COLUMNS.map(({ market }) => (
+            <LockedCell key={market} shape="pick" />
+          ))}
+          <LockedCell shape="pick" />
+          <LockedCell shape="ring" />
+        </>
+      ) : (
+        <>
+          {COLUMNS.map(({ market }) => (
+            <TipCell key={market} tip={row.tips[market]} />
+          ))}
 
-      <TipCell tip={row.best_tip ?? undefined} markStrong />
-      <ConfidenceCell value={row.confidence} />
+          <TipCell tip={row.best_tip ?? undefined} markStrong />
+          <ConfidenceCell value={row.confidence} />
+        </>
+      )}
     </tr>
   );
 }
@@ -426,7 +470,30 @@ const SCROLL_EDGES = {
   ].join(", "),
 } as const;
 
-export function BoardTable({ rows }: { rows: BoardRow[] }) {
+export function BoardTable({
+  rows,
+  banner = true,
+}: {
+  rows: BoardRow[];
+  /** Say, above the rows, that some are locked. A page with several tables turns this off and
+   * says it once itself (see `LockedBanner`). */
+  banner?: boolean;
+}) {
+  const { premium, rows: unlocked, unlock } = usePremium();
+  const lockedIds = useMemo(
+    () => rows.filter((row) => row.locked).map((row) => row.match_id),
+    [rows],
+  );
+  // A premium member's browser fetches what the page was sent without.
+  useEffect(() => {
+    if (premium && lockedIds.length > 0) unlock(lockedIds);
+  }, [premium, lockedIds, unlock]);
+  const shown = useMemo(
+    () => rows.map((row) => (row.locked && unlocked[row.match_id]) || row),
+    [rows, unlocked],
+  );
+  const stillLocked = shown.filter((row) => row.locked).length;
+
   if (rows.length === 0) return null;
 
   return (
@@ -436,6 +503,7 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
     // so the rounded corners clip the table's background instead of getting
     // squared off by it.
     <div className="overflow-hidden rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)]">
+      {banner && <LockedBanner count={stillLocked} />}
       {/* Horizontal scroll rather than dropped columns: the market columns
           are the point of the table, and a phone-width layout that hides
           them is a different product. */}
@@ -471,7 +539,7 @@ export function BoardTable({ rows }: { rows: BoardRow[] }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {shown.map((row) => (
               <Row key={row.match_id} row={row} />
             ))}
           </tbody>

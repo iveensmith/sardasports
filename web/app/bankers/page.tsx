@@ -15,9 +15,7 @@
 
 import { EngineError, getBankers, getSlip } from "@/lib/api";
 import type { Bankers, Slip } from "@/lib/discover";
-import { rate } from "@/lib/progress";
-import { BoardTable } from "@/components/board/BoardTable";
-import { SlipOfTheDay } from "@/components/slip/SlipOfTheDay";
+import { BankersView } from "@/components/premium/BankersView";
 import { pageMetadata } from "@/lib/seo";
 
 export const revalidate = 300;
@@ -79,7 +77,6 @@ export default async function BankersPage({
     );
   }
 
-  const settled = bankers.record.settled > 0;
   const shown = new Date(bankers.date).toLocaleDateString(undefined, {
     weekday: "long",
     day: "numeric",
@@ -95,59 +92,14 @@ export default async function BankersPage({
         <h1 className="mt-2.5 text-[clamp(1.9rem,4.5vw,2.6rem)] leading-tight font-bold tracking-[-0.02em]">
           Football banker tips
         </h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-[var(--color-text-dim)]">
-          {bankers.count === 1 ? "The one pick" : `The ${bankers.count} picks`}{" "}
-          from this card&rsquo;s {bankers.considered} fixtures that the engine
-          makes at least {bankers.min_probability.toFixed(0)}% likely, likeliest
-          first. These are the safest picks on the card, which is not the same
-          as the most valuable: a short price on a near-certainty is usually
-          priced about right.
-        </p>
       </header>
 
-      {settled && (
-        <div
-          className="mb-6 rounded-[var(--radius-lg)] border p-5"
-          style={{ borderColor: "var(--color-line-strong)" }}
-        >
-          <p className="text-[10.5px] tracking-wider text-[var(--color-text-faint)] uppercase">
-            How this batch went
-          </p>
-          <p className="mt-1.5 flex flex-wrap items-baseline gap-x-3">
-            <span
-              className="text-[28px] leading-none font-bold tabular-nums"
-              style={{
-                color:
-                  (bankers.record.win_rate ?? 0) >= 50
-                    ? "var(--color-won)"
-                    : "var(--color-lost)",
-              }}
-            >
-              {rate(bankers.record)}
-            </span>
-            <span className="text-[13.5px] text-[var(--color-text-dim)]">
-              {bankers.record.won} won, {bankers.record.lost} lost
-              {bankers.record.void > 0 && `, ${bankers.record.void} void`}
-            </span>
-          </p>
-        </div>
-      )}
-
-      {bankers.count === 0 ? (
-        <div className="rounded-[var(--radius-lg)] border border-dashed border-[var(--color-line-strong)] bg-[var(--color-surface)] p-8">
-          <p className="text-[15px] font-medium">
-            Nothing on this card clears {bankers.min_probability.toFixed(0)}%
-          </p>
-          <p className="mt-2 max-w-[54ch] text-[14px] leading-relaxed text-[var(--color-text-dim)]">
-            That is a result, not a gap. Some days have no near-certainties on
-            them, and padding the page out with 70% calls would misname them.
-          </p>
-        </div>
-      ) : (
-        <BoardTable rows={bankers.rows} />
-      )}
-
-      {slip && <SlipOfTheDay slip={slip} />}
+      <BankersView
+        initial={bankers}
+        initialSlip={slip}
+        date={date}
+        slipTarget={SLIP_OF_THE_DAY_TARGET}
+      />
     </div>
   );
 }

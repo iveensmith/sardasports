@@ -55,6 +55,8 @@ export interface Bankers {
   /** Fixtures on the card still to be played. Zero once the day is over. */
   upcoming: number;
   record: SettledRecord;
+  /** Bankers left out because their matches are still to be played and not free. */
+  locked_count?: number;
   rows: BoardRow[];
 }
 
@@ -86,6 +88,8 @@ export interface Slip {
   /** The day's card could not supply enough eligible legs. */
   short_of_minimum: boolean;
   candidates_considered: number;
+  /** Matches the slip could not draw on because their predictions are locked. */
+  locked_matches?: number;
 }
 
 /** One row of a competition's table, computed from results on record. */

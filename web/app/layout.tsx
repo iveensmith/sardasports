@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { Logo } from "@/components/Logo";
 import { AccountMenu } from "@/components/auth/AccountMenu";
+import { PremiumProvider } from "@/components/premium/PremiumProvider";
 import { NavLinks } from "@/components/NavLinks";
 import { SportTabs } from "@/components/sport/SportTabs";
 import { organizationLd, websiteLd } from "@/lib/seo";
@@ -175,7 +176,9 @@ export default function RootLayout({
           <SportTabs />
         </header>
 
-        <main>{children}</main>
+        <main>
+          <PremiumProvider>{children}</PremiumProvider>
+        </main>
 
         <SiteFooter />
       </body>

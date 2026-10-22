@@ -19,22 +19,20 @@ import { notFound } from "next/navigation";
 import { EngineError, getMatches, getPrediction, getTeam } from "@/lib/api";
 import { matchIdFromSlug } from "@/lib/board";
 import {
-  HeadlineCall,
-  MarketCallTable,
-  ValuePanel,
-} from "@/components/MarketCalls";
-import {
   competitors,
   isBasketball,
   isFootball,
+  isLocked,
   isTennis,
+  type FootballPrediction,
+  type LockedPrediction,
   type Prediction,
 } from "@/lib/types";
+import { MarketTable } from "@/components/MarketTable";
 import { ProbabilitySplit } from "@/components/ProbabilitySplit";
 import { ConfidenceMeter } from "@/components/ConfidenceMeter";
-import { MarketTable } from "@/components/MarketTable";
-import { EstimatorBreakdown } from "@/components/EstimatorSplit";
-import { agreementFrom } from "@/lib/agreement";
+import { FootballBody, Stat } from "@/components/match/FootballBody";
+import { MemberMatchView } from "@/components/premium/MemberMatchView";
 import { MatchHeader } from "@/components/match/MatchHeader";
 import { GoalTimeline } from "@/components/match/GoalTimeline";
 import { StatsComparison } from "@/components/match/StatsComparison";
@@ -54,145 +52,6 @@ import {
 } from "@/lib/seo";
 
 export const revalidate = 60;
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-[var(--radius-md)] border border-[var(--color-line)] bg-[var(--color-surface)] px-4 py-3">
-      <p className="text-[12px] text-[var(--color-text-faint)]">{label}</p>
-      <p className="mt-1 text-[22px] leading-none font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function FootballBody({
-  p,
-}: {
-  p: Extract<Prediction, { sport: "football" }>;
-}) {
-  const { home, away } = competitors(p);
-  return (
-    <>
-      {p.calls?.headline && <HeadlineCall call={p.calls.headline} />}
-
-      <div className="mt-4 grid gap-4 md:grid-cols-[1.6fr_1fr]">
-        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-          <h2 className="mb-4 text-[15px] font-semibold">Outcome</h2>
-          <ProbabilitySplit
-            home={p.home_win}
-            away={p.away_win}
-            draw={p.draw}
-            homeLabel={home}
-            awayLabel={away}
-          />
-        </section>
-        <section className="rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-          <ConfidenceMeter value={p.confidence} label={p.confidence_label} />
-        </section>
-      </div>
-
-      <section className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-6">
-        <EstimatorBreakdown
-          agreement={agreementFrom(p)}
-          homeLabel={home}
-          awayLabel={away}
-        />
-      </section>
-
-      {/* The tables that follow are the working; the headline call above is
-          the conclusion. */}
-      {p.calls && p.calls.by_market.length > 0 && (
-        <div className="mt-4">
-          <MarketCallTable calls={p.calls.by_market} />
-        </div>
-      )}
-
-      {/* The market comparison, moved off the board row. A different subject
-          from the prediction, and one that needs room to be honest about
-          what a large expected value usually means. */}
-      {p.value && (
-        <div className="mt-4">
-          <ValuePanel value={p.value} />
-        </div>
-      )}
-
-      <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Expected goals (home)" value={p.expected_goals_home} />
-        <Stat label="Expected goals (away)" value={p.expected_goals_away} />
-        <Stat label="Both teams score" value={`${p.btts_yes}%`} />
-        <Stat
-          label="Most likely score"
-          value={p.top_scorelines[0]?.score ?? "—"}
-        />
-      </div>
-
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <MarketTable
-          title="Goals"
-          markets={p.goals_markets}
-          unavailableNote="This competition has no goal data the engine can price."
-        />
-        <MarketTable
-          title="Half-time goals"
-          markets={p.ht_goals_markets}
-          unavailableNote="Half-time scores are not recorded for this competition."
-        />
-        <MarketTable
-          title="Corners"
-          markets={p.corners_markets}
-          unavailableNote="This competition has no corner data, so these lines cannot be priced."
-        />
-        <MarketTable
-          title="Cards"
-          markets={p.cards_markets}
-          unavailableNote="This competition has no card data, so these lines cannot be priced."
-        />
-      </div>
-
-      {p.explanation && p.explanation.length > 0 && (
-        <section className="mt-4 rounded-[var(--radius-lg)] border border-[var(--color-line)] bg-[var(--color-surface)] p-5">
-          <h3 className="text-[15px] font-semibold">What drove this</h3>
-          <p className="mt-1 mb-4 text-[13px] text-[var(--color-text-dim)]">
-            The features that moved the predicted outcome most, from the model
-            itself rather than a written-after-the-fact rationale.
-          </p>
-          <ul className="space-y-2.5">
-            {p.explanation.slice(0, 5).map((f) => {
-              const positive = f.impact_percentage_points >= 0;
-              const width = Math.min(
-                Math.abs(f.impact_percentage_points) * 6,
-                100,
-              );
-              return (
-                <li key={f.feature} className="text-[13px]">
-                  <div className="mb-1 flex justify-between gap-4">
-                    <span className="truncate text-[var(--color-text-dim)]">
-                      {f.feature.replace(/_/g, " ")}
-                    </span>
-                    <span>
-                      {positive ? "+" : ""}
-                      {f.impact_percentage_points.toFixed(1)} pts
-                    </span>
-                  </div>
-                  <div className="h-1.5 w-full rounded-full bg-[var(--color-line)]">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${width}%`,
-                        background: positive
-                          ? "var(--color-home)"
-                          : "var(--color-away)",
-                      }}
-                    />
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
-    </>
-  );
-}
 
 function BasketballBody({
   p,
@@ -349,9 +208,10 @@ export async function generateMetadata({
     year: "numeric",
     timeZone: "UTC",
   });
-  const markets = isFootball(prediction)
-    ? "win probabilities, goals and BTTS picks"
-    : "win probabilities and totals";
+  const markets =
+    isLocked(prediction) || isFootball(prediction)
+      ? "win probabilities, goals and BTTS picks"
+      : "win probabilities and totals";
   return pageMetadata({
     title: `${home} vs ${away} Prediction & Betting Tips`,
     description: `${home} vs ${away} prediction (${prediction.competition}, ${when}): ${markets}, form and head-to-head.`,
@@ -379,7 +239,7 @@ export default async function MatchPage({
     ? (requestedTab as MatchTab)
     : "tips";
 
-  let prediction: Prediction;
+  let prediction: Prediction | LockedPrediction;
   try {
     prediction = await getPrediction(matchId);
   } catch (error) {
@@ -387,16 +247,22 @@ export default async function MatchPage({
     throw error;
   }
 
+  // A football match still to be played, outside the day's 15 free ones, arrives as who is playing
+  // and when and nothing the engine worked out. `full` is the ordinary prediction, or null then.
+  const locked = isLocked(prediction);
+  const full: Prediction | null = isLocked(prediction) ? null : prediction;
+  const football: FootballPrediction | LockedPrediction | null = isLocked(prediction)
+    ? prediction
+    : full !== null && isFootball(full)
+      ? full
+      : null;
+
   const { home, away } = competitors(prediction);
   // Badges are football-only for now — basketball and tennis carry no
   // `home_badge`/`away_badge` fields, so this degrades to no crest rather
   // than a type error or a fabricated flag.
-  const homeBadge = isFootball(prediction)
-    ? prediction.home_badge
-    : monogramBadge(home);
-  const awayBadge = isFootball(prediction)
-    ? prediction.away_badge
-    : monogramBadge(away);
+  const homeBadge = football ? football.home_badge : monogramBadge(home);
+  const awayBadge = football ? football.away_badge : monogramBadge(away);
   // Where "back" goes depends on the sport: a tennis match belongs to the tennis
   // page, not to the football board.
   const sectionPath = SPORT_PATHS[prediction.sport];
@@ -417,7 +283,7 @@ export default async function MatchPage({
         })
       : null;
 
-  const tabs: MatchTab[] = isFootball(prediction)
+  const tabs: MatchTab[] = football
     ? ["tips", "season", "stats", "form", "h2h", "recent"]
     : ["tips", "season", "form", "h2h", "recent"];
 
@@ -428,9 +294,7 @@ export default async function MatchPage({
           breadcrumbLd([
             { name: "Home", path: "/" },
             {
-              name: isFootball(prediction)
-                ? "Matches"
-                : `${sectionLabel} predictions`,
+              name: football ? "Matches" : `${sectionLabel} predictions`,
               path: sectionPath,
             },
             {
@@ -438,16 +302,16 @@ export default async function MatchPage({
               path: matchPath(home, away, matchId),
             },
           ]),
-          ...(isFootball(prediction)
+          ...(football
             ? [
                 sportsEventLd({
                   name: `${home} vs ${away}`,
                   path: matchPath(home, away, matchId),
-                  startDate: prediction.match_date,
+                  startDate: football.match_date,
                   homeTeam: home,
                   awayTeam: away,
-                  competition: prediction.competition,
-                  played: prediction.match_status === "completed",
+                  competition: football.competition,
+                  played: football.match_status === "completed",
                 }),
               ]
             : []),
@@ -458,9 +322,7 @@ export default async function MatchPage({
         href={sectionPath}
         className="text-[14px] text-[var(--color-text-dim)] underline-offset-4 hover:text-[var(--color-text)] hover:underline"
       >
-        {isFootball(prediction)
-          ? "Back to matches"
-          : `Back to ${sectionLabel.toLowerCase()}`}
+        {football ? "Back to matches" : `Back to ${sectionLabel.toLowerCase()}`}
       </Link>
 
       <h1 className="mt-4 text-[clamp(1.4rem,3vw,1.9rem)] leading-tight font-bold tracking-[-0.02em]">
@@ -479,18 +341,18 @@ export default async function MatchPage({
             timeStyle: "short",
           })}
           status={prediction.match_status}
-          score={prediction.match_score}
-          live={prediction.live ?? null}
-          htScore={isFootball(prediction) ? prediction.ht_score : null}
+          score={full ? full.match_score : null}
+          live={full?.live ?? null}
+          htScore={full && isFootball(full) ? full.ht_score : null}
           odds={prediction.odds_1x2}
-          teamLinks={isFootball(prediction)}
+          teamLinks={football !== null}
         />
       </div>
 
-      {isFootball(prediction) && prediction.events.length > 0 && (
+      {full && isFootball(full) && full.events.length > 0 && (
         <div className="mt-4">
           <GoalTimeline
-            events={prediction.events}
+            events={full.events}
             home={home}
             away={away}
             homeBadge={homeBadge}
@@ -506,9 +368,10 @@ export default async function MatchPage({
       <div className="mt-6">
         {tab === "tips" && (
           <>
-            {isFootball(prediction) && <FootballBody p={prediction} />}
-            {isBasketball(prediction) && <BasketballBody p={prediction} />}
-            {isTennis(prediction) && <TennisBody p={prediction} />}
+            {locked && <MemberMatchView matchId={matchId} view="tips" />}
+            {full && isFootball(full) && <FootballBody p={full} />}
+            {full && isBasketball(full) && <BasketballBody p={full} />}
+            {full && isTennis(full) && <TennisBody p={full} />}
           </>
         )}
 
@@ -521,12 +384,15 @@ export default async function MatchPage({
           />
         )}
 
-        {tab === "stats" && isFootball(prediction) && (
+        {tab === "stats" && locked && (
+          <MemberMatchView matchId={matchId} view="stats" />
+        )}
+        {tab === "stats" && full && isFootball(full) && (
           <StatsComparison
-            expectedGoalsHome={prediction.expected_goals_home}
-            expectedGoalsAway={prediction.expected_goals_away}
-            score={prediction.match_score}
-            actual={prediction.actual_stats}
+            expectedGoalsHome={full.expected_goals_home}
+            expectedGoalsAway={full.expected_goals_away}
+            score={full.match_score}
+            actual={full.actual_stats}
           />
         )}
 

@@ -93,6 +93,9 @@ export interface BoardRow {
   /** Out of ten, matching how the column is labelled. */
   confidence: number | null;
   confidence_label: string | null;
+  /** True when the engine left the prediction out: a match still to be played, outside the day's
+   * 15 free ones, viewed by someone who is not a premium member. The prices are still there. */
+  locked?: boolean;
 }
 
 export interface BoardGroup {

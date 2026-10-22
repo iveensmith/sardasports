@@ -72,6 +72,8 @@ export interface MarketPageData {
   /** Fixtures the engine had a view on for this market. */
   considered: number;
   picks: MarketPickRow[];
+  /** Picks left out because their matches are still to be played and not free. */
+  locked_count?: number;
   /** How often the market lands over every completed match on record. Null
    * for markets with no such yardstick (correct score). */
   base_rate: number | null;

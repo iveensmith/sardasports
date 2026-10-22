@@ -20,6 +20,13 @@ const ALLOWED = [
   /^admin\//,
   /^premium\/plans$/,
   /^premium\/checkout$/,
+  // What the public pages hide, for a premium member. The engine decides who may have it: these
+  // routes only carry the member's token to it.
+  /^premium\/rows$/,
+  /^predict\/\d+$/,
+  /^bankers$/,
+  /^slip$/,
+  /^markets\/[a-z0-9-]+$/,
   /^premium\/cancel$/,
   /^content\/(posts|picks|categories)/,
 ];

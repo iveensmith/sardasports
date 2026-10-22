@@ -17,6 +17,7 @@
 import { EngineError, getBoardDates, getDayBoard } from "@/lib/api";
 import type { BoardDates, DayBoard } from "@/lib/board";
 import { BoardTable } from "@/components/board/BoardTable";
+import { LockedBanner } from "@/components/premium/LockedBanner";
 import { CountrySidebar } from "@/components/board/CountrySidebar";
 import { DateStrip } from "@/components/board/DateStrip";
 import { StatTiles } from "@/components/board/StatTiles";
@@ -163,6 +164,13 @@ export default async function MatchesPage({
             <Empty date={shown} />
           ) : (
             <div className="flex flex-col gap-7">
+              <LockedBanner
+                bordered
+                count={board.groups.reduce(
+                  (total, group) => total + group.rows.filter((row) => row.locked).length,
+                  0,
+                )}
+              />
               {board.groups.map((group) => (
                 <section key={group.competition.name}>
                   <div className="mb-2 flex flex-wrap items-baseline gap-x-2.5">
@@ -179,7 +187,7 @@ export default async function MatchesPage({
                       {group.rows.length === 1 ? "" : "s"}
                     </span>
                   </div>
-                  <BoardTable rows={group.rows} />
+                  <BoardTable rows={group.rows} banner={false} />
                 </section>
               ))}
             </div>

@@ -30,6 +30,7 @@ import type {
   CompetitionsResponse,
   FixturesResponse,
   MatchesResponse,
+  LockedPrediction,
   Prediction,
   TeamDetail,
   Value,
@@ -186,8 +187,8 @@ export function getFixtures(date?: string): Promise<FixturesResponse> {
 }
 
 /** The full prediction for one match, in that sport's own shape. */
-export function getPrediction(matchId: number): Promise<Prediction> {
-  return engineFetch<Prediction>(`/predict/${matchId}`, { revalidate: 60 });
+export function getPrediction(matchId: number): Promise<Prediction | LockedPrediction> {
+  return engineFetch<Prediction | LockedPrediction>(`/predict/${matchId}`, { revalidate: 60 });
 }
 
 export function getMatches(params: {
