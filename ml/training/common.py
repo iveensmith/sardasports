@@ -16,8 +16,8 @@ import pandas as pd
 
 from app.database.base import Base
 from app.database.session import SessionLocal, get_engine
-from app.models import ModelVersion, TrainingRun
-from ml.api_competitions import enabled_families, family_of
+from app.models import Match, ModelVersion, Team, TrainingRun
+from ml.api_competitions import enabled, enabled_families, family_of
 from ml.elo.engine import EloEngine, MatchResult
 from ml.elo.football import FOOTBALL_COMPETITION_K
 from ml.feature_engineering.features import build_match_features, build_team_history_index
@@ -150,8 +150,81 @@ def one_hot_competition(competition: str) -> dict:
     return {col: (1.0 if col == target else 0.0) for col in COMPETITION_COLUMNS}
 
 
+_CSV_STAT_COLUMNS = (
+    "home_ht_goals",
+    "away_ht_goals",
+    "home_shots",
+    "away_shots",
+    "home_shots_on_target",
+    "away_shots_on_target",
+    "home_corners",
+    "away_corners",
+    "home_yellow_cards",
+    "away_yellow_cards",
+    "home_red_cards",
+    "away_red_cards",
+    "referee",
+    "odds_home_win",
+    "odds_draw",
+    "odds_away_win",
+)
+
+
+def load_enabled_api_matches() -> list[dict]:
+    """Played matches of the enabled API-Football competitions, shaped like `matches.csv` rows.
+
+    `scripts/fetch_api_competitions.py` writes straight to the database and never to the CSV
+    that training reads, so without this a competition could be enabled, its one-hot column
+    added, and every model retrained without a single one of its matches in the training set.
+    Only competitions absent from the CSV are read (`enabled()` excludes the ones already
+    modelled), so no match is counted twice. Kick-off times are cut to the date, as in the CSV.
+    """
+    names = [comp.name for comp in enabled()]
+    if not names:
+        return []
+
+    session = SessionLocal()
+    try:
+        home, away = Team.__table__.alias("home"), Team.__table__.alias("away")
+        rows = (
+            session.query(Match, home.c.name, away.c.name)
+            .join(home, home.c.id == Match.home_team_id)
+            .join(away, away.c.id == Match.away_team_id)
+            .filter(
+                Match.sport == "football",
+                Match.competition.in_(names),
+                Match.status == "completed",
+                Match.home_score.is_not(None),
+                Match.away_score.is_not(None),
+            )
+            .all()
+        )
+        matches = []
+        for match, home_name, away_name in rows:
+            row = {
+                "external_id": match.external_id,
+                "match_date": pd.Timestamp(match.match_date.date()),
+                "competition": match.competition,
+                "season": match.season,
+                "neutral_venue": bool(match.neutral_venue),
+                "home_team": home_name,
+                "away_team": away_name,
+                "home_score": match.home_score,
+                "away_score": match.away_score,
+            }
+            for column in _CSV_STAT_COLUMNS:
+                value = getattr(match, column)
+                # A missing figure is NaN, as pandas leaves it for the CSV rows.
+                row[column] = float("nan") if value is None else value
+            matches.append(row)
+        return matches
+    finally:
+        session.close()
+
+
 def load_processed_matches(min_matches: int = 100) -> list[dict]:
-    """Read `data/processed/matches.csv`, failing loudly if it's missing/too small."""
+    """Read `data/processed/matches.csv` (plus the enabled API competitions held only in the
+    database), failing loudly if it's missing/too small."""
     if not PROCESSED_PATH.exists():
         raise SystemExit(
             f"{PROCESSED_PATH} not found — run scripts/clean_data.py and load_to_db.py first."
@@ -159,6 +232,12 @@ def load_processed_matches(min_matches: int = 100) -> list[dict]:
 
     raw = pd.read_csv(PROCESSED_PATH, parse_dates=["match_date"])
     matches = raw.to_dict("records")
+    from_database = load_enabled_api_matches()
+    if from_database:
+        logger.info(
+            "Adding %d enabled-API-competition matches from the database", len(from_database)
+        )
+        matches.extend(from_database)
 
     if len(matches) < min_matches:
         raise SystemExit(
