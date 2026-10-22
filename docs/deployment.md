@@ -539,3 +539,36 @@ rollback (a sign-up, an editor's pick) is lost, which is why the procedure is do
   fixtures are predicted before kick-off and then played.
 - The API-Football plan ran to 12 Nov 2026 when this was written. Past that date the by-id result
   lookups are refused and results arrive more slowly; renew before then.
+
+## Putting the free allowance and the plans on the server (23 Oct 2026)
+
+No database change: nothing to migrate. From `/opt/sardasports` on the server:
+
+```bash
+DC="docker compose -f docker-compose.prod.yml --env-file .env.production"
+git pull
+$DC build api web && $DC up -d
+```
+
+Then set the plans from code. The first command only shows what it would do; a plan called `monthly`
+may already exist from earlier testing with another price, and it will say **CHANGES**:
+
+```bash
+$DC exec -T api python -m scripts.seed_plans
+$DC exec -T api python -m scripts.seed_plans --apply
+```
+
+Check `/admin/premium`: weekly, monthly and yearly **on sale**, VIP **off**. Check `/premium` loads and
+shows $5 / $18 / $150. Then, as a signed-out visitor, open `/matches` for a busy day: 15 fixtures
+open, the rest blurred with one unlock banner; open a locked match: the lock card. As a premium member
+(grant yourself time in `/admin/members`) everything opens.
+
+**Caching.** The public pages are the same for everyone (a visitor's view), so Cloudflare may cache them
+as before. A member's rows arrive by a separate request (`/api/engine/premium/rows`) that the website
+fetches with `no-store` and that is outside the public cache-header rule in `web/next.config.ts` (which excludes
+`api/`), so it is not cached by the website. If you add a Cloudflare rule that caches "everything", exclude
+`/api/`; with the rule from this guide (cache only what is marked cacheable) nothing more is needed.
+
+**Prices.** To change a price, edit it in
+`/admin/premium` (same plan code) or in `scripts/seed_plans.py` and run it again; a new price applies to
+new payments only.

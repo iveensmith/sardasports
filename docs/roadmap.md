@@ -3294,3 +3294,66 @@ live together: the old models fail on the 74-column input.
 Also this day: footer X and Telegram links set (`web/lib/site.ts`), browser-tab icon replaced
 (`web/app/icon.svg`, `favicon.ico`, `apple-icon.png`, built by `scripts/build_logo_svg.py` and
 `web/scripts/build-favicons.mjs`), crests served resized, and the results carousel restored.
+
+## Premium sells the predictions: 15 a day free, the rest locked until kick-off (23 Oct 2026)
+
+The owner decided premium should unlock the engine's predictions, as nerdytips.com does, instead of
+only the editor's picks. Until now the site and our own notes said the opposite ("premium never puts the engine's
+predictions behind a wall"); that was a design choice of ours, not a rule of the product, and it is
+reversed. What did not change: the record. Every prediction is stored before kick-off, graded
+and counted, whether it was free or locked.
+
+**The rule** (`app/services/access.py`, one place, applied everywhere a prediction leaves the engine):
+- A football match **not yet kicked off** has its prediction hidden from anyone who is not a premium
+  member (an administrator counts as one), unless it is one of the day's **15 free** matches.
+- A match that **has kicked off** (or finished) is never hidden, so the record can always be checked.
+- The 15 are chosen from the day's fixtures alone, never from what the engine thinks of them:
+  the biggest competitions first (`FREE_PRIORITY`: the three UEFA competitions, then the Premier
+  League, La Liga, Serie A, Bundesliga, Ligue 1, Eredivisie, Primeira Liga, Championship), then by
+  kick-off time, then id. So the free set cannot favour strong calls or be picked after results.
+- Basketball and tennis are not limited. Change the number with `FREE_DAILY_LIMIT`.
+
+**What a locked match is sent:** who is playing, when, and the **bookmaker's** prices. The row's
+"fair price" is removed too, because it is the engine's probability in another form (100 / p). Nothing
+else: no pick, tips, confidence, markets, expected goals. It is withheld by the engine, not blurred by
+the page, so there is nothing in the HTML or the scripts to find. NerdyTips' blur is cosmetic and even
+leaks "trust for 1X is 1.4/10" in a tooltip; this one cannot.
+
+**Caches.** The engine caches fully built boards, so hiding is done to a *copy* at response time and
+the cache is never altered: a member's request can never put unlocked data in front of a visitor
+(`test_what_a_premium_member_was_sent_never_reaches_a_visitor_through_a_cache`). The public pages
+carry no member, so they stay cacheable (Cloudflare included) and are identical for everyone.
+
+**How a member sees the rest.** The website's own requests carry no member, so every public page is
+built hidden. In the browser, `PremiumProvider` asks `/api/auth/me` once; for a premium member it
+fetches the missing rows from `GET /premium/rows?ids=...` (the engine checks the member's token; the
+proxy `web/app/api/engine/[...path]` allow-lists the few paths) and the board fills in. The match page
+fetches `/predict/{id}`; the bankers page, slip and market pages refetch as the member. A visitor sees:
+blurred cells and one "Unlock all predictions" banner per day on the boards, a lock card on a locked
+match page, and for the bankers, slip and market pages only the open items plus a count of the rest.
+
+**Endpoints covered:** `/board`, `/leagues/{slug}`, `/bankers`, `/slip`, `/markets/{kind}`,
+`/predictions/today`, `/predict/{id}`, and `/value`, `/history`, `/analyst` (403 `locked`). Not
+covered because they carry no prediction for an unplayed match: the live board, recent results, the
+record, team pages. `tests/test_access.py` (21 tests) pins all of it, including the order of requests.
+
+**Plans** (`scripts/seed_plans.py`, from code, in US dollars so a card from anywhere works). Set by the
+owner on 23 Oct 2026: weekly **$5**, monthly **$18**, yearly **$150** (the first conversion from
+naira, $10.99 / $33.99 / $267.99, was replaced). VIP monthly was converted from NGN 75,000 at 1 USD =
+1,334.42 NGN to **$55.99** and is not the owner's figure. A week is now a plan interval (7 days). **VIP is created switched off**: it has no benefit
+of its own yet (it unlocks what the other plans do), so selling it would promise something the site does
+not do. Switch it on in `/admin/premium` when there is something only VIP members get.
+
+The pricing page (`/premium`) now leads with the record (stating how many of the graded predictions were
+stored before kick-off and how many were rebuilt afterwards), the three plans with the savings worked out
+from the actual prices, what premium unlocks and what stays free.
+
+**Copy changed to stay true:** Terms (premium section, intro, last-updated date: the owner's lawyer
+should re-read), FAQ, footer, sign-up, account page, feature strip, locked-post note.
+
+**Not done / open**
+- VIP's benefits (see above).
+- Real Stripe payments are still untested end to end; see "Premium" in `docs/deployment.md`.
+- The "free set" is computed per UTC day from the fixtures, cached for a minute; a fixture added later
+  in a day can displace one from the free set. That is fixtures, not predictions, so it cannot be gamed
+  by results, but a visitor could see a match change from open to locked within the day.
