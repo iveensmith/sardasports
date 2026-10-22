@@ -368,3 +368,174 @@ Without a provider you can still grant premium by hand from `/admin/members`.
    is baked into the website at build time, so rebuild `web`.
 5. Stop the temporary tunnel (`stop quicktunnel`) and start `cloudflared`.
 6. **Cloudflare:** the settings and cache rule in the section above.
+
+## Adding a competition, or new models: the UEFA update (22 Oct 2026)
+
+The server's database is separate from the one on the development machine (it holds the live
+stored-prediction record, the members and the editor's picks), so a change that needs new data and
+new models does not reach it by itself. This is the whole procedure, written for the UEFA Champions,
+Europa and Conference League; the same shape fits any competition added later.
+
+**Why the order matters.** Turning a competition on adds columns to what every model reads (here 71
+to 74). The old models then fail on the new shape, which blanks every board (this happened on the
+development machine in the 8-league batch). So the new code and the new models must go live
+together: the engine stays stopped from the code pull until the models are registered.
+
+**Models are trained on the development machine, never on the server.** Training inside the engine
+froze the 4 GB box on 12 Oct (see "Memory"). Copying the files is not enough, because the engine
+finds a model through its row in `model_versions`, and a row made on Windows holds a path with
+backslashes. `scripts/sync_models.py` carries the rows across with paths that work on the server.
+
+The engine is out of service for roughly 15 to 25 minutes. Pick a quiet hour (pages Cloudflare has
+cached keep showing for a minute or so, then an "engine unreachable" notice appears).
+
+### On your PC (PowerShell, from the project folder)
+
+```powershell
+# 1. The models trained on 22 Oct and their database rows. Expect "wrote 12 models".
+.venv/Scripts/python.exe -m scripts.sync_models export --trained-after 2026-10-22 --out C:/temp/uefa/models.json
+
+# 2. Check there are 24 files (12 models, each with a scaler) before uploading.
+(Get-ChildItem ml/models/*20261022T*).Count
+
+# 3. Upload them (replace SERVER with the server's address).
+scp (Get-ChildItem ml/models/*20261022T* | ForEach-Object FullName) deploy@SERVER:/srv/sardasports/models/
+scp C:/temp/uefa/models.json deploy@SERVER:/srv/sardasports/data/models.json
+```
+
+If the export prints 0, the trained-after date is wrong or the models folder is not the one that
+trained them. Do not go on.
+
+### On the server (`ssh deploy@SERVER`)
+
+```bash
+cd /opt/sardasports
+DC="docker compose -f docker-compose.prod.yml --env-file .env.production"
+```
+
+**1. Look first.** Disk, memory, and whether the server's models load at all:
+
+```bash
+df -h /srv && free -h && $DC ps
+$DC logs --tail=3000 api | grep -c "Failed to load model artifact"   # expect 0
+```
+
+A count above 0 means the server's existing models already fail to load (a Windows path in its
+`model_versions` rows) and it has been running on Elo and Poisson alone. This procedure fixes the
+12 football models it carries; for the rest, export again with `--trained-after 2000-01-01`, send
+those files too, and import that file the same way as in step 8.
+
+**2. Take a backup** of the live database (consistent while the engine runs):
+
+```bash
+$DC exec -T api python -m scripts.backup_db --keep 14
+ls -t /srv/sardasports/data/backups | head -1     # note this file's name: it is the way back
+```
+
+**3. Pull the code.**
+
+```bash
+git pull
+git log --oneline -1
+```
+
+**4. Stop the engine** (from here the site's predictions are down):
+
+```bash
+$DC stop api
+```
+
+**5. Build the images** with the engine stopped (a build and a running engine together are what
+pushed the box over before):
+
+```bash
+$DC build api web          # several minutes
+```
+
+**6. Put the model files in place** and check them:
+
+```bash
+sudo chown 1000:1000 /srv/sardasports/models/*20261022T* /srv/sardasports/data/models.json
+ls /srv/sardasports/models | grep -c 20261022T      # expect 24
+```
+
+**7. Club ids, then the UEFA history.** Both run as one-off containers against the same data
+folder, with the engine stopped:
+
+```bash
+# Fills any club still missing its API id (never changes one that has it). Safe to repeat.
+$DC run --rm --no-deps api python -m scripts.team_api_ids apply
+
+# 28 requests. Expect "requests used: 28 of 40", about 300 new clubs, then "Rebuilt Elo history".
+$DC run --rm --no-deps api python -m scripts.fetch_api_competitions --ids 2,3,848 --seasons 2016-2026 --max-requests 40
+```
+
+If it is killed partway (exit code 137, out of memory), run the same line again: seasons already
+loaded are skipped, and a re-run adds nothing twice. The new-clubs report, if you want to read it,
+is `/srv/sardasports/data/processed/api_new_teams.csv`.
+
+**8. Register the models.** A dry run first; it changes nothing:
+
+```bash
+$DC run --rm --no-deps api python -m scripts.sync_models import /app/data/models.json
+```
+
+Expect 12 lines ending "add and activate", most with "(switches off ...)", and "dry run: 12 models".
+If it prints "NOT SAFE TO APPLY", a file is missing: re-upload and repeat. Then apply:
+
+```bash
+$DC run --rm --no-deps api python -m scripts.sync_models import /app/data/models.json --apply
+```
+
+**9. Start everything.**
+
+```bash
+$DC up -d
+$DC ps                      # api, web and cloudflared all up; api "healthy" after a minute
+```
+
+The first request after a start is slow (20 to 40 seconds).
+
+**10. Pull the next week of fixtures** so the UEFA matches exist at once (the scheduler would do it
+within hours):
+
+```bash
+$DC exec -T api python -m scripts.fetch_upcoming_fixtures --days 8
+```
+
+**11. Check it worked.**
+
+```bash
+$DC exec -T api curl -s localhost:8000/health                                  # status ok; note rss_mb
+$DC logs --tail=300 api | grep -i -c "broadcast\|Failed to load model"       # expect 0
+$DC exec -T api python -m scripts.check_site_health --engine http://127.0.0.1:8000 --web http://web:3000
+```
+
+Then in a browser: `/leagues` lists the three UEFA competitions under Europe; `/leagues/uefa-europa-league`
+shows thousands of matches; a UEFA fixture's page shows a pick with sensible expected goals; the home
+page carousel is still there. If Cloudflare caches pages, purge the cache once (Caching > Configuration >
+Purge Everything).
+
+### If it goes wrong
+
+The old code and old models are a consistent pair; a mix of the two is what breaks boards. Go back
+to both together, using the backup named in step 2:
+
+```bash
+$DC stop api
+sudo rm -f /srv/sardasports/data/uniquepredict.db-wal /srv/sardasports/data/uniquepredict.db-shm
+sudo cp /srv/sardasports/data/backups/uniquepredict-YYYYMMDD-HHMMSS.db /srv/sardasports/data/uniquepredict.db
+sudo chown 1000:1000 /srv/sardasports/data/uniquepredict.db
+git checkout aba1850 && $DC up -d --build
+```
+
+(`aba1850` is the last commit before this update.) Anything written between the backup and the
+rollback (a sign-up, an editor's pick) is lost, which is why the procedure is done in a quiet hour.
+
+### After it
+
+- The scheduler keeps UEFA fixtures, results and Elo current from here; nothing more to run.
+- There is no UEFA live or backtested record yet. The league pages say so, and the record fills in as
+  fixtures are predicted before kick-off and then played.
+- The API-Football plan ran to 12 Nov 2026 when this was written. Past that date the by-id result
+  lookups are refused and results arrive more slowly; renew before then.

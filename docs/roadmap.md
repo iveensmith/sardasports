@@ -3282,15 +3282,14 @@ database were the **basketball** Champions League; the football one had no data 
 - The corner and 1X2 read-time calibration curves were fitted before this retrain and not refitted.
 
 **Putting it on the live server (not done from here).** The server's database is separate and holds
-the live stored-prediction record, so none of this reaches it by itself:
-1. `git pull`, rebuild (`docker compose ... up -d --build`).
-2. `docker compose ... exec -T api python scripts/fetch_api_competitions.py --ids 2,3,848 --seasons 2016-2026 --max-requests 40`
-   (28 requests; the plan was Pro until 12 Nov 2026).
-3. Retrain the 12 football models on the server so they are registered in *its* database
-   (`app.scheduler.retrain_models_job` does it, about 25 minutes). Watch memory first: a 4 GB server
-   has been out-of-memory-killed before, and training holds the full 126,000-match table.
-4. Restart the api container, then `exec -T api python scripts/fetch_upcoming_fixtures.py --days 8`.
-The models trained here cannot simply be copied: their versions are registered in this PC's database.
+the live stored-prediction record, so none of this reaches it by itself. The full procedure, with every
+command, is `docs/deployment.md` > "Adding a competition, or new models: the UEFA update". In short:
+pull the code with the engine stopped, ingest the UEFA history in a one-off container, upload the 12
+retrained models and register them with `scripts/sync_models.py`, then start the engine. **Models are
+trained on the development machine, not the server** (the weekly retrain froze the 4 GB box on 12 Oct);
+`sync_models` exists because the engine finds a model through its `model_versions` row, and a row made on
+Windows stores a backslash path that does not resolve on the server. The new code and new models must go
+live together: the old models fail on the 74-column input.
 
 Also this day: footer X and Telegram links set (`web/lib/site.ts`), browser-tab icon replaced
 (`web/app/icon.svg`, `favicon.ico`, `apple-icon.png`, built by `scripts/build_logo_svg.py` and
