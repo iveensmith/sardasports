@@ -8,6 +8,9 @@ sport balls) is drawn by hand. Run:  .venv/Scripts/python.exe scripts/build_logo
 Outputs
   web/public/sardasports-logo.svg             full stacked logo (emblem above wordmark)
   web/public/sardasports-logo-horizontal.svg  compact lockup for the site header/footer
+  web/app/icon.svg                            the browser-tab icon: the emblem on a dark tile
+                                              (web/scripts/build-favicons.mjs makes the .ico and
+                                              the touch icon from it)
 """
 
 from pathlib import Path
@@ -18,6 +21,7 @@ from matplotlib.textpath import TextPath
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "web" / "public"
+APP = ROOT / "web" / "app"
 FONT = FontProperties(fname="C:/Windows/Fonts/ariblk.ttf")
 SHEAR = 0.24  # italic slant, x shift per unit of height
 
@@ -199,8 +203,9 @@ def ring_path(rx, ry, steps=72):
     return poly(outer) + poly(inner[::-1])
 
 
-def emblem(prefix, cx, cy, s):
-    """Italic S inside a tilted gold orbit swoosh; (cx, cy) centre, s scale."""
+def emblem(prefix, cx, cy, s, s_scale=0.62):
+    """Italic S inside a tilted gold orbit swoosh; (cx, cy) centre, s scale.
+    `s_scale` is the letter's size against the orbit (the favicon makes it bigger)."""
     s_path, sw, asc = text_outline("S", 240)
     ox, oy = -sw / 2, asc / 2
     ring = ring_path(170, 62)
@@ -224,7 +229,7 @@ def emblem(prefix, cx, cy, s):
       <path d="{ring}" fill="url(#{prefix}-og)" fill-rule="evenodd" stroke="{INK}" stroke-width="5"/>
       <ellipse rx="150" ry="53" fill="none" stroke="#fff" stroke-width="3.5" stroke-dasharray="300 700" stroke-dashoffset="-150" stroke-linecap="round"/>
     </g>
-    <g transform="translate({ox * 0.62:.2f} {oy * 0.62:.2f}) scale(0.62)">
+    <g transform="translate({ox * s_scale:.2f} {oy * s_scale:.2f}) scale({s_scale})">
       <path d="{s_path}" fill="url(#{prefix}-sg)" stroke="{INK}" stroke-width="14" paint-order="stroke"/>
     </g>
     <g transform="rotate(-24)" clip-path="url(#{prefix}-front)">
@@ -260,9 +265,20 @@ def build_horizontal():
     return svg_doc(width, height, em + bl + word, "SARDASPORTS")
 
 
+def build_favicon():
+    """The emblem alone, big, on a dark rounded tile: the stacked logo's balls and wordmark
+    are unreadable at 16 px, the S and its gold orbit are not."""
+    size = 512
+    em = emblem("fv", size / 2, size / 2 + 4, 1.22, s_scale=1.02)
+    body = f'  <rect width="{size}" height="{size}" rx="104" fill="{INK}"/>' + em
+    return svg_doc(size, size, body, "SARDASPORTS")
+
+
 if __name__ == "__main__":
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "sardasports-logo.svg").write_text(build_stacked(), encoding="utf-8")
     (OUT / "sardasports-logo-horizontal.svg").write_text(build_horizontal(), encoding="utf-8")
+    (APP / "icon.svg").write_text(build_favicon(), encoding="utf-8")
+    print("wrote", APP / "icon.svg")
     print("wrote", OUT / "sardasports-logo.svg")
     print("wrote", OUT / "sardasports-logo-horizontal.svg")
