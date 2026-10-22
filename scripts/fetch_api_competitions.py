@@ -467,7 +467,13 @@ def main(argv: list[str] | None = None) -> None:
 
 
 def _already_ingested(session, comp: ApiCompetition, season_year: int) -> bool:
-    """A finished past season never changes; the current one always might."""
+    """A finished past season never changes; the current one always might.
+
+    Decided by the season label the loaded matches carry, not by a date window: a window wide
+    enough to hold a season also holds the start of the next one, and a final played in June
+    (every Champions League and Conference League final, and some Europa League ones) made the
+    following season look already loaded, so it was never fetched.
+    """
     if season_year >= datetime.now(UTC).year:
         return False
     return (
@@ -475,8 +481,7 @@ def _already_ingested(session, comp: ApiCompetition, season_year: int) -> bool:
         .filter(
             Match.competition == comp.name,
             Match.external_id.like("apif-%"),
-            Match.match_date >= datetime(season_year, 6, 1),
-            Match.match_date < datetime(season_year + 2, 1, 1),
+            Match.season == season_label(season_year, comp.split_year),
         )
         .first()
         is not None

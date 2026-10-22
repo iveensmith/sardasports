@@ -26,6 +26,7 @@ from ml.api_competitions import (
 )
 from scripts.fetch_api_competitions import (
     TeamResolver,
+    _already_ingested,
     apply_team_mapping,
     ingest_competition_season,
     parse_fixture,
@@ -408,6 +409,42 @@ def test_champions_league_season_is_labelled_across_both_years(db_session):
     assert {m.season for m in db_session.query(Match).filter(Match.competition == UCL.name)} == {
         "2024-2025"
     }
+
+
+def _stored(db_session, comp, season, kickoff, external_id):
+    home = Team(name=f"H-{external_id}", league="x", sport="football")
+    away = Team(name=f"A-{external_id}", league="x", sport="football")
+    db_session.add_all([home, away])
+    db_session.flush()
+    db_session.add(
+        Match(
+            external_id=external_id,
+            match_date=kickoff,
+            competition=comp.name,
+            season=season,
+            home_team_id=home.id,
+            away_team_id=away.id,
+            status="completed",
+            home_score=1,
+            away_score=0,
+        )
+    )
+    db_session.flush()
+
+
+def test_a_final_played_in_june_does_not_make_the_next_season_look_already_loaded(db_session):
+    """The Champions League final is played in June. The check used a date window that
+    reached into the following season, so 2016-17's final (3 June 2017) made 2017-18 read as
+    loaded and it was never fetched: Champions League 2017, 2019 and 2023, Europa League 2020
+    and Conference League 2023 were skipped on the first real ingest."""
+    _stored(db_session, UCL, "2016-2017", datetime(2017, 6, 3, 18, 45), "apif-final-2017")
+
+    assert _already_ingested(db_session, UCL, 2016) is True
+    assert _already_ingested(db_session, UCL, 2017) is False
+
+
+def test_a_season_with_no_matches_stored_is_not_already_loaded(db_session):
+    assert _already_ingested(db_session, UCL, 2018) is False
 
 
 # --- national-team competitions ---------------------------------------------
