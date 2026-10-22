@@ -386,7 +386,9 @@ def test_a_plan_needs_sensible_values(client, db_session):
     base = {"code": "x", "name": "X", "price_minor": 100, "currency": "GBP", "interval": "month"}
 
     assert (
-        client.post("/admin/plans", json={**base, "interval": "week"}, headers=headers).status_code
+        client.post(
+            "/admin/plans", json={**base, "interval": "fortnight"}, headers=headers
+        ).status_code
         == 400
     )
     assert (
@@ -399,3 +401,34 @@ def test_a_plan_needs_sensible_values(client, db_session):
         client.post("/admin/plans", json={**base, "price_minor": 0}, headers=headers).status_code
         == 422
     )
+
+
+def _pay(db_session, user, plan, event_id):
+    premium_service.apply_payment(
+        db_session,
+        provider="stripe",
+        event_id=event_id,
+        kind="x",
+        user_id=user.id,
+        plan_code=plan.code,
+        amount_minor=plan.price_minor,
+        currency=plan.currency,
+        provider_ref=event_id,
+    )
+
+
+def test_each_interval_buys_its_own_length_of_access(db_session):
+    for code, interval, days in (
+        ("weekly", "week", 7),
+        ("monthly", "month", 31),
+        ("yearly", "year", 366),
+    ):
+        user = _user(db_session, f"{code}@example.com")
+        plan = _plan(db_session, code=code, price=1099, currency="USD", interval=interval)
+
+        _pay(db_session, user, plan, f"pay-{code}")
+
+        db_session.expire_all()
+        sub = db_session.query(Subscription).filter(Subscription.user_id == user.id).one()
+        left = sub.current_period_end - _now()
+        assert timedelta(days=days - 1) < left <= timedelta(days=days)

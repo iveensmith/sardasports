@@ -170,6 +170,7 @@ export function PlansAdmin() {
                 defaultValue="month"
                 className={`${inputClass} mt-1.5`}
               >
+                <option value="week">A week</option>
                 <option value="month">A month</option>
                 <option value="year">A year</option>
               </select>

@@ -25,7 +25,7 @@ from app.models.premium import (
     Subscription,
 )
 
-INTERVAL_DAYS = {"month": 31, "year": 366}
+INTERVAL_DAYS = {"week": 7, "month": 31, "year": 366}
 
 
 def _now() -> datetime:
@@ -105,7 +105,7 @@ def save_plan(
     if not code or not code.replace("-", "").replace("_", "").isalnum():
         raise ValueError("The plan code can use letters, numbers, - and _ only.")
     if interval not in INTERVAL_DAYS:
-        raise ValueError("The interval must be 'month' or 'year'.")
+        raise ValueError("The interval must be 'week', 'month' or 'year'.")
     if price_minor <= 0:
         raise ValueError("The price must be more than zero.")
     currency = currency.strip().upper()

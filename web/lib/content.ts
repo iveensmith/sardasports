@@ -62,14 +62,15 @@ export interface PlanView {
   description: string;
   price_minor: number;
   currency: string;
-  interval: "month" | "year";
+  interval: "week" | "month" | "year";
   active: boolean;
 }
 
 /** "£9.99" / "₦5,000" from an amount in the smallest unit. */
 export function money(minor: number, currency: string): string {
   try {
-    return new Intl.NumberFormat("en-GB", {
+    // US dollars read as "$10.99" in the US style; in the UK style they read "US$10.99".
+    return new Intl.NumberFormat(currency === "USD" ? "en-US" : "en-GB", {
       style: "currency",
       currency,
       maximumFractionDigits: minor % 100 === 0 ? 0 : 2,
