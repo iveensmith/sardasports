@@ -58,6 +58,6 @@ export const SOCIAL_CONTACTS: {
   x: string | null;
 } = {
   whatsapp: "447741807953",
-  telegram: null,
-  x: null,
+  telegram: "sardasports",
+  x: "SARDASPORTS",
 };
