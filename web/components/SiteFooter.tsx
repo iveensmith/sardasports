@@ -120,7 +120,7 @@ export async function SiteFooter() {
             </Link>
             <p className="mt-3 max-w-[42ch] text-[13.5px] leading-relaxed text-[var(--color-text-dim)]">
               The best AI prediction site for football, with basketball and
-              tennis too. Free picks are published every day, open to read
+              tennis too. Fifteen football predictions are free every day, open to read
               without an account, and every football pick is graded against the final score,
               wins and losses both, on the public record.
             </p>

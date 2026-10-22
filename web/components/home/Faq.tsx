@@ -69,7 +69,7 @@ export function Faq({
     },
     {
       q: "Do I need an account to see today's picks?",
-      a: "No. Every board and the full record are free to read without one. A free account (18+, confirmed by e-mail) is where premium lives: early access to the editor's picks and members-only write-ups. Premium never changes the engine's predictions or the record.",
+      a: "No. Fifteen football predictions are free every day and the full record is free to read, all without an account. The rest of the day's predictions open for premium members before kick-off, and for everyone once the match starts. A free account (18+, confirmed by e-mail) is where premium lives. Premium never changes the engine's predictions or the record: it only decides when you see them.",
     },
     {
       q: "Can I see the picks that lost?",

@@ -180,8 +180,8 @@ export function AccountPanel({
         ) : (
           <div className="space-y-3">
             <p className="text-[14.5px] text-[var(--color-text-dim)]">
-              You are on the free plan. Everything on the boards and the record
-              stays free.
+              You are on the free plan: 15 predictions a day and the record
+              stay free. Premium opens the rest before kick-off.
             </p>
             <Link href="/premium" className="nt-cta nt-cta--primary">
               See premium

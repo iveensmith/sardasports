@@ -113,8 +113,8 @@ export default async function PostPage({
           <div className="rounded-[14px] border-2 border-[var(--color-gold)]/70 bg-[var(--color-surface)] p-6">
             <p className="text-[17px] font-bold">This post is for premium members</p>
             <p className="mt-1.5 text-[14.5px] leading-relaxed text-[var(--color-text-dim)]">
-              Premium sells early access and the write-ups. The engine&rsquo;s
-              predictions and the record stay free for everyone.
+              Premium sells early access: every engine prediction before
+              kick-off, and the write-ups. The record stays open to everyone.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/premium" className="nt-cta nt-cta--primary">

@@ -29,7 +29,7 @@ export const metadata = pageMetadata({
   path: "/terms",
 });
 
-const LAST_UPDATED = "14 October 2026";
+const LAST_UPDATED = "23 October 2026";
 
 export default function TermsPage() {
   return (
@@ -57,8 +57,9 @@ export default function TermsPage() {
                 It is operated by <Strong>{OPERATOR_NAME}</Strong>.
               </>
             ) : null}{" "}
-            It is free to read and needs no account. An account is optional,
-            and premium is an optional paid extra.
+            Fifteen football predictions a day are free to read and need no
+            account; the rest are for premium members until kick-off. An
+            account is optional, and premium is an optional paid extra.
           </p>
         </Section>
 
@@ -84,14 +85,16 @@ export default function TermsPage() {
           <List>
             <li>
               Premium is a <Strong>one-off payment for a period</Strong> (for
-              example a month or a year). It does not renew by itself and we
+              week, a month or a year). It does not renew by itself and we
               will not charge you again unless you choose to pay again.
             </li>
             <li>
-              It gives access to the editor&rsquo;s premium picks before
-              kick-off and to premium posts. Every engine prediction, the record
-              and the boards stay free, and a premium pick is visible to
-              everyone from kick-off, with its result.
+              Fifteen football predictions a day are free for everyone.
+              Premium opens every other prediction before kick-off, and gives
+              access to the editor&rsquo;s premium picks and to premium posts.
+              Every prediction, premium or not, is visible to everyone from
+              kick-off with its result, and the record counts all of them, so
+              what premium sells is early access, not a different record.
             </li>
             <li>
               Payment is taken on the payment provider&rsquo;s own page. If

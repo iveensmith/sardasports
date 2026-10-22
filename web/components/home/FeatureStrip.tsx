@@ -42,8 +42,8 @@ const ITEMS = [
   },
   {
     icon: ShieldCheck,
-    title: "Free to use",
-    text: "Free to read, free to join",
+    title: "Free every day",
+    text: "15 predictions, no account",
     href: "/about",
   },
 ];

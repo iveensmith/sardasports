@@ -14,7 +14,7 @@ export default function SignUpPage() {
   return (
     <PanelCard
       title="Create your account"
-      intro="Free, and optional: every board and the record stay open to everyone. An account is where premium lives and where your e-mail preferences are kept."
+      intro="Free, and optional: 15 predictions a day and the record stay open to everyone. An account is where premium lives and where your e-mail preferences are kept."
     >
       <SignUpForm />
     </PanelCard>
