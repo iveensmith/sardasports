@@ -221,6 +221,13 @@ class DixonColesModel(PoissonModel):
     decay_per_day: float = 0.0
     as_of: object = None  # datetime the ages are measured from
     fit_rho: bool = True
+    # Shrinkage toward an average team, in "matches": each team's strengths are fitted as if it had
+    # also played this many matches at exactly average strength. Zero is the plain fit. It exists
+    # for competitions whose teams rarely meet (the UEFA club competitions), where a handful of
+    # matches against unrelated opponents is enough for the plain fit to produce a defence of 0.05
+    # or an attack of 5, and to state it with full confidence. A league where every team plays
+    # every other many times does not need it and keeps zero.
+    prior_matches: float = 0.0
 
     def _weights(self, matches: list[dict]) -> list[float]:
         if not self.decay_per_day:
@@ -255,6 +262,8 @@ class DixonColesModel(PoissonModel):
             appearances[away].append((m["away_score"], m["home_score"], home, False, w))
 
         avg_home, avg_away = self.league_avg_home_goals, self.league_avg_away_goals
+        # The prior's weight in goals: `prior_matches` average-strength matches' worth.
+        prior_goals = self.prior_matches * (avg_home + avg_away) / 2
         for _ in range(50):
             for team in teams:
                 scored = expected = 0.0
@@ -262,16 +271,20 @@ class DixonColesModel(PoissonModel):
                     scored += w * goals_for
                     league_avg = avg_home if at_home else avg_away
                     expected += w * league_avg * strengths[opponent].defense
-                if expected > 0:
-                    strengths[team].attack = max(0.05, scored / expected)
+                if expected + prior_goals > 0:
+                    strengths[team].attack = max(
+                        0.05, (scored + prior_goals) / (expected + prior_goals)
+                    )
             for team in teams:
                 conceded = expected = 0.0
                 for _for, goals_against, opponent, at_home, w in appearances[team]:
                     conceded += w * goals_against
                     league_avg = avg_away if at_home else avg_home
                     expected += w * league_avg * strengths[opponent].attack
-                if expected > 0:
-                    strengths[team].defense = max(0.05, conceded / expected)
+                if expected + prior_goals > 0:
+                    strengths[team].defense = max(
+                        0.05, (conceded + prior_goals) / (expected + prior_goals)
+                    )
 
         self.team_strength = strengths
         self._is_fitted = True

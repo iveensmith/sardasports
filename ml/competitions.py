@@ -44,7 +44,7 @@ tournament football is lower-scoring than a friendly.
 
 from __future__ import annotations
 
-from ml.api_competitions import enabled_national, family_of
+from ml.api_competitions import BY_ID, enabled_national, family_of
 
 # The national-team competitions the engine launched with. Keep in sync with the
 # international block of `ml.training.common.KNOWN_COMPETITIONS`.
@@ -70,6 +70,31 @@ INTERNATIONAL_COMPETITIONS: frozenset[str] = _BASE_INTERNATIONAL_COMPETITIONS | 
 # impossible as a real competition name so it can never collide with one.
 INTERNATIONAL_POOL = "__international__"
 
+# The UEFA club competitions (Champions, Europa and Conference League), by registry id. They are
+# clubs, not national teams, but they have the same problem international football has: clubs
+# from dozens of leagues meet a few times a season, so a fit per competition sees a handful of
+# matches per club against unrelated opponents. They fit as one pool, since a club moves between
+# the three (a Champions League qualifier drops into the Europa League) and that is what joins
+# the graph of who has played whom.
+UEFA_CLUB_COMPETITIONS: frozenset[str] = frozenset(BY_ID[i].name for i in (2, 3, 848))
+UEFA_CLUB_POOL = "__uefa_clubs__"
+
+# Shrinkage, in matches, applied to a pool's team strengths (`DixonColesModel.prior_matches`).
+# A pool not listed here is fitted plainly. Measured walk-forward on the 2,028 UEFA club matches
+# played between September 2024 and October 2026, each month fitted on everything before it:
+#
+#                                   1X2 log loss   Over 2.5 log loss   xG under 0.4 or over 3.0
+#   fit per competition, no prior       1.0791          0.7895                10.9%
+#   one pool, no prior                  0.9982          0.7275                 6.5%
+#   one pool, prior of 2 matches        0.9714          0.6988                 1.1%
+#   one pool, prior of 8 matches        0.9876          0.6873                 0.1%
+#   every team average (a constant)     1.0413          0.6875                 0.0%
+#
+# The first row is worse than assuming every team is average, and put expected goals of 4 to 5
+# on a side in some fixtures. 8 is where Over 2.5 stops being worse than a constant, and 1X2
+# keeps most of the gain; the blend with Elo and the trained model sharpens 1X2 further.
+POOL_PRIOR_MATCHES: dict[str, float] = {UEFA_CLUB_POOL: 8.0}
+
 
 def is_international(competition: str | None) -> bool:
     return competition in INTERNATIONAL_COMPETITIONS
@@ -87,6 +112,8 @@ def fit_pool(competition: str | None) -> str | None:
         return None
     if competition in INTERNATIONAL_COMPETITIONS:
         return INTERNATIONAL_POOL
+    if competition in UEFA_CLUB_COMPETITIONS:
+        return UEFA_CLUB_POOL
     # A regional group fits with its whole tier: eighteen Tercera RFEF groups
     # never share a team, play the same kind of football, and are far too small
     # alone. Every other domestic competition is its own family.

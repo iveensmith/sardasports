@@ -355,12 +355,13 @@ def test_the_three_uefa_club_competitions_are_registered_under_europe():
 
 def test_uefa_club_competitions_are_not_in_the_national_team_pool():
     """They sit under "Europe" beside the Euros, but they are made of clubs. The
-    national-team Poisson pool must not swallow them."""
-    from ml.competitions import INTERNATIONAL_COMPETITIONS, fit_pool
+    national-team Poisson pool must not swallow them. They fit together as their own
+    pool instead (see tests/test_uefa_pool.py)."""
+    from ml.competitions import INTERNATIONAL_COMPETITIONS, INTERNATIONAL_POOL, fit_pool
 
     for name in ("UEFA Champions League", "UEFA Europa League", "UEFA Conference League"):
         assert name not in INTERNATIONAL_COMPETITIONS
-        assert fit_pool(name) == name
+        assert fit_pool(name) != INTERNATIONAL_POOL
 
 
 def test_the_champions_league_final_is_neutral_and_recorded_at_90_minutes():

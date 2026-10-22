@@ -20,7 +20,7 @@ import lightgbm as lgb
 import numpy as np
 import xgboost as xgb
 
-from ml.competitions import fit_pool
+from ml.competitions import POOL_PRIOR_MATCHES, fit_pool
 from ml.elo.engine import EloEngine
 from ml.ensemble import EnsembleInput, EnsembleOutput, combine
 from ml.feature_engineering.features import (
@@ -67,11 +67,15 @@ CARDS_MAX = 10
 GOALS_DECAY_PER_DAY = 0.001
 
 
-def fit_goals_model(matches: list[dict]) -> DixonColesModel:
-    """The full-time goals model for a list of completed matches (may be empty)."""
+def fit_goals_model(matches: list[dict], prior_matches: float = 0.0) -> DixonColesModel:
+    """The full-time goals model for a list of completed matches (may be empty).
+
+    `prior_matches` shrinks the strengths toward an average team; see `POOL_PRIOR_MATCHES`."""
     if not matches:
         return DixonColesModel()
-    return DixonColesModel(decay_per_day=GOALS_DECAY_PER_DAY).fit(matches)
+    return DixonColesModel(decay_per_day=GOALS_DECAY_PER_DAY, prior_matches=prior_matches).fit(
+        matches
+    )
 
 
 # Full-time goals: reuses the *same* goals model already fit below (no
@@ -297,7 +301,7 @@ def build_shared_fits(
         ]
         by_pool_fit[pool] = fits[competition] = SharedFit(
             history_index=index,
-            poisson=fit_goals_model(poisson_matches),
+            poisson=fit_goals_model(poisson_matches, POOL_PRIOR_MATCHES.get(pool, 0.0)),
             # Scoping already happened, so these pass `None` to avoid a
             # second, redundant filter over the same rows.
             corners_poisson=_fit_count_stat_poisson(scoped, None, _corners_value, CORNERS_MAX),
@@ -428,7 +432,11 @@ def predict_match(
     # strengths from — fall back to the model's default league-average
     # parameters (a neutral "average team vs. average team" estimate) rather
     # than crashing the whole prediction.
-    poisson = shared.poisson if shared is not None else fit_goals_model(poisson_matches)
+    poisson = (
+        shared.poisson
+        if shared is not None
+        else fit_goals_model(poisson_matches, POOL_PRIOR_MATCHES.get(_pool, 0.0))
+    )
     poisson_probs = poisson.result_probabilities(home_team, away_team)
     expected_home, expected_away = poisson.expected_goals(home_team, away_team)
     top_scorelines = poisson.top_scorelines(home_team, away_team, n=5)
