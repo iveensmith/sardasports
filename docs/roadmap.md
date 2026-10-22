@@ -3235,3 +3235,63 @@ to the sitemap.
 **Not built (still on the plan):** e-mail digests and Telegram alerts, member dashboards (watchlist,
 saved slips), automatic renewal and reminders, per-provider refunds from the dashboard, a member
 export. Say which next.
+
+## UEFA Champions, Europa and Conference League switched on (22 Oct 2026)
+
+The owner found the three UEFA club competitions were not covered. They were registered
+(`ml/api_competitions.py`, ids 2, 3, 848) but disabled. The 24 "Champions League" rows already in the
+database were the **basketball** Champions League; the football one had no data at all.
+
+**What was done, in the runbook's order**
+- Ingested 2016-2026 for the three (28 requests, about 8,300 played matches, 320 new clubs).
+- Reviewed the new clubs. 18 looked like existing clubs; each was checked and all are different
+  clubs (e.g. provider id 952 "Atromitos Athinon" is Atromitos Yeroskipou in Cyprus, not the Greek
+  club). No aliases were needed, and no damaged (U+FFFD or mojibake) names came in.
+- Set `ENABLED_IDS = {2, 3, 848}`: three new one-hot columns (74 features), all 12 football models
+  retrained, engine restarted (the standing `KNOWN_COMPETITIONS` rule). Accuracy before to after,
+  each within half a point: match result 49.3 to 49.5%, BTTS 55.3 to 54.9%, goals 1.5 / 2.5 / 3.5
+  75.7 to 75.8 / 55.7 to 55.4 / 70.7 to 70.2%, half-time 70.7 to 70.7%, corners 73.3 / 61.8 / 54.0
+  (unchanged), cards 77.3 / 59.4 / 61.2 (unchanged). Test windows differ slightly, so read these as
+  "no regression", not as small gains.
+- Pulled the next 8 days of fixtures: 36 UEFA fixtures for 22 Oct.
+
+**Three defects found on the way (all fixed, all pinned by tests)**
+1. **Training could not see the new competitions.** `fetch_api_competitions` writes to the
+   database; training reads only `data/processed/matches.csv`. Enabling a competition would have
+   added its column and trained on none of its matches. `ml.training.common.load_enabled_api_matches`
+   now adds the enabled API competitions from the database (only ones absent from the CSV).
+2. **The ingest skipped seasons.** `_already_ingested` used a date window that reached into the next
+   season, so a final played in June (every Champions League final) made the following season look
+   loaded: Champions League 2017, 2019, 2023, Europa League 2020 and Conference League 2023 were
+   skipped. It now decides by the stored season label.
+3. **The goals model was worse than guessing for UEFA.** Fitted per competition on thin data, expected
+   goals ran 0.05 to 5.3 a side (Monaco v Freiburg at 2.8 v 5.0). The same failure `ml/competitions.py`
+   documents for internationals. The three UEFA competitions now fit as one pool
+   (`UEFA_CLUB_POOL`) with a shrinkage prior of 8 matches (`DixonColesModel.prior_matches`, default 0, so
+   no domestic league changed). Walk-forward on 2,028 held-out UEFA matches: 1X2 log-loss 1.079 to
+   0.988, Over 2.5 log-loss 0.790 to 0.687 (a constant scores 0.688), extreme expected goals 10.9% to
+   0.1%. Today's 36 fixtures now run 0.7 to 2.2 expected goals.
+
+**Honest limits**
+- No corners or cards markets for UEFA: the API ingest records scores only, so those markets are
+  absent rather than invented. Half-time goals likewise.
+- A club's rating from its own league and its UEFA record are linked only through the matches
+  between them; early-season qualifier clubs with a handful of matches are close to average by
+  design.
+- There is no UEFA live or backtested record yet; the league pages say so.
+- The corner and 1X2 read-time calibration curves were fitted before this retrain and not refitted.
+
+**Putting it on the live server (not done from here).** The server's database is separate and holds
+the live stored-prediction record, so none of this reaches it by itself:
+1. `git pull`, rebuild (`docker compose ... up -d --build`).
+2. `docker compose ... exec -T api python scripts/fetch_api_competitions.py --ids 2,3,848 --seasons 2016-2026 --max-requests 40`
+   (28 requests; the plan was Pro until 12 Nov 2026).
+3. Retrain the 12 football models on the server so they are registered in *its* database
+   (`app.scheduler.retrain_models_job` does it, about 25 minutes). Watch memory first: a 4 GB server
+   has been out-of-memory-killed before, and training holds the full 126,000-match table.
+4. Restart the api container, then `exec -T api python scripts/fetch_upcoming_fixtures.py --days 8`.
+The models trained here cannot simply be copied: their versions are registered in this PC's database.
+
+Also this day: footer X and Telegram links set (`web/lib/site.ts`), browser-tab icon replaced
+(`web/app/icon.svg`, `favicon.ico`, `apple-icon.png`, built by `scripts/build_logo_svg.py` and
+`web/scripts/build-favicons.mjs`), crests served resized, and the results carousel restored.

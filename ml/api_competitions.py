@@ -1010,9 +1010,12 @@ API_COMPETITIONS: tuple[ApiCompetition, ...] = (
     *(_national(row) for row in _NATIONALS),
 )
 
-# Competitions switched on. Empty until data is ingested and the models are
-# retrained for them — see the module docstring.
-ENABLED_IDS: frozenset[int] = frozenset()
+# Competitions switched on. A competition joins only in the change that carries its data and
+# the retrained models — see the module docstring.
+#
+# 2, 3, 848: the UEFA Champions, Europa and Conference League (history 2016-2026 ingested on
+# 22 Oct 2026 with `fetch_api_competitions --ids 2,3,848 --seasons 2016-2026`).
+ENABLED_IDS: frozenset[int] = frozenset({2, 3, 848})
 
 BY_ID: dict[int, ApiCompetition] = {c.api_id: c for c in API_COMPETITIONS}
 BY_NAME: dict[str, ApiCompetition] = {c.name: c for c in API_COMPETITIONS}

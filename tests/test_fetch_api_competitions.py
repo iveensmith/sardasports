@@ -267,11 +267,17 @@ def test_a_fixture_already_held_under_another_id_is_not_duplicated(db_session):
 # --- the registry -----------------------------------------------------------
 
 
-def test_nothing_is_enabled_so_the_feature_schema_is_unchanged():
+def test_only_competitions_with_data_and_retrained_models_are_enabled():
     """Enabling a competition widens the feature vector, which needs a retrain
     and a restart. It must only ever happen in the same change that carries the
-    data and the retrained models."""
-    assert enabled_families() == []
+    data and the retrained models. The three UEFA club competitions were enabled
+    on 22 Oct 2026 with their history ingested and the models retrained; adding to
+    this list is that same change again, never one of them on its own."""
+    assert enabled_families() == [
+        "UEFA Champions League",
+        "UEFA Europa League",
+        "UEFA Conference League",
+    ]
 
 
 def test_a_regional_group_shares_its_tiers_family():
